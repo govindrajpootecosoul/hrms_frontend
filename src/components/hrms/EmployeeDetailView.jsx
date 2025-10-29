@@ -1,0 +1,351 @@
+'use client';
+
+import { useState, useRef } from 'react';
+import { User, Mail, Phone, Calendar } from 'lucide-react';
+import Tabs from '@/components/common/Tabs';
+import Card from '@/components/common/Card';
+import Button from '@/components/common/Button';
+import Badge from '@/components/common/Badge';
+
+const EmployeeDetailView = ({
+  employee,
+  onEdit,
+  onDelete,
+  onExport,
+  loading = false
+}) => {
+  const [activeTab, setActiveTab] = useState('general');
+  const [profilePreview, setProfilePreview] = useState(employee?.profilePicture || null);
+  const fileInputRef = useRef(null);
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-neutral-200 rounded w-1/3 mb-4"></div>
+          <div className="h-64 bg-neutral-200 rounded"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!employee) {
+    return (
+      <div className="text-center py-12">
+        <User className="w-16 h-16 text-neutral-400 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-neutral-900 mb-2">No Employee Selected</h3>
+        <p className="text-neutral-600">Select an employee to view their details</p>
+      </div>
+    );
+  }
+
+  const tabs = [
+    { id: 'general', label: 'General', icon: <User className="w-4 h-4" /> },
+    { id: 'personal', label: 'Personal', icon: <User className="w-4 h-4" /> },
+    { id: 'bank', label: 'Bank Details', icon: <User className="w-4 h-4" /> },
+    { id: 'settings', label: 'Settings', icon: <User className="w-4 h-4" /> }
+  ];
+
+  // Deterministic date formatting to avoid hydration mismatches
+  const formatDate = (isoDate) => {
+    if (!isoDate) return 'Not provided';
+    const parts = String(isoDate).split('-');
+    if (parts.length !== 3) return String(isoDate);
+    const [y, m, d] = parts;
+    return `${d}/${m}/${y}`; // dd/mm/yyyy
+  };
+
+  const formatDateTime = (isoDateTime) => {
+    if (!isoDateTime) return 'Unknown';
+    try {
+      const d = new Date(isoDateTime);
+      const date = d.toISOString().slice(0, 10); // YYYY-MM-DD
+      const time = d.toISOString().slice(11, 19); // HH:MM:SS
+      const [y, m, day] = date.split('-');
+      return `${day}/${m}/${y} ${time}`;
+    } catch {
+      return String(isoDateTime);
+    }
+  };
+
+  const SummaryCard = ({ icon, title, children, trailing }) => (
+    <Card variant="glass" className="h-full">
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-white/10 border border-white/20 flex items-center justify-center">
+            <span className="text-white/90">{icon}</span>
+          </div>
+          <h4 className="text-white font-medium">{title}</h4>
+        </div>
+        {trailing}
+      </div>
+      <div className="mt-4 text-white/90 space-y-1">
+        {children}
+      </div>
+    </Card>
+  );
+
+  const renderGeneralTab = () => (
+    <div className="space-y-6">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+        <SummaryCard icon={<User className="w-5 h-5" />} title={employee.name}>
+          <div className="flex items-center gap-4">
+            <div className="relative w-40 h-40 rounded-full overflow-hidden bg-white/10 border border-white/20 flex items-center justify-center">
+              {profilePreview ? (
+                <img src={profilePreview} alt={employee.name} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-xl font-bold text-white">
+                  {employee.name?.charAt(0)?.toUpperCase() || 'E'}
+                </span>
+              )}
+            </div>
+            <div className="flex flex-col">
+              <p className="text-white/70 text-sm leading-tight">{employee.designation}</p>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="mt-2 inline-flex items-center px-3 py-1.5 rounded-lg text-xs bg-white/10 hover:bg-white/15 border border-white/20 text-white transition-colors"
+              >
+                Upload Photo
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = () => setProfilePreview(String(reader.result));
+                  reader.readAsDataURL(file);
+                }}
+              />
+            </div>
+          </div>
+        </SummaryCard>
+        <SummaryCard icon={<Mail className="w-5 h-5" />} title="Contact">
+          <p className="text-sm"><span className="text-white/70">Email</span></p>
+          <p className="font-mono">{employee.email}</p>
+          <p className="text-sm mt-2"><span className="text-white/70">Phone Number</span></p>
+          <p>{employee.phone}</p>
+        </SummaryCard>
+        <SummaryCard icon={<User className="w-5 h-5" />} title="Department">
+          <p className="text-sm text-white/70">Department</p>
+          <p>{employee.department}</p>
+          <p className="text-sm text-white/70 mt-2">Office</p>
+          <p>ThriveBrands</p>
+        </SummaryCard>
+        <SummaryCard icon={<User className="w-5 h-5" />} title="Biometric" trailing={<div className="w-10 h-6 rounded-full bg-emerald-500/30 border border-emerald-400/40 flex items-center px-1"><div className="w-4 h-4 bg-emerald-400 rounded-full ml-auto" /></div>}>
+          <p className="text-sm text-white/70">Biometric ID</p>
+          <p className="font-mono">{employee.biometricId}</p>
+          <div className="flex items-center gap-2 mt-2 text-emerald-400">
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span className="text-sm">Active</span>
+          </div>
+        </SummaryCard>
+      </div>
+
+      {/* Removed lower profile header to keep the summary cards as the main header */}
+
+      {/* Basic Information */}
+      <Card variant="glass" title="Personal Information" subtitle="Basic employee details">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <div className="flex items-center">
+              <Mail className="w-5 h-5 text-white/70 mr-3" />
+              <div>
+                <p className="text-sm font-medium text-white/70">Email</p>
+                <p className="text-white">{employee.email}</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center">
+              <Phone className="w-5 h-5 text-white/70 mr-3" />
+              <div>
+                <p className="text-sm font-medium text-white/70">Phone</p>
+                <p className="text-white">{employee.phone}</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center">
+              <User className="w-5 h-5 text-white/70 mr-3" />
+              <div>
+                <p className="text-sm font-medium text-white/70">Biometric ID</p>
+                <p className="text-white font-mono">{employee.biometricId}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="flex items-center">
+              <User className="w-5 h-5 text-white/70 mr-3" />
+              <div>
+                <p className="text-sm font-medium text-white/70">Department</p>
+                <p className="text-white">{employee.department}</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center">
+              <Calendar className="w-5 h-5 text-white/70 mr-3" />
+              <div>
+                <p className="text-sm font-medium text-white/70">Date of Birth</p>
+                <p className="text-white">{formatDate(employee.dateOfBirth)}</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center">
+              <User className="w-5 h-5 text-white/70 mr-3" />
+              <div>
+                <p className="text-sm font-medium text-white/70">Gender</p>
+                <p className="text-white capitalize">{employee.gender || 'Not specified'}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+
+  const renderPersonalTab = () => (
+    <Card variant="glass" title="Personal Information">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm font-medium text-white/70">Father's Name</p>
+            <p className="text-white">{employee.fatherName || 'Not provided'}</p>
+          </div>
+          
+          <div>
+            <p className="text-sm font-medium text-white/70">Personal Email</p>
+            <p className="text-white">{employee.personalEmail || 'Not provided'}</p>
+          </div>
+          
+          <div>
+            <p className="text-sm font-medium text-white/70">Marital Status</p>
+            <p className="text-white">{employee.maritalStatus || 'Not specified'}</p>
+          </div>
+          
+          <div>
+            <p className="text-sm font-medium text-white/70">Blood Group</p>
+            <p className="text-white">{employee.bloodGroup || 'Not specified'}</p>
+          </div>
+        </div>
+        
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm font-medium text-white/70">Address</p>
+            <p className="text-white">{employee.address || 'Not provided'}</p>
+          </div>
+          
+          <div>
+            <p className="text-sm font-medium text-white/70">Emergency Contact</p>
+            <p className="text-white">{employee.emergencyContact || 'Not provided'}</p>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+
+  const renderBankTab = () => (
+    <Card variant="glass" title="Bank Details">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm font-medium text-white/70">Account Number</p>
+            <p className="text-white font-mono">{employee.accountNumber || 'Not provided'}</p>
+          </div>
+          
+          <div>
+            <p className="text-sm font-medium text-white/70">IFSC Code</p>
+            <p className="text-white font-mono">{employee.ifscCode || 'Not provided'}</p>
+          </div>
+          
+          <div>
+            <p className="text-sm font-medium text-white/70">Bank Name</p>
+            <p className="text-white">{employee.bankName || 'Not provided'}</p>
+          </div>
+          
+          <div>
+            <p className="text-sm font-medium text-white/70">Branch</p>
+            <p className="text-white">{employee.branch || 'Not provided'}</p>
+          </div>
+        </div>
+        
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm font-medium text-white/70">PAN Number</p>
+            <p className="text-white font-mono">{employee.panNumber || 'Not provided'}</p>
+          </div>
+          
+          <div>
+            <p className="text-sm font-medium text-white/70">Aadhar Number</p>
+            <p className="text-white font-mono">{employee.aadharNumber || 'Not provided'}</p>
+          </div>
+          
+          <div>
+            <p className="text-sm font-medium text-white/70">UAN Number</p>
+            <p className="text-white font-mono">{employee.uanNumber || 'Not provided'}</p>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+
+  const renderSettingsTab = () => (
+    <Card variant="glass" title="Account Settings">
+      <div className="space-y-6">
+        <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
+          <div>
+            <h4 className="font-medium text-white">Account Status</h4>
+            <p className="text-sm text-white/70">Current account status</p>
+          </div>
+          <Badge variant={employee.status === 'active' ? 'success' : 'danger'}>
+            {employee.status || 'Active'}
+          </Badge>
+        </div>
+        
+        <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
+          <div>
+            <h4 className="font-medium text-white">Last Updated</h4>
+            <p className="text-sm text-white/70">{formatDateTime(employee.updatedAt)}</p>
+          </div>
+        </div>
+        
+        <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
+          <div>
+            <h4 className="font-medium text-white">Created Date</h4>
+            <p className="text-sm text-white/70">{formatDateTime(employee.createdAt)}</p>
+          </div>
+        </div>
+        
+        {/* Admin action removed per design */}
+      </div>
+    </Card>
+  );
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'general': return renderGeneralTab();
+      case 'personal': return renderPersonalTab();
+      case 'bank': return renderBankTab();
+      case 'settings': return renderSettingsTab();
+      default: return renderGeneralTab();
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <Tabs
+        tabs={tabs}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      />
+      
+      {renderTabContent()}
+    </div>
+  );
+};
+
+export default EmployeeDetailView;
