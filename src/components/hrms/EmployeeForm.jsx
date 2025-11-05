@@ -128,14 +128,14 @@ const EmployeeForm = ({
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <label className="block text-sm font-medium text-white mb-2">Profile Picture</label>
+          <label className="block text-sm font-medium text-neutral-900 mb-2">Profile Picture</label>
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-white/10 border border-white/20 overflow-hidden flex items-center justify-center">
+            <div className="w-16 h-16 rounded-full bg-neutral-100 border border-neutral-200 overflow-hidden flex items-center justify-center">
               {formData.profilePicture ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={formData.profilePicture} alt="Preview" className="w-full h-full object-cover" />
               ) : (
-                <span className="text-lg text-white font-semibold">
+                <span className="text-lg text-neutral-900 font-semibold">
                   {(formData.name || 'E').charAt(0).toUpperCase()}
                 </span>
               )}
@@ -144,12 +144,12 @@ const EmployeeForm = ({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs bg-white/10 hover:bg-white/15 border border-white/20 text-white transition-colors"
+                className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs bg-neutral-100 hover:bg-neutral-200 border border-neutral-200 text-neutral-900 transition-colors"
               >
                 Upload Photo
               </button>
               {profileName && (
-                <span className="text-white/60 text-xs truncate max-w-[160px]">{profileName}</span>
+                <span className="text-neutral-600 text-xs truncate max-w-[160px]">{profileName}</span>
               )}
               <input
                 ref={fileInputRef}
@@ -386,22 +386,22 @@ const EmployeeForm = ({
             <div className={`
               flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors
               ${currentStep >= step.id 
-                ? 'bg-white text-black border-white' 
-                : 'border-white/30 text-white/60'
+                ? 'bg-primary-600 text-white border-primary-600' 
+                : 'border-neutral-300 text-neutral-500'
               }
             `}>
               {step.icon}
             </div>
             <span className={`
               ml-2 text-sm font-medium
-              ${currentStep >= step.id ? 'text-white' : 'text-white/60'}
+              ${currentStep >= step.id ? 'text-neutral-900' : 'text-neutral-600'}
             `}>
               {step.title}
             </span>
             {index < steps.length - 1 && (
               <div className={`
                 w-16 h-0.5 mx-4
-                ${currentStep > step.id ? 'bg-white' : 'bg-white/30'}
+                ${currentStep > step.id ? 'bg-primary-600' : 'bg-neutral-300'}
               `} />
             )}
           </div>

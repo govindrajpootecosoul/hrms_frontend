@@ -10,7 +10,7 @@ const Tabs = forwardRef(({
   ...props
 }, ref) => {
   return (
-    <div ref={ref} className={`border-b border-white/10 ${className}`} {...props}>
+    <div ref={ref} className={`border-b border-neutral-200 ${className}`} {...props}>
       <nav className="-mb-px flex space-x-8">
         {tabs.map((tab) => (
           <button
@@ -19,8 +19,8 @@ const Tabs = forwardRef(({
             className={`
               py-2 px-1 border-b-2 font-medium text-sm transition-colors duration-200
               ${activeTab === tab.id
-                ? 'border-white text-white'
-                : 'border-transparent text-white/60 hover:text-white hover:border-white/20'
+                ? 'border-primary-600 text-neutral-900'
+                : 'border-transparent text-neutral-600 hover:text-neutral-900 hover:border-neutral-300'
               }
             `}
           >

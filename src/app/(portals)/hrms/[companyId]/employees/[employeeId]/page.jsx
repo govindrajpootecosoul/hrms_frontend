@@ -20,7 +20,7 @@ const EmployeeDetailsPage = () => {
   // Removed edit/export/delete per design update
 
   return (
-    <div className="min-h-screen bg-black text-white space-y-6">
+    <div className="min-h-screen space-y-6">
       <PageHeader
         breadcrumbs={[
           { label: 'Employees', href: `/hrms/${companyId}/employees` }
@@ -29,7 +29,7 @@ const EmployeeDetailsPage = () => {
           <button
             aria-label="Back"
             onClick={handleBack}
-            className="text-white hover:text-white/80 transition-colors"
+            className="text-neutral-700 hover:text-neutral-900 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>

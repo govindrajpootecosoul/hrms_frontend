@@ -131,7 +131,7 @@ const AssetTrackerDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white space-y-8">
+    <div className="min-h-screen space-y-8">
       {/* Page Header */}
       <PageHeader
         title="Asset Tracker Dashboard"
@@ -154,48 +154,48 @@ const AssetTrackerDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card variant="glass" className="p-6 hover:shadow-lg transition-all duration-300 cursor-pointer">
           <div className="flex items-center">
-            <div className="w-14 h-14 bg-white/10 border border-white/20 rounded-xl flex items-center justify-center mr-4 shadow-lg">
-              <Package className="w-7 h-7 text-white" />
+            <div className="w-14 h-14 bg-neutral-100 border border-neutral-200 rounded-xl flex items-center justify-center mr-4 shadow-lg">
+              <Package className="w-7 h-7 text-neutral-900" />
             </div>
             <div>
-              <h3 className="font-semibold text-white text-lg">Asset Management</h3>
-              <p className="text-sm text-white/70 mt-1">View and manage assets</p>
+              <h3 className="font-semibold text-neutral-900 text-lg">Asset Management</h3>
+              <p className="text-sm text-neutral-700 mt-1">View and manage assets</p>
             </div>
           </div>
         </Card>
 
         <Card variant="glass" className="p-6 hover:shadow-lg transition-all duration-300 cursor-pointer">
           <div className="flex items-center">
-            <div className="w-14 h-14 bg-white/10 border border-white/20 rounded-xl flex items-center justify-center mr-4 shadow-lg">
-              <Users className="w-7 h-7 text-white" />
+            <div className="w-14 h-14 bg-neutral-100 border border-neutral-200 rounded-xl flex items-center justify-center mr-4 shadow-lg">
+              <Users className="w-7 h-7 text-neutral-900" />
             </div>
             <div>
-              <h3 className="font-semibold text-white text-lg">Employee Settings</h3>
-              <p className="text-sm text-white/70 mt-1">Manage assignable employees</p>
+              <h3 className="font-semibold text-neutral-900 text-lg">Employee Settings</h3>
+              <p className="text-sm text-neutral-700 mt-1">Manage assignable employees</p>
             </div>
           </div>
         </Card>
 
         <Card variant="glass" className="p-6 hover:shadow-lg transition-all duration-300 cursor-pointer">
           <div className="flex items-center">
-            <div className="w-14 h-14 bg-white/10 border border-white/20 rounded-xl flex items-center justify-center mr-4 shadow-lg">
-              <MapPin className="w-7 h-7 text-white" />
+            <div className="w-14 h-14 bg-neutral-100 border border-neutral-200 rounded-xl flex items-center justify-center mr-4 shadow-lg">
+              <MapPin className="w-7 h-7 text-neutral-900" />
             </div>
             <div>
-              <h3 className="font-semibold text-white text-lg">Location Settings</h3>
-              <p className="text-sm text-white/70 mt-1">Manage locations and sites</p>
+              <h3 className="font-semibold text-neutral-900 text-lg">Location Settings</h3>
+              <p className="text-sm text-neutral-700 mt-1">Manage locations and sites</p>
             </div>
           </div>
         </Card>
 
         <Card variant="glass" className="p-6 hover:shadow-lg transition-all duration-300 cursor-pointer">
           <div className="flex items-center">
-            <div className="w-14 h-14 bg-white/10 border border-white/20 rounded-xl flex items-center justify-center mr-4 shadow-lg">
-              <Settings className="w-7 h-7 text-white" />
+            <div className="w-14 h-14 bg-neutral-100 border border-neutral-200 rounded-xl flex items-center justify-center mr-4 shadow-lg">
+              <Settings className="w-7 h-7 text-neutral-900" />
             </div>
             <div>
-              <h3 className="font-semibold text-white text-lg">Category Settings</h3>
-              <p className="text-sm text-white/70 mt-1">Manage asset categories</p>
+              <h3 className="font-semibold text-neutral-900 text-lg">Category Settings</h3>
+              <p className="text-sm text-neutral-700 mt-1">Manage asset categories</p>
             </div>
           </div>
         </Card>

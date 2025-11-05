@@ -31,7 +31,7 @@ const Select = forwardRef(({
   const base = 'w-full px-4 py-3 rounded-xl focus:ring-2 transition-all duration-200 cursor-pointer text-left';
   const variants = {
     default: 'border border-neutral-200 bg-neutral-50 focus:bg-white focus:ring-primary-500',
-    glass: 'border border-white/30 bg-transparent text-white focus:border-white/60 focus:ring-white/40'
+    glass: 'border border-neutral-300 bg-white text-neutral-900 focus:border-primary-300 focus:ring-primary-200'
   };
   const selectClasses = `
     ${base} ${variants[variant] || variants.default}
@@ -40,15 +40,11 @@ const Select = forwardRef(({
     ${className}
   `.trim();
 
-  const labelClasses = variant === 'glass'
-    ? 'block text-sm font-medium text-white'
-    : 'block text-sm font-medium text-neutral-700';
+  const labelClasses = 'block text-sm font-medium text-neutral-700';
 
-  const valueTextClass = selectedOption
-    ? (variant === 'glass' ? 'text-white' : 'text-neutral-900')
-    : 'text-neutral-400';
+  const valueTextClass = selectedOption ? 'text-neutral-900' : 'text-neutral-400';
 
-  const chevronClass = variant === 'glass' ? 'text-white/70' : 'text-neutral-400';
+  const chevronClass = 'text-neutral-400';
 
   return (
     <div className="space-y-2">

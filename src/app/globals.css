@@ -124,12 +124,7 @@
   --color-neutral-900: var(--color-neutral-900);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #f9fafb;
-  }
-}
+/* Force light theme: remove automatic dark mode preferences */
 
 * {
   box-sizing: border-box;

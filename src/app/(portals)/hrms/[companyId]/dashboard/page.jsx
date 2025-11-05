@@ -95,7 +95,7 @@ const HRMSDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white space-y-8">
+    <div className="min-h-screen space-y-8">
       {/* Page Header */}
       <PageHeader
         title="HRMS Dashboard"
@@ -126,36 +126,36 @@ const HRMSDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card variant="glass" className="p-6 hover:shadow-lg transition-all duration-300 cursor-pointer">
           <div className="flex items-center">
-            <div className="w-14 h-14 bg-white/10 border border-white/20 rounded-xl flex items-center justify-center mr-4 shadow-lg">
-              <Users className="w-7 h-7 text-white" />
+            <div className="w-14 h-14 bg-neutral-100 border border-neutral-200 rounded-xl flex items-center justify-center mr-4 shadow-lg">
+              <Users className="w-7 h-7 text-neutral-900" />
             </div>
             <div>
-              <h3 className="font-semibold text-white text-lg">Employee Management</h3>
-              <p className="text-sm text-white/70 mt-1">View and manage employees</p>
+              <h3 className="font-semibold text-neutral-900 text-lg">Employee Management</h3>
+              <p className="text-sm text-neutral-700 mt-1">View and manage employees</p>
             </div>
           </div>
         </Card>
 
         <Card variant="glass" className="p-6 hover:shadow-lg transition-all duration-300 cursor-pointer">
           <div className="flex items-center">
-            <div className="w-14 h-14 bg-white/10 border border-white/20 rounded-xl flex items-center justify-center mr-4 shadow-lg">
-              <Calendar className="w-7 h-7 text-white" />
+            <div className="w-14 h-14 bg-neutral-100 border border-neutral-200 rounded-xl flex items-center justify-center mr-4 shadow-lg">
+              <Calendar className="w-7 h-7 text-neutral-900" />
             </div>
             <div>
-              <h3 className="font-semibold text-white text-lg">Attendance Tracking</h3>
-              <p className="text-sm text-white/70 mt-1">Monitor daily attendance</p>
+              <h3 className="font-semibold text-neutral-900 text-lg">Attendance Tracking</h3>
+              <p className="text-sm text-neutral-700 mt-1">Monitor daily attendance</p>
             </div>
           </div>
         </Card>
 
         <Card variant="glass" className="p-6 hover:shadow-lg transition-all duration-300 cursor-pointer">
           <div className="flex items-center">
-            <div className="w-14 h-14 bg-white/10 border border-white/20 rounded-xl flex items-center justify-center mr-4 shadow-lg">
-              <Upload className="w-7 h-7 text-white" />
+            <div className="w-14 h-14 bg-neutral-100 border border-neutral-200 rounded-xl flex items-center justify-center mr-4 shadow-lg">
+              <Upload className="w-7 h-7 text-neutral-900" />
             </div>
             <div>
-              <h3 className="font-semibold text-white text-lg">Bulk Upload</h3>
-              <p className="text-sm text-white/70 mt-1">Upload attendance data</p>
+              <h3 className="font-semibold text-neutral-900 text-lg">Bulk Upload</h3>
+              <p className="text-sm text-neutral-700 mt-1">Upload attendance data</p>
             </div>
           </div>
         </Card>

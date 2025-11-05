@@ -36,7 +36,7 @@ const AssetDetailsPage = () => {
   const handleBack = () => router.push(`/asset-tracker/${companyId}/assets`);
 
   return (
-    <div className="min-h-screen bg-black text-white space-y-6">
+    <div className="min-h-screen space-y-6">
       <PageHeader
         title={asset ? asset.assetTag : 'Asset'}
         description={asset ? `${asset.brand} ${asset.model}` : 'Asset details'}
@@ -46,7 +46,7 @@ const AssetDetailsPage = () => {
             variant="ghost"
             size="sm"
             aria-label="Back"
-            className="!p-2 rounded-lg border border-white/10 hover:bg-white/10"
+            className="!p-2 rounded-lg border border-neutral-200 hover:bg-neutral-100"
             onClick={handleBack}
             icon={<ArrowLeft className="w-4 h-4" />}
           />

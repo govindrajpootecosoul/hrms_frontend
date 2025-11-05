@@ -24,7 +24,7 @@ const Button = forwardRef(({
     primary: 'bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800',
     secondary: 'bg-secondary-600 text-white hover:bg-secondary-700 active:bg-secondary-800',
     danger: 'bg-danger-600 text-white hover:bg-danger-700 active:bg-danger-800',
-    ghost: 'bg-transparent text-white hover:bg-white/20 active:bg-white/30'
+    ghost: 'bg-transparent text-neutral-700 hover:bg-neutral-100 active:bg-neutral-200'
   };
 
   const isDisabled = disabled || loading;

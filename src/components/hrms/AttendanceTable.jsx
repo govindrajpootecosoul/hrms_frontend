@@ -8,7 +8,6 @@ import Button from '@/components/common/Button';
 import Input from '@/components/common/Input';
 import Select from '@/components/common/Select';
 import Badge from '@/components/common/Badge';
-import Silk from '@/components/common/SilkBackground';
 
 const AttendanceTable = ({
   attendance = [],
@@ -68,8 +67,8 @@ const AttendanceTable = ({
       title: 'Date',
       render: (value) => (
         <div className="flex items-center">
-          <Calendar className="w-4 h-4 text-white/60 mr-2" />
-          <span className="text-sm font-medium text-white">
+          <Calendar className="w-4 h-4 text-neutral-500 mr-2" />
+          <span className="text-sm font-medium text-neutral-900">
             {new Date(value).toLocaleDateString('en-US', {
               month: 'short',
               day: 'numeric',
@@ -92,7 +91,7 @@ const AttendanceTable = ({
       key: 'employeeName',
       title: 'Employee Name',
       render: (value) => (
-        <div className="font-medium text-white">{value}</div>
+        <div className="font-medium text-neutral-900">{value}</div>
       )
     },
     {
@@ -115,8 +114,8 @@ const AttendanceTable = ({
       title: 'Time In',
       render: (value) => (
         <div className="flex items-center">
-          <Clock className="w-4 h-4 text-white/60 mr-2" />
-          <span className="text-sm text-white/80">
+          <Clock className="w-4 h-4 text-neutral-500 mr-2" />
+          <span className="text-sm text-neutral-700">
             {value || '--:--'}
           </span>
         </div>
@@ -127,8 +126,8 @@ const AttendanceTable = ({
       title: 'Time Out',
       render: (value) => (
         <div className="flex items-center">
-          <Clock className="w-4 h-4 text-white/60 mr-2" />
-          <span className="text-sm text-white/80">
+          <Clock className="w-4 h-4 text-neutral-500 mr-2" />
+          <span className="text-sm text-neutral-700">
             {value || '--:--'}
           </span>
         </div>
@@ -146,7 +145,7 @@ const AttendanceTable = ({
         const diffHours = Math.round(diffMs / (1000 * 60 * 60) * 10) / 10;
         
         return (
-          <span className="text-sm font-medium text-white">
+          <span className="text-sm font-medium text-neutral-900">
             {diffHours}h
           </span>
         );
@@ -164,7 +163,7 @@ const AttendanceTable = ({
           </Button>
         </div>
         
-        <div className="text-sm text-white/80">
+        <div className="text-sm text-neutral-700">
           {filteredAttendance.length} of {attendance.length} records
         </div>
       </div>
@@ -207,14 +206,11 @@ const AttendanceTable = ({
         {ATTENDANCE_STATUS.map(status => {
           const count = filteredAttendance.filter(record => record.status === status.value).length;
           return (
-            <div key={status.value} className="relative overflow-hidden bg-white/5 p-4 rounded-lg border border-white/20 text-white">
-              <div className="absolute inset-0 pointer-events-none opacity-30">
-                <Silk speed={3} scale={1} color="#7B7481" noiseIntensity={1.2} rotation={0.2} />
-              </div>
+            <div key={status.value} className="relative overflow-hidden bg-white p-4 rounded-lg border border-neutral-200 shadow-sm text-neutral-900">
               <div className="relative flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-white/70">{status.label}</p>
-                  <p className="text-2xl font-bold text-white">{count}</p>
+                  <p className="text-sm font-medium text-neutral-600">{status.label}</p>
+                  <p className="text-2xl font-bold text-neutral-900">{count}</p>
                 </div>
                 <Badge variant={status.color === 'green' ? 'success' : status.color === 'red' ? 'danger' : status.color === 'orange' ? 'warning' : 'info'}>
                   {status.label}

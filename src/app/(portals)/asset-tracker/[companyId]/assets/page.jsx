@@ -149,7 +149,7 @@ const AssetsPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white space-y-6">
+    <div className="min-h-screen space-y-6">
       {/* Page Header */}
       <PageHeader
         title="Asset Management"

@@ -293,14 +293,14 @@ const AssetForm = ({
 
       {/* Notes */}
       <div>
-        <label className="block text-sm font-medium text-white mb-2">
+        <label className="block text-sm font-medium text-neutral-900 mb-2">
           Notes
         </label>
         <textarea
           value={formData.notes}
           onChange={(e) => handleChange('notes', e.target.value)}
           rows={4}
-          className="w-full px-4 py-3 border border-white/20 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white/5 focus:bg-white/10 text-white placeholder-white/50"
+          className="w-full px-4 py-3 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-primary-200 focus:border-primary-300 transition-all duration-200 bg-white text-neutral-900 placeholder-neutral-400"
           placeholder="Additional notes about the asset..."
         />
       </div>
@@ -325,22 +325,22 @@ const AssetForm = ({
             <div className={`
               flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors
               ${currentStep >= step.id 
-                ? 'bg-white text-black border-white' 
-                : 'border-white/30 text-white/60'
+                ? 'bg-primary-600 text-white border-primary-600' 
+                : 'border-neutral-300 text-neutral-500'
               }
             `}>
               {step.icon}
             </div>
             <span className={`
               ml-2 text-sm font-medium
-              ${currentStep >= step.id ? 'text-white' : 'text-white/60'}
+              ${currentStep >= step.id ? 'text-neutral-900' : 'text-neutral-600'}
             `}>
               {step.title}
             </span>
             {index < steps.length - 1 && (
               <div className={`
                 w-16 h-0.5 mx-4
-                ${currentStep > step.id ? 'bg-white' : 'bg-white/30'}
+                ${currentStep > step.id ? 'bg-primary-600' : 'bg-neutral-300'}
               `} />
             )}
           </div>

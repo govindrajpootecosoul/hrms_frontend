@@ -14,7 +14,7 @@ export default function AssetTrackerLayout({ children }) {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen">
       <Navbar onMenuToggle={toggleMenu} isMenuOpen={isMenuOpen} />
       
       <div className="flex">

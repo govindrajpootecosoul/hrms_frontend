@@ -167,7 +167,7 @@ const CategoriesSettingsPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen">
       <Navbar onMenuToggle={toggleMenu} isMenuOpen={isMenuOpen} />
       
       <div className="flex">
@@ -202,9 +202,9 @@ const CategoriesSettingsPage = () => {
               <Card variant="glass">
                 <div className="space-y-4">
                   {categories.map((category) => (
-                    <div key={category.id} className="border border-white/20 rounded-lg">
+                    <div key={category.id} className="border border-neutral-200 rounded-lg">
                       {/* Category Header */}
-                      <div className="flex items-center justify-between p-4 bg-white/5 rounded-t-lg">
+                      <div className="flex items-center justify-between p-4 bg-neutral-50 rounded-t-lg border-b border-neutral-200">
                         <div className="flex items-center">
                           <button
                             onClick={() => toggleCategory(category.id)}
@@ -217,8 +217,8 @@ const CategoriesSettingsPage = () => {
                             )}
                           </button>
                           <div>
-                            <h3 className="font-semibold text-white">{category.name}</h3>
-                            <p className="text-sm text-white/70">Prefix: {category.prefix}</p>
+                            <h3 className="font-semibold text-neutral-900">{category.name}</h3>
+                            <p className="text-sm text-neutral-600">Prefix: {category.prefix}</p>
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">
@@ -251,13 +251,13 @@ const CategoriesSettingsPage = () => {
 
                       {/* Subcategories */}
                       {expandedCategories[category.id] && (
-                        <div className="p-4 border-t border-white/10">
+                        <div className="p-4 border-t border-neutral-200 bg-white">
                           <div className="space-y-2">
                             {category.subcategories.map((subcategory) => (
-                              <div key={subcategory.id} className="flex items-center justify-between p-3 bg-white/5 rounded border border-white/20">
+                              <div key={subcategory.id} className="flex items-center justify-between p-3 bg-neutral-50 rounded border border-neutral-200">
                                 <div>
-                                  <span className="font-medium text-white">{subcategory.name}</span>
-                                  <span className="ml-2 text-sm text-white/70">Code: {subcategory.code}</span>
+                                  <span className="font-medium text-neutral-900">{subcategory.name}</span>
+                                  <span className="ml-2 text-sm text-neutral-600">Code: {subcategory.code}</span>
                                 </div>
                                 <div className="flex items-center space-x-2">
                                   <Button
@@ -280,7 +280,7 @@ const CategoriesSettingsPage = () => {
                               </div>
                             ))}
                             {category.subcategories.length === 0 && (
-                              <p className="text-sm text-white/60 italic">No subcategories</p>
+                              <p className="text-sm text-neutral-600 italic">No subcategories</p>
                             )}
                           </div>
                         </div>

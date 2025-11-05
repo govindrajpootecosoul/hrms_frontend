@@ -8,7 +8,6 @@ import { useToast } from '@/components/common/Toast';
 import Button from '@/components/common/Button';
 import Input from '@/components/common/Input';
 import Card from '@/components/common/Card';
-import Background from '@/components/common/Background';
 
 const LoginPage = () => {
   const router = useRouter();
@@ -80,33 +79,17 @@ const LoginPage = () => {
 
   return (
     <div className="min-h-screen relative flex">
-      {/* Full-page animated background */}
-      <div className="fixed inset-0 -z-10">
-        <Background
-          className="w-full h-full"
-          transparent={false}
-          rotation={0}
-          autoRotate={0}
-          speed={0.25}
-          scale={1}
-          frequency={1}
-          warpStrength={1}
-          mouseInfluence={1}
-          parallax={0.5}
-          noise={0.1}
-        />
-      </div>
-      <div className="fixed inset-0 -z-10 bg-neutral-950/50" />
+      <div className="fixed inset-0 -z-10 bg-white/60" />
 
       {/* Left side - Branding overlay */}
       <div className="hidden lg:flex lg:w-1/2 relative">
-        <div className="relative z-10 flex flex-col justify-center items-center text-white p-12">
+        <div className="relative z-10 flex flex-col justify-center items-center p-12">
           <div className="text-center mx-50">
             <h1 className="text-7xl font-bold mb-4">Welcome Back</h1>
-            <p className="text-xl text-white/80 mb-8">
+            <p className="text-xl text-neutral-700 mb-8">
               Access your HRMS & Asset Tracker portals
             </p>
-            <div className="w-24 h-1 bg-white/80 rounded-full mx-auto" />
+            <div className="w-24 h-1 bg-neutral-300 rounded-full mx-auto" />
           </div>
         </div>
       </div>
@@ -115,8 +98,8 @@ const LoginPage = () => {
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-white mb-2">Sign In</h2>
-            <p className="text-white/80">
+            <h2 className="text-3xl font-bold mb-2">Sign In</h2>
+            <p className="text-neutral-700">
               Enter your credentials to access your account
             </p>
           </div>
@@ -153,13 +136,13 @@ const LoginPage = () => {
                 <label className="flex items-center">
                   <input
                     type="checkbox"
-                    className="rounded border-white/30 text-primary-200 bg-white/5 focus:ring-white/40"
+                    className="rounded border-neutral-300 text-primary-700 bg-white focus:ring-neutral-300"
                   />
-                  <span className="ml-2 text-sm text-white/80">Remember me</span>
+                  <span className="ml-2 text-sm text-neutral-700">Remember me</span>
                 </label>
                 <button
                   type="button"
-                  className="text-sm text-white/80 hover:text-white"
+                  className="text-sm text-neutral-700 hover:text-neutral-900"
                 >
                   Forgot password?
                 </button>

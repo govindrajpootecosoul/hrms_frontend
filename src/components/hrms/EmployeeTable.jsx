@@ -77,14 +77,14 @@ const EmployeeTable = ({
       title: 'Name',
       render: (value, employee) => (
         <div className="flex items-center">
-          <div className="w-8 h-8 bg-white/10 border border-white/20 rounded-full flex items-center justify-center mr-3">
-            <span className="text-xs font-medium text-white/80">
+          <div className="w-8 h-8 bg-neutral-100 border border-neutral-200 rounded-full flex items-center justify-center mr-3">
+            <span className="text-xs font-medium text-neutral-700">
               {value.charAt(0).toUpperCase()}
             </span>
           </div>
           <div>
-            <div className="font-medium text-white">{value}</div>
-            <div className="text-sm text-white/60">{employee.email}</div>
+            <div className="font-medium text-neutral-900">{value}</div>
+            <div className="text-sm text-neutral-600">{employee.email}</div>
           </div>
         </div>
       )
@@ -102,7 +102,7 @@ const EmployeeTable = ({
       key: 'phone',
       title: 'Phone',
       render: (value) => (
-        <span className="text-sm text-white/80">{value}</span>
+        <span className="text-sm text-neutral-700">{value}</span>
       )
     },
     {

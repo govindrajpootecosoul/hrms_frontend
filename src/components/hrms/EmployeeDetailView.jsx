@@ -72,14 +72,14 @@ const EmployeeDetailView = ({
     <Card variant="glass" className="h-full">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-white/10 border border-white/20 flex items-center justify-center">
-            <span className="text-white/90">{icon}</span>
+          <div className="w-9 h-9 rounded-full bg-neutral-100 border border-neutral-200 flex items-center justify-center">
+            <span className="text-neutral-800">{icon}</span>
           </div>
-          <h4 className="text-white font-medium">{title}</h4>
+          <h4 className="text-neutral-900 font-medium">{title}</h4>
         </div>
         {trailing}
       </div>
-      <div className="mt-4 text-white/90 space-y-1">
+      <div className="mt-4 text-neutral-800 space-y-1">
         {children}
       </div>
     </Card>
@@ -91,21 +91,21 @@ const EmployeeDetailView = ({
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         <SummaryCard icon={<User className="w-5 h-5" />} title={employee.name}>
           <div className="flex items-center gap-4">
-            <div className="relative w-40 h-40 rounded-full overflow-hidden bg-white/10 border border-white/20 flex items-center justify-center">
+            <div className="relative w-40 h-40 rounded-full overflow-hidden bg-neutral-100 border border-neutral-200 flex items-center justify-center">
               {profilePreview ? (
                 <img src={profilePreview} alt={employee.name} className="w-full h-full object-cover" />
               ) : (
-                <span className="text-xl font-bold text-white">
+                <span className="text-xl font-bold text-neutral-900">
                   {employee.name?.charAt(0)?.toUpperCase() || 'E'}
                 </span>
               )}
             </div>
             <div className="flex flex-col">
-              <p className="text-white/70 text-sm leading-tight">{employee.designation}</p>
+              <p className="text-neutral-600 text-sm leading-tight">{employee.designation}</p>
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="mt-2 inline-flex items-center px-3 py-1.5 rounded-lg text-xs bg-white/10 hover:bg-white/15 border border-white/20 text-white transition-colors"
+                className="mt-2 inline-flex items-center px-3 py-1.5 rounded-lg text-xs bg-neutral-100 hover:bg-neutral-200 border border-neutral-200 text-neutral-900 transition-colors"
               >
                 Upload Photo
               </button>
@@ -126,20 +126,20 @@ const EmployeeDetailView = ({
           </div>
         </SummaryCard>
         <SummaryCard icon={<Mail className="w-5 h-5" />} title="Contact">
-          <p className="text-sm"><span className="text-white/70">Email</span></p>
-          <p className="font-mono">{employee.email}</p>
-          <p className="text-sm mt-2"><span className="text-white/70">Phone Number</span></p>
-          <p>{employee.phone}</p>
+          <p className="text-sm"><span className="text-neutral-600">Email</span></p>
+          <p className="font-mono text-neutral-900">{employee.email}</p>
+          <p className="text-sm mt-2"><span className="text-neutral-600">Phone Number</span></p>
+          <p className="text-neutral-900">{employee.phone}</p>
         </SummaryCard>
         <SummaryCard icon={<User className="w-5 h-5" />} title="Department">
-          <p className="text-sm text-white/70">Department</p>
-          <p>{employee.department}</p>
-          <p className="text-sm text-white/70 mt-2">Office</p>
-          <p>ThriveBrands</p>
+          <p className="text-sm text-neutral-600">Department</p>
+          <p className="text-neutral-900">{employee.department}</p>
+          <p className="text-sm text-neutral-600 mt-2">Office</p>
+          <p className="text-neutral-900">ThriveBrands</p>
         </SummaryCard>
         <SummaryCard icon={<User className="w-5 h-5" />} title="Biometric" trailing={<div className="w-10 h-6 rounded-full bg-emerald-500/30 border border-emerald-400/40 flex items-center px-1"><div className="w-4 h-4 bg-emerald-400 rounded-full ml-auto" /></div>}>
-          <p className="text-sm text-white/70">Biometric ID</p>
-          <p className="font-mono">{employee.biometricId}</p>
+          <p className="text-sm text-neutral-600">Biometric ID</p>
+          <p className="font-mono text-neutral-900">{employee.biometricId}</p>
           <div className="flex items-center gap-2 mt-2 text-emerald-400">
             <span className="w-2 h-2 rounded-full bg-emerald-400" />
             <span className="text-sm">Active</span>
@@ -154,52 +154,52 @@ const EmployeeDetailView = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
             <div className="flex items-center">
-              <Mail className="w-5 h-5 text-white/70 mr-3" />
+              <Mail className="w-5 h-5 text-neutral-600 mr-3" />
               <div>
-                <p className="text-sm font-medium text-white/70">Email</p>
-                <p className="text-white">{employee.email}</p>
+                <p className="text-sm font-medium text-neutral-600">Email</p>
+                <p className="text-neutral-900">{employee.email}</p>
               </div>
             </div>
             
             <div className="flex items-center">
-              <Phone className="w-5 h-5 text-white/70 mr-3" />
+              <Phone className="w-5 h-5 text-neutral-600 mr-3" />
               <div>
-                <p className="text-sm font-medium text-white/70">Phone</p>
-                <p className="text-white">{employee.phone}</p>
+                <p className="text-sm font-medium text-neutral-600">Phone</p>
+                <p className="text-neutral-900">{employee.phone}</p>
               </div>
             </div>
             
             <div className="flex items-center">
-              <User className="w-5 h-5 text-white/70 mr-3" />
+              <User className="w-5 h-5 text-neutral-600 mr-3" />
               <div>
-                <p className="text-sm font-medium text-white/70">Biometric ID</p>
-                <p className="text-white font-mono">{employee.biometricId}</p>
+                <p className="text-sm font-medium text-neutral-600">Biometric ID</p>
+                <p className="text-neutral-900 font-mono">{employee.biometricId}</p>
               </div>
             </div>
           </div>
           
           <div className="space-y-4">
             <div className="flex items-center">
-              <User className="w-5 h-5 text-white/70 mr-3" />
+              <User className="w-5 h-5 text-neutral-600 mr-3" />
               <div>
-                <p className="text-sm font-medium text-white/70">Department</p>
-                <p className="text-white">{employee.department}</p>
+                <p className="text-sm font-medium text-neutral-600">Department</p>
+                <p className="text-neutral-900">{employee.department}</p>
               </div>
             </div>
             
             <div className="flex items-center">
-              <Calendar className="w-5 h-5 text-white/70 mr-3" />
+              <Calendar className="w-5 h-5 text-neutral-600 mr-3" />
               <div>
-                <p className="text-sm font-medium text-white/70">Date of Birth</p>
-                <p className="text-white">{formatDate(employee.dateOfBirth)}</p>
+                <p className="text-sm font-medium text-neutral-600">Date of Birth</p>
+                <p className="text-neutral-900">{formatDate(employee.dateOfBirth)}</p>
               </div>
             </div>
             
             <div className="flex items-center">
-              <User className="w-5 h-5 text-white/70 mr-3" />
+              <User className="w-5 h-5 text-neutral-600 mr-3" />
               <div>
-                <p className="text-sm font-medium text-white/70">Gender</p>
-                <p className="text-white capitalize">{employee.gender || 'Not specified'}</p>
+                <p className="text-sm font-medium text-neutral-600">Gender</p>
+                <p className="text-neutral-900 capitalize">{employee.gender || 'Not specified'}</p>
               </div>
             </div>
           </div>

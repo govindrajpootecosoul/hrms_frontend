@@ -8,7 +8,7 @@ import { useCompany } from '@/lib/context/CompanyContext';
 import Button from '@/components/common/Button';
 import Card from '@/components/common/Card';
 import Select from '@/components/common/Select';
-import Background from '@/components/common/Background';
+// Background removed for static light theme
 
 const PortalSelectionPage = () => {
   const router = useRouter();
@@ -60,31 +60,16 @@ const PortalSelectionPage = () => {
 
   return (
     <div className="min-h-screen relative flex items-center justify-center p-4">
-      {/* Full-page animated background */}
-      <div className="fixed inset-0 -z-10">
-        <Background
-          className="w-full h-full"
-          transparent={false}
-          rotation={0}
-          autoRotate={0}
-          speed={0.25}
-          scale={1}
-          frequency={1}
-          warpStrength={1}
-          mouseInfluence={1}
-          parallax={0.5}
-          noise={0.1}
-        />
-      </div>
-      <div className="fixed inset-0 -z-10 bg-neutral-950/50" />
+      {/* Static light overlay */}
+      <div className="fixed inset-0 -z-10 bg-white/60" />
       <div className="w-full max-w-4xl">
         {/* Header */}
         <div className="text-center mb-12">
           <div className="flex items-center justify-center mb-4">
-            <Building2 className="w-8 h-8 text-white mr-3" />
-            <h1 className="text-3xl font-bold text-white">Select Portal</h1>
+            <Building2 className="w-8 h-8 text-neutral-900 mr-3" />
+            <h1 className="text-3xl font-bold">Select Portal</h1>
           </div>
-          <p className="text-lg text-white/80">
+          <p className="text-lg text-neutral-700">
             Choose the portal you want to access for {user?.name || 'your account'}
           </p>
         </div>
@@ -94,7 +79,7 @@ const PortalSelectionPage = () => {
           <div className="mb-12 relative z-20">
             <Card variant="glass" className="max-w-md mx-auto backdrop-blur-md overflow-visible">
               <div className="text-center">
-                <h3 className="text-lg font-semibold text-white mb-4">
+                <h3 className="text-lg font-semibold mb-4">
                   Select Company
                 </h3>
                 <Select
@@ -114,20 +99,20 @@ const PortalSelectionPage = () => {
           {/* HRMS Portal */}
           <Card variant="glass" className="group hover:scale-105 transition-transform duration-300 cursor-pointer backdrop-blur-md relative z-10">
             <div className="text-center">
-              <div className="w-16 h-16 bg-white/10 border border-white/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Users className="w-8 h-8 text-white" />
+              <div className="w-16 h-16 bg-neutral-100 border border-neutral-200 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Users className="w-8 h-8 text-neutral-900" />
               </div>
               
-              <h2 className="text-2xl font-bold text-white mb-4">
+              <h2 className="text-2xl font-bold mb-4">
                 HRMS Portal
               </h2>
               
-              <p className="text-white/80 mb-6 leading-relaxed">
+              <p className="text-neutral-700 mb-6 leading-relaxed">
                 Manage your human resources, employee data, attendance tracking, 
                 and workforce analytics in one comprehensive platform.
               </p>
               
-              <div className="space-y-3 mb-6 text-sm text-white/70">
+              <div className="space-y-3 mb-6 text-sm text-neutral-700">
                 <div className="flex items-center justify-center">
                   <span className="w-2 h-2 bg-white/70 rounded-full mr-2" />
                   Employee Management
@@ -156,20 +141,20 @@ const PortalSelectionPage = () => {
           {/* Asset Tracker Portal */}
           <Card variant="glass" className="group hover:scale-105 transition-transform duration-300 cursor-pointer backdrop-blur-md relative z-10">
             <div className="text-center">
-              <div className="w-16 h-16 bg-white/10 border border-white/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Package className="w-8 h-8 text-white" />
+              <div className="w-16 h-16 bg-neutral-100 border border-neutral-200 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Package className="w-8 h-8 text-neutral-900" />
               </div>
               
-              <h2 className="text-2xl font-bold text-white mb-4">
+              <h2 className="text-2xl font-bold mb-4">
                 Asset Tracker Portal
               </h2>
               
-              <p className="text-white/80 mb-6 leading-relaxed">
+              <p className="text-neutral-700 mb-6 leading-relaxed">
                 Track and manage company assets, monitor assignments, 
                 maintenance schedules, and optimize asset utilization.
               </p>
               
-              <div className="space-y-3 mb-6 text-sm text-white/70">
+              <div className="space-y-3 mb-6 text-sm text-neutral-700">
                 <div className="flex items-center justify-center">
                   <span className="w-2 h-2 bg-white/70 rounded-full mr-2" />
                   Asset Management

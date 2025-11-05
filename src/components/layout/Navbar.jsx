@@ -13,14 +13,14 @@ const Navbar = ({ onMenuToggle, isMenuOpen }) => {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
   return (
-    <nav className="bg-black/80 backdrop-blur-md border-b border-white/10 sticky top-0 z-40 shadow-sm">
+    <nav className="bg-white/80 backdrop-blur-md border-b border-neutral-200 sticky top-0 z-40 shadow-sm">
       <div className="flex flex-col px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Left side */}
           <div className="flex items-center">
             <button
               onClick={onMenuToggle}
-              className="p-2 rounded-md text-white/80 hover:text-white hover:bg-white/10 lg:hidden"
+              className="p-2 rounded-md text-neutral-700 hover:text-neutral-900 hover:bg-neutral-100 lg:hidden"
             >
               {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -28,13 +28,13 @@ const Navbar = ({ onMenuToggle, isMenuOpen }) => {
             <div className="flex items-center ml-4">
               {/* Company Logo/Name */}
               <div className="flex items-center">
-                <div className="w-10 h-10 bg-white/10 border border-white/20 rounded-xl flex items-center justify-center shadow-lg">
-                  <span className="text-white font-bold text-sm">
+                <div className="w-10 h-10 bg-neutral-100 border border-neutral-200 rounded-xl flex items-center justify-center shadow-lg">
+                  <span className="text-neutral-900 font-bold text-sm">
                     {currentCompany?.name?.charAt(0) || 'C'}
                   </span>
                 </div>
                 <div className="ml-3">
-                  <h1 className="text-lg font-semibold text-white">
+                  <h1 className="text-lg font-semibold text-neutral-900">
                     {currentCompany?.name || 'Company'}
                   </h1>
                 </div>
@@ -45,7 +45,7 @@ const Navbar = ({ onMenuToggle, isMenuOpen }) => {
           {/* Right side */}
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Notifications */}
-            <button className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg">
+            <button className="p-2 text-neutral-700 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg">
               <Bell className="w-5 h-5" />
             </button>
 
@@ -53,7 +53,7 @@ const Navbar = ({ onMenuToggle, isMenuOpen }) => {
             <div className="relative">
               <button
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="flex items-center gap-3 p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg"
+                className="flex items-center gap-3 p-2 text-neutral-700 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg"
               >
                 <div className="w-8 h-8 bg-white/10 border border-white/20 rounded-full flex items-center justify-center">
                   <User className="w-4 h-4" />
@@ -64,14 +64,14 @@ const Navbar = ({ onMenuToggle, isMenuOpen }) => {
               </button>
 
               {isUserMenuOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-black/90 backdrop-blur-md rounded-lg shadow-lg border border-white/10 py-1 z-50">
-                  <button className="flex items-center w-full px-4 py-2 text-sm text-white/80 hover:bg-white/10">
+                <div className="absolute right-0 mt-2 w-48 bg-white/90 backdrop-blur-md rounded-lg shadow-lg border border-neutral-200 py-1 z-50">
+                  <button className="flex items-center w-full px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-100">
                     <Settings className="w-4 h-4 mr-3" />
                     Settings
                   </button>
                   <button
                     onClick={logout}
-                    className="flex items-center w-full px-4 py-2 text-sm text-white/80 hover:bg-white/10"
+                    className="flex items-center w-full px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-100"
                   >
                     <LogOut className="w-4 h-4 mr-3" />
                     Sign out
@@ -86,7 +86,7 @@ const Navbar = ({ onMenuToggle, isMenuOpen }) => {
                 variant="ghost"
                 size="sm"
                 icon={<Home className="w-4 h-4" />}
-                className="text-white/80 hover:text-white"
+                className="text-neutral-700 hover:text-neutral-900"
               >
                 Back to Home
               </Button>

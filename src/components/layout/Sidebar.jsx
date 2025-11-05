@@ -63,7 +63,7 @@ const Sidebar = ({ isOpen, onClose, menuItems = [] }) => {
                     block px-3 py-2 text-sm rounded-lg transition-colors
                     ${isActive(child.path) 
                       ? 'bg-primary-100 text-primary-700' 
-                      : 'text-white/80 hover:bg-neutral-100'
+                      : 'text-neutral-700 hover:bg-neutral-100'
                     }
                   `}
                   onClick={onClose}
@@ -83,7 +83,7 @@ const Sidebar = ({ isOpen, onClose, menuItems = [] }) => {
         href={item.path}
         className={`
           flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200
-          ${active ? 'bg-primary-100 text-primary-700 shadow-sm' : 'text-white/80 hover:bg-white/40 hover:shadow-sm'}
+          ${active ? 'bg-primary-100 text-primary-700 shadow-sm' : 'text-neutral-700 hover:bg-neutral-100 hover:shadow-sm'}
         `}
         onClick={onClose}
       >
@@ -98,21 +98,21 @@ const Sidebar = ({ isOpen, onClose, menuItems = [] }) => {
       {/* Mobile backdrop */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-70 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/20 z-40 lg:hidden"
           onClick={onClose}
         />
       )}
 
       {/* Sidebar */}
       <div className={`
-        fixed inset-y-0 left-0 h-screen z-50 w-64 bg-black/90 backdrop-blur-md border-r border-white/10 transform transition-transform duration-300 ease-in-out shadow-lg text-white
+        fixed inset-y-0 left-0 h-screen z-50 w-64 bg-white border-r border-neutral-200 transform transition-transform duration-300 ease-in-out shadow-lg text-neutral-900
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         lg:translate-x-0 lg:sticky lg:top-16 lg:h-[calc(100vh-64px)] lg:self-start
       `}>
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center px-6 py-6 border-b border-white/10">
-            <h2 className="text-xl font-bold text-white">Portal</h2>
+          <div className="flex items-center px-6 py-6 border-b border-neutral-200">
+            <h2 className="text-xl font-bold">Portal</h2>
           </div>
 
           {/* Navigation */}

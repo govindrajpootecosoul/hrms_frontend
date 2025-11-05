@@ -41,21 +41,21 @@ const Modal = forwardRef(({
       {/* Modal */}
       <div
         ref={ref}
-        className={`relative rounded-2xl shadow-2xl w-full ${MODAL_SIZES[size]} max-h-[90vh] overflow-hidden animate-scale-in bg-white/10 backdrop-blur-lg border border-white/20 text-white ${className}`}
+        className={`relative rounded-2xl shadow-2xl w-full ${MODAL_SIZES[size]} max-h-[90vh] overflow-hidden animate-scale-in bg-white border border-neutral-200 text-neutral-900 ${className}`}
         {...props}
       >
         {/* Header */}
         {(title || onClose) && (
-          <div className="flex items-center justify-between p-6 border-b border-white/10 bg-white/5">
+          <div className="flex items-center justify-between p-6 border-b border-neutral-200 bg-white">
             {title && (
-              <h2 className="text-xl font-semibold text-white">
+              <h2 className="text-xl font-semibold">
                 {title}
               </h2>
             )}
             {onClose && (
               <button
                 onClick={onClose}
-                className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                className="p-2 text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -70,7 +70,7 @@ const Modal = forwardRef(({
         
         {/* Footer */}
         {footer && (
-          <div className="flex items-center justify-end gap-3 p-6 border-t border-white/10 bg-white/5">
+          <div className="flex items-center justify-end gap-3 p-6 border-t border-neutral-200 bg-white">
             {footer}
           </div>
         )}

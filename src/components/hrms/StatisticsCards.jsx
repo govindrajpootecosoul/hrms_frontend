@@ -96,10 +96,10 @@ const StatisticsCards = ({
                 </span>
               </div>
             <div className="flex-1">
-              <p className="text-sm font-medium text-white/70 mb-2">
+              <p className="text-sm font-medium text-neutral-600 mb-2">
                 {stat.title}
               </p>
-              <p className="text-3xl font-bold text-white">
+              <p className="text-3xl font-bold text-neutral-900">
                 {stat.value.toLocaleString()}
               </p>
             </div>

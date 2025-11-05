@@ -31,10 +31,10 @@ const PageHeader = ({
   }
 
   return (
-    <div className={`p-6 bg-white/5 backdrop-blur-md rounded-xl border border-white/20 shadow-sm ${className}`}>
+    <div className={`p-6 bg-white rounded-xl border border-neutral-200 shadow-sm ${className}`}>
       {/* Back button */}
       {breadcrumb && (
-        <div className="mb-2 text-sm text-white/70">{breadcrumb}</div>
+        <div className="mb-2 text-sm text-neutral-500">{breadcrumb}</div>
       )}
       {showBackButton && (
         <div className="mb-4">
@@ -56,13 +56,13 @@ const PageHeader = ({
               </div>
             )}
             {title && (
-              <h1 className="text-3xl font-bold text-white">
+              <h1 className="text-3xl font-bold">
                 {title}
               </h1>
             )}
           </div>
           {description && (
-            <p className="text-white/80 text-lg mt-3">
+            <p className="text-neutral-700 text-lg mt-3">
               {description}
             </p>
           )}

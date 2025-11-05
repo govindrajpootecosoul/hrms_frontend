@@ -98,7 +98,7 @@ const AssetTable = ({
           <span className="font-mono text-sm font-medium text-primary-400 mr-2">
             {value}
           </span>
-          <button className="text-white/60 hover:text-white">
+          <button className="text-neutral-600 hover:text-neutral-900">
             <QrCode className="w-4 h-4" />
           </button>
         </div>
@@ -112,7 +112,7 @@ const AssetTable = ({
           <Badge variant="info" size="sm" className="mb-1">
             {asset.category}
           </Badge>
-          <div className="text-xs text-white/60">{asset.subcategory}</div>
+          <div className="text-xs text-neutral-600">{asset.subcategory}</div>
         </div>
       )
     },
@@ -132,8 +132,8 @@ const AssetTable = ({
       title: 'Model',
       render: (value, asset) => (
         <div>
-          <div className="font-medium text-white">{value}</div>
-          <div className="text-xs text-white/60">{asset.brand}</div>
+          <div className="font-medium text-neutral-900">{value}</div>
+          <div className="text-xs text-neutral-600">{asset.brand}</div>
         </div>
       )
     },
@@ -141,7 +141,7 @@ const AssetTable = ({
       key: 'serialNumber',
       title: 'Serial Number',
       render: (value) => (
-        <span className="font-mono text-sm text-white/80">{value}</span>
+        <span className="font-mono text-sm text-neutral-700">{value}</span>
       )
     },
     {
@@ -149,8 +149,8 @@ const AssetTable = ({
       title: 'Location',
       render: (value, asset) => (
         <div>
-          <div className="text-sm text-white">{value}</div>
-          <div className="text-xs text-white/60">{asset.site}</div>
+          <div className="text-sm text-neutral-900">{value}</div>
+          <div className="text-xs text-neutral-600">{asset.site}</div>
         </div>
       )
     },
@@ -158,7 +158,7 @@ const AssetTable = ({
       key: 'assignedTo',
       title: 'Assigned To',
       render: (value) => (
-        <span className="text-sm text-white/80">{value || 'Unassigned'}</span>
+        <span className="text-sm text-neutral-700">{value || 'Unassigned'}</span>
       )
     }
   ];
