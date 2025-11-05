@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { User, Mail, Phone, Calendar } from 'lucide-react';
+import { CometCard } from '@/components/hrms/ProfilePicCard';
 import Tabs from '@/components/common/Tabs';
 import Card from '@/components/common/Card';
 import Button from '@/components/common/Button';
@@ -89,42 +90,34 @@ const EmployeeDetailView = ({
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-        <SummaryCard icon={<User className="w-5 h-5" />} title={employee.name}>
-          <div className="flex items-center gap-4">
-            <div className="relative w-40 h-40 rounded-full overflow-hidden bg-neutral-100 border border-neutral-200 flex items-center justify-center">
-              {profilePreview ? (
-                <img src={profilePreview} alt={employee.name} className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-xl font-bold text-neutral-900">
-                  {employee.name?.charAt(0)?.toUpperCase() || 'E'}
-                </span>
-              )}
-            </div>
-            <div className="flex flex-col">
-              <p className="text-neutral-600 text-sm leading-tight">{employee.designation}</p>
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="mt-2 inline-flex items-center px-3 py-1.5 rounded-lg text-xs bg-neutral-100 hover:bg-neutral-200 border border-neutral-200 text-neutral-900 transition-colors"
-              >
-                Upload Photo
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  const reader = new FileReader();
-                  reader.onload = () => setProfilePreview(String(reader.result));
-                  reader.readAsDataURL(file);
-                }}
-              />
-            </div>
-          </div>
-        </SummaryCard>
+        <div className="flex flex-col items-center justify-center space-y-5">
+          <CometCard
+            className="w-56"
+            imageUrl={profilePreview || undefined}
+            name={employee.name}
+            designation={employee.designation}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="mt-3 inline-flex items-center px-3 py-1.5 rounded-lg text-xs bg-neutral-100 hover:bg-neutral-200 border border-neutral-200 text-neutral-900 transition-colors"
+          >
+            Upload Photo
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = () => setProfilePreview(String(reader.result));
+              reader.readAsDataURL(file);
+            }}
+          />
+        </div>
         <SummaryCard icon={<Mail className="w-5 h-5" />} title="Contact">
           <p className="text-sm"><span className="text-neutral-600">Email</span></p>
           <p className="font-mono text-neutral-900">{employee.email}</p>
@@ -213,35 +206,35 @@ const EmployeeDetailView = ({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-4">
           <div>
-            <p className="text-sm font-medium text-white/70">Father's Name</p>
-            <p className="text-white">{employee.fatherName || 'Not provided'}</p>
+            <p className="text-sm font-medium text-neutral-600">Father's Name</p>
+            <p className="text-neutral-900">{employee.fatherName || 'Not provided'}</p>
           </div>
           
           <div>
-            <p className="text-sm font-medium text-white/70">Personal Email</p>
-            <p className="text-white">{employee.personalEmail || 'Not provided'}</p>
+            <p className="text-sm font-medium text-neutral-600">Personal Email</p>
+            <p className="text-neutral-900">{employee.personalEmail || 'Not provided'}</p>
           </div>
           
           <div>
-            <p className="text-sm font-medium text-white/70">Marital Status</p>
-            <p className="text-white">{employee.maritalStatus || 'Not specified'}</p>
+            <p className="text-sm font-medium text-neutral-600">Marital Status</p>
+            <p className="text-neutral-900">{employee.maritalStatus || 'Not specified'}</p>
           </div>
           
           <div>
-            <p className="text-sm font-medium text-white/70">Blood Group</p>
-            <p className="text-white">{employee.bloodGroup || 'Not specified'}</p>
+            <p className="text-sm font-medium text-neutral-600">Blood Group</p>
+            <p className="text-neutral-900">{employee.bloodGroup || 'Not specified'}</p>
           </div>
         </div>
         
         <div className="space-y-4">
           <div>
-            <p className="text-sm font-medium text-white/70">Address</p>
-            <p className="text-white">{employee.address || 'Not provided'}</p>
+            <p className="text-sm font-medium text-neutral-600">Address</p>
+            <p className="text-neutral-900">{employee.address || 'Not provided'}</p>
           </div>
           
           <div>
-            <p className="text-sm font-medium text-white/70">Emergency Contact</p>
-            <p className="text-white">{employee.emergencyContact || 'Not provided'}</p>
+            <p className="text-sm font-medium text-neutral-600">Emergency Contact</p>
+            <p className="text-neutral-900">{employee.emergencyContact || 'Not provided'}</p>
           </div>
         </div>
       </div>
@@ -253,40 +246,40 @@ const EmployeeDetailView = ({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-4">
           <div>
-            <p className="text-sm font-medium text-white/70">Account Number</p>
-            <p className="text-white font-mono">{employee.accountNumber || 'Not provided'}</p>
+            <p className="text-sm font-medium text-neutral-600">Account Number</p>
+            <p className="text-neutral-900 font-mono">{employee.accountNumber || 'Not provided'}</p>
           </div>
           
           <div>
-            <p className="text-sm font-medium text-white/70">IFSC Code</p>
-            <p className="text-white font-mono">{employee.ifscCode || 'Not provided'}</p>
+            <p className="text-sm font-medium text-neutral-600">IFSC Code</p>
+            <p className="text-neutral-900 font-mono">{employee.ifscCode || 'Not provided'}</p>
           </div>
           
           <div>
-            <p className="text-sm font-medium text-white/70">Bank Name</p>
-            <p className="text-white">{employee.bankName || 'Not provided'}</p>
+            <p className="text-sm font-medium text-neutral-600">Bank Name</p>
+            <p className="text-neutral-900">{employee.bankName || 'Not provided'}</p>
           </div>
           
           <div>
-            <p className="text-sm font-medium text-white/70">Branch</p>
-            <p className="text-white">{employee.branch || 'Not provided'}</p>
+            <p className="text-sm font-medium text-neutral-600">Branch</p>
+            <p className="text-neutral-900">{employee.branch || 'Not provided'}</p>
           </div>
         </div>
         
         <div className="space-y-4">
           <div>
-            <p className="text-sm font-medium text-white/70">PAN Number</p>
-            <p className="text-white font-mono">{employee.panNumber || 'Not provided'}</p>
+            <p className="text-sm font-medium text-neutral-600">PAN Number</p>
+            <p className="text-neutral-900 font-mono">{employee.panNumber || 'Not provided'}</p>
           </div>
           
           <div>
-            <p className="text-sm font-medium text-white/70">Aadhar Number</p>
-            <p className="text-white font-mono">{employee.aadharNumber || 'Not provided'}</p>
+            <p className="text-sm font-medium text-neutral-600">Aadhar Number</p>
+            <p className="text-neutral-900 font-mono">{employee.aadharNumber || 'Not provided'}</p>
           </div>
           
           <div>
-            <p className="text-sm font-medium text-white/70">UAN Number</p>
-            <p className="text-white font-mono">{employee.uanNumber || 'Not provided'}</p>
+            <p className="text-sm font-medium text-neutral-600">UAN Number</p>
+            <p className="text-neutral-900 font-mono">{employee.uanNumber || 'Not provided'}</p>
           </div>
         </div>
       </div>
@@ -296,27 +289,27 @@ const EmployeeDetailView = ({
   const renderSettingsTab = () => (
     <Card variant="glass" title="Account Settings">
       <div className="space-y-6">
-        <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
+        <div className="flex items-center justify-between p-4 bg-neutral-50 border border-neutral-200 rounded-lg">
           <div>
-            <h4 className="font-medium text-white">Account Status</h4>
-            <p className="text-sm text-white/70">Current account status</p>
+            <h4 className="font-medium text-neutral-900">Account Status</h4>
+            <p className="text-sm text-neutral-600">Current account status</p>
           </div>
           <Badge variant={employee.status === 'active' ? 'success' : 'danger'}>
             {employee.status || 'Active'}
           </Badge>
         </div>
         
-        <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
+        <div className="flex items-center justify-between p-4 bg-neutral-50 border border-neutral-200 rounded-lg">
           <div>
-            <h4 className="font-medium text-white">Last Updated</h4>
-            <p className="text-sm text-white/70">{formatDateTime(employee.updatedAt)}</p>
+            <h4 className="font-medium text-neutral-900">Last Updated</h4>
+            <p className="text-sm text-neutral-600">{formatDateTime(employee.updatedAt)}</p>
           </div>
         </div>
         
-        <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-lg">
+        <div className="flex items-center justify-between p-4 bg-neutral-50 border border-neutral-200 rounded-lg">
           <div>
-            <h4 className="font-medium text-white">Created Date</h4>
-            <p className="text-sm text-white/70">{formatDateTime(employee.createdAt)}</p>
+            <h4 className="font-medium text-neutral-900">Created Date</h4>
+            <p className="text-sm text-neutral-600">{formatDateTime(employee.createdAt)}</p>
           </div>
         </div>
         
