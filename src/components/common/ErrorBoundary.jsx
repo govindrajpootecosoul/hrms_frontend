@@ -72,7 +72,6 @@ class ErrorBoundary extends Component {
                   Try Again
                 </Button>
                 <Button
-                  variant="ghost"
                   onClick={this.handleGoHome}
                   icon={<Home className="w-4 h-4" />}
                 >

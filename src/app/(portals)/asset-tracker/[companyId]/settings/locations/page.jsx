@@ -236,7 +236,6 @@ const LocationsSettingsPage = () => {
                           </div>
                           <div className="flex items-center space-x-2">
                             <Button
-                              variant="ghost"
                               size="sm"
                               onClick={() => handleAddSite(location)}
                               icon={<Plus className="w-4 h-4" />}
@@ -244,7 +243,6 @@ const LocationsSettingsPage = () => {
                               Add Site
                             </Button>
                             <Button
-                              variant="ghost"
                               size="sm"
                               onClick={() => handleEditLocation(location)}
                               icon={<Edit className="w-4 h-4" />}
@@ -252,7 +250,6 @@ const LocationsSettingsPage = () => {
                               Edit
                             </Button>
                             <Button
-                              variant="ghost"
                               size="sm"
                               onClick={() => handleDeleteLocation(location)}
                               icon={<Trash2 className="w-4 h-4" />}
@@ -287,7 +284,6 @@ const LocationsSettingsPage = () => {
                             </div>
                             <div className="flex items-center space-x-2">
                               <Button
-                                variant="ghost"
                                 size="sm"
                                 onClick={() => handleEditSite(location, site)}
                                 icon={<Edit className="w-4 h-4" />}
@@ -295,7 +291,6 @@ const LocationsSettingsPage = () => {
                                 Edit
                               </Button>
                               <Button
-                                variant="ghost"
                                 size="sm"
                                 onClick={() => handleDeleteSite(location, site)}
                                 icon={<Trash2 className="w-4 h-4" />}
@@ -350,7 +345,6 @@ const LocationsSettingsPage = () => {
           
           <div className="flex justify-end space-x-3 pt-4">
             <Button 
-              variant="ghost" 
               onClick={() => setShowAddLocation(false)}
             >
               Cancel
@@ -385,7 +379,6 @@ const LocationsSettingsPage = () => {
           
           <div className="flex justify-end space-x-3 pt-4">
             <Button 
-              variant="ghost" 
               onClick={() => setShowAddSite(false)}
             >
               Cancel

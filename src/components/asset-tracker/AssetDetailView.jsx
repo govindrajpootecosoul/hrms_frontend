@@ -13,7 +13,7 @@ const AssetDetailView = ({ asset }) => {
   };
 
   const SummaryCard = ({ icon, title, children, trailing }) => (
-    <Card variant="glass" className="h-full">
+    <Card className="h-full">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-neutral-100 border border-neutral-200 flex items-center justify-center">
@@ -38,7 +38,7 @@ const AssetDetailView = ({ asset }) => {
         <SummaryCard icon={<User className="w-5 h-5" />} title="Assignment">
           <p className="text-sm text-neutral-600">Assigned To</p>
           <p>{asset.assignedTo || 'Unassigned'}</p>
-          <div className="mt-2"><Badge variant={asset.status === 'assigned' ? 'success' : asset.status === 'maintenance' ? 'warning' : 'default'}>{asset.status}</Badge></div>
+          <div className="mt-2"><Badge>{asset.status}</Badge></div>
         </SummaryCard>
         <SummaryCard icon={<Calendar className="w-5 h-5" />} title="Warranty">
           <p className="text-sm text-neutral-600">Start</p>
@@ -54,7 +54,7 @@ const AssetDetailView = ({ asset }) => {
         </SummaryCard>
       </div>
 
-      <Card variant="glass">
+      <Card>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
             <div>

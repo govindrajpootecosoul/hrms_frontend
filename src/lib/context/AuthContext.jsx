@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect } from 'react';
+import { mockCompany } from '../utils/hrmsMockData';
 
 const AuthContext = createContext();
 
@@ -57,7 +58,7 @@ export const AuthProvider = ({ children }) => {
         email,
         name: 'John Doe',
         companies: [
-          { id: '1', name: 'EcoSoul', role: 'admin' },
+          { id: mockCompany.id, name: mockCompany.name, role: 'admin', logo: mockCompany.logo },
           { id: '2', name: 'Thrive Brands', role: 'user' }
         ]
       };

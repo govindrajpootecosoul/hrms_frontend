@@ -39,7 +39,7 @@ const PageHeader = ({
       {showBackButton && (
         <div className="mb-4">
           <Link href={backHref || '#'}>
-            <Button variant="ghost" size="sm" icon={<ArrowLeft className="w-4 h-4" />}>
+            <Button size="sm" icon={<ArrowLeft className="w-4 h-4" />}>
               Back
             </Button>
           </Link>

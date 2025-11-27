@@ -42,7 +42,6 @@ const EmployeeDetailView = ({
 
   const tabs = [
     { id: 'general', label: 'General', icon: <User className="w-4 h-4" /> },
-    { id: 'personal', label: 'Personal', icon: <User className="w-4 h-4" /> },
     { id: 'bank', label: 'Bank Details', icon: <User className="w-4 h-4" /> },
     { id: 'settings', label: 'Settings', icon: <User className="w-4 h-4" /> }
   ];
@@ -70,7 +69,7 @@ const EmployeeDetailView = ({
   };
 
   const SummaryCard = ({ icon, title, children, trailing }) => (
-    <Card variant="glass" className="h-full">
+    <Card className="h-full">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-neutral-100 border border-neutral-200 flex items-center justify-center">
@@ -89,7 +88,7 @@ const EmployeeDetailView = ({
   const renderGeneralTab = () => (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[260px_minmax(0,1fr)_minmax(0,1fr)] gap-6">
         <div className="flex flex-col items-center justify-center space-y-5">
           <CometCard
             className="w-56"
@@ -118,91 +117,105 @@ const EmployeeDetailView = ({
             }}
           />
         </div>
-        <SummaryCard icon={<Mail className="w-5 h-5" />} title="Contact">
-          <p className="text-sm"><span className="text-neutral-600">Email</span></p>
-          <p className="font-mono text-neutral-900">{employee.email}</p>
-          <p className="text-sm mt-2"><span className="text-neutral-600">Phone Number</span></p>
-          <p className="text-neutral-900">{employee.phone}</p>
+        <SummaryCard icon={<Mail className="w-5 h-5" />} title="Personal Information">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm font-medium text-neutral-600">Email</p>
+                <p className="font-mono text-neutral-900 break-all">{employee.email}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-neutral-600">Phone</p>
+                <p className="text-neutral-900">{employee.phone}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-neutral-600">Father&apos;s Name</p>
+                <p className="text-neutral-900">
+                  {employee.fatherName || 'Not provided'}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-neutral-600">Personal Email</p>
+                <p className="text-neutral-900 break-all">
+                  {employee.personalEmail || 'Not provided'}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-neutral-600">Emergency Contact</p>
+                <p className="text-neutral-900">
+                  {employee.emergencyContact || 'Not provided'}
+                </p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm font-medium text-neutral-600">Date of Birth</p>
+                <p className="text-neutral-900">{formatDate(employee.dateOfBirth)}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-neutral-600">Gender</p>
+                <p className="text-neutral-900 capitalize">
+                  {employee.gender || 'Not specified'}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-neutral-600">Marital Status</p>
+                <p className="text-neutral-900">
+                  {employee.maritalStatus || 'Not specified'}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-neutral-600">Blood Group</p>
+                <p className="text-neutral-900">
+                  {employee.bloodGroup || 'Not specified'}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-neutral-600">Address</p>
+                <p className="text-neutral-900">
+                  {employee.address || 'Not provided'}
+                </p>
+              </div>
+            </div>
+          </div>
         </SummaryCard>
-        <SummaryCard icon={<User className="w-5 h-5" />} title="Department">
-          <p className="text-sm text-neutral-600">Department</p>
-          <p className="text-neutral-900">{employee.department}</p>
-          <p className="text-sm text-neutral-600 mt-2">Office</p>
-          <p className="text-neutral-900">ThriveBrands</p>
-        </SummaryCard>
-        <SummaryCard icon={<User className="w-5 h-5" />} title="Biometric" trailing={<div className="w-10 h-6 rounded-full bg-emerald-500/30 border border-emerald-400/40 flex items-center px-1"><div className="w-4 h-4 bg-emerald-400 rounded-full ml-auto" /></div>}>
-          <p className="text-sm text-neutral-600">Biometric ID</p>
-          <p className="font-mono text-neutral-900">{employee.biometricId}</p>
-          <div className="flex items-center gap-2 mt-2 text-emerald-400">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span className="text-sm">Active</span>
+        <SummaryCard
+          icon={<User className="w-5 h-5" />}
+          title="Department & Biometric"
+          trailing={
+            <div className="w-10 h-6 rounded-full bg-emerald-500/30 border border-emerald-400/40 flex items-center px-1">
+              <div className="w-4 h-4 bg-emerald-400 rounded-full ml-auto" />
+            </div>
+          }
+        >
+          <div className="space-y-3">
+            <div>
+              <p className="text-sm text-neutral-600">Department</p>
+              <p className="text-neutral-900">{employee.department}</p>
+            </div>
+            <div>
+              <p className="text-sm text-neutral-600">Office</p>
+              <p className="text-neutral-900">ThriveBrands</p>
+            </div>
+            <div>
+              <p className="text-sm text-neutral-600">Biometric ID</p>
+              <p className="font-mono text-neutral-900">{employee.biometricId}</p>
+              <div className="flex items-center gap-2 mt-2 text-emerald-400">
+                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                <span className="text-sm">Active</span>
+              </div>
+            </div>
           </div>
         </SummaryCard>
       </div>
 
       {/* Removed lower profile header to keep the summary cards as the main header */}
 
-      {/* Basic Information */}
-      <Card variant="glass" title="Personal Information" subtitle="Basic employee details">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-4">
-            <div className="flex items-center">
-              <Mail className="w-5 h-5 text-neutral-600 mr-3" />
-              <div>
-                <p className="text-sm font-medium text-neutral-600">Email</p>
-                <p className="text-neutral-900">{employee.email}</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center">
-              <Phone className="w-5 h-5 text-neutral-600 mr-3" />
-              <div>
-                <p className="text-sm font-medium text-neutral-600">Phone</p>
-                <p className="text-neutral-900">{employee.phone}</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center">
-              <User className="w-5 h-5 text-neutral-600 mr-3" />
-              <div>
-                <p className="text-sm font-medium text-neutral-600">Biometric ID</p>
-                <p className="text-neutral-900 font-mono">{employee.biometricId}</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="space-y-4">
-            <div className="flex items-center">
-              <User className="w-5 h-5 text-neutral-600 mr-3" />
-              <div>
-                <p className="text-sm font-medium text-neutral-600">Department</p>
-                <p className="text-neutral-900">{employee.department}</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center">
-              <Calendar className="w-5 h-5 text-neutral-600 mr-3" />
-              <div>
-                <p className="text-sm font-medium text-neutral-600">Date of Birth</p>
-                <p className="text-neutral-900">{formatDate(employee.dateOfBirth)}</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center">
-              <User className="w-5 h-5 text-neutral-600 mr-3" />
-              <div>
-                <p className="text-sm font-medium text-neutral-600">Gender</p>
-                <p className="text-neutral-900 capitalize">{employee.gender || 'Not specified'}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Card>
     </div>
   );
 
   const renderPersonalTab = () => (
-    <Card variant="glass" title="Personal Information">
+    <Card title="Personal Information">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-4">
           <div>
@@ -242,7 +255,7 @@ const EmployeeDetailView = ({
   );
 
   const renderBankTab = () => (
-    <Card variant="glass" title="Bank Details">
+    <Card title="Bank Details">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-4">
           <div>
@@ -287,14 +300,14 @@ const EmployeeDetailView = ({
   );
 
   const renderSettingsTab = () => (
-    <Card variant="glass" title="Account Settings">
+    <Card title="Account Settings">
       <div className="space-y-6">
         <div className="flex items-center justify-between p-4 bg-neutral-50 border border-neutral-200 rounded-lg">
           <div>
             <h4 className="font-medium text-neutral-900">Account Status</h4>
             <p className="text-sm text-neutral-600">Current account status</p>
           </div>
-          <Badge variant={employee.status === 'active' ? 'success' : 'danger'}>
+          <Badge>
             {employee.status || 'Active'}
           </Badge>
         </div>
@@ -321,7 +334,6 @@ const EmployeeDetailView = ({
   const renderTabContent = () => {
     switch (activeTab) {
       case 'general': return renderGeneralTab();
-      case 'personal': return renderPersonalTab();
       case 'bank': return renderBankTab();
       case 'settings': return renderSettingsTab();
       default: return renderGeneralTab();
@@ -342,3 +354,4 @@ const EmployeeDetailView = ({
 };
 
 export default EmployeeDetailView;
+

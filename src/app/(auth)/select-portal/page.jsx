@@ -65,9 +65,9 @@ const PortalSelectionPage = () => {
       <div className="w-full max-w-4xl">
         {/* Header */}
         <div className="text-center mb-12">
-          <div className="flex items-center justify-center mb-4">
-            <Building2 className="w-8 h-8 text-neutral-900 mr-3" />
-            <h1 className="text-3xl font-bold">Select Portal</h1>
+          <div className="flex items-center justify-center mb-4 gap-5">
+            <img src={'/VectorAIStudioBlack.svg'} className="w-[5rem] h-[5rem] mr-3" />
+            <h1 className="text-3xl font-bold mt-5">Select Portal</h1>
           </div>
           <p className="text-lg text-neutral-700">
             Choose the portal you want to access for {user?.name || 'your account'}
@@ -77,7 +77,7 @@ const PortalSelectionPage = () => {
         {/* Company Selection */}
         {companies.length > 1 && (
           <div className="mb-12 relative z-20">
-            <Card variant="glass" className="max-w-md mx-auto backdrop-blur-md overflow-visible">
+            <Card className="max-w-md mx-auto backdrop-blur-md overflow-visible">
               <div className="text-center">
                 <h3 className="text-lg font-semibold mb-4">
                   Select Company
@@ -87,7 +87,6 @@ const PortalSelectionPage = () => {
                   value={selectedCompanyId}
                   onChange={handleCompanyChange}
                   placeholder="Choose a company"
-                  variant="glass"
                 />
               </div>
             </Card>
@@ -97,88 +96,94 @@ const PortalSelectionPage = () => {
         {/* Portal Cards */}
         <div className="grid md:grid-cols-2 gap-8">
           {/* HRMS Portal */}
-          <Card variant="glass" className="group hover:scale-105 transition-transform duration-300 cursor-pointer backdrop-blur-md relative z-10">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-neutral-100 border border-neutral-200 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Users className="w-8 h-8 text-neutral-900" />
-              </div>
-              
-              <h2 className="text-2xl font-bold mb-4">
-                HRMS Portal
-              </h2>
-              
-              <p className="text-neutral-700 mb-6 leading-relaxed">
-                Manage your human resources, employee data, attendance tracking, 
-                and workforce analytics in one comprehensive platform.
-              </p>
-              
-              <div className="space-y-3 mb-6 text-sm text-neutral-700">
-                <div className="flex items-center justify-center">
-                  <span className="w-2 h-2 bg-white/70 rounded-full mr-2" />
-                  Employee Management
+          <div className="flip-card-container cursor-pointer">
+            <div className="flip-card-inner">
+              {/* Front Face */}
+              <Card className="flip-card-front backdrop-blur-md w-full h-full">
+                <div className="text-center h-full flex flex-col">
+                  <div className="w-[15rem] h-[15rem] flex items-center justify-center mx-auto mb-6">
+                    <img src={'/hrms_select_portal.jpg'} className="w-[80%] h-[80%] object-contain" />
+                  </div>
+                  
+                  <h2 className="text-2xl font-bold mb-4">
+                    HRMS Portal
+                  </h2>
+                  
+                  <p className="text-neutral-700 mb-6 leading-relaxed">
+                    Manage your human resources, employee data, attendance tracking, 
+                    and workforce analytics in one comprehensive platform.
+                  </p>
                 </div>
-                <div className="flex items-center justify-center">
-                  <span className="w-2 h-2 bg-white/70 rounded-full mr-2" />
-                  Attendance Tracking
+              </Card>
+
+              {/* Back Face */}
+              <Card className="flip-card-back backdrop-blur-md w-full h-full !p-0">
+                <div className="flex flex-col items-center justify-center flip-card-back-content">
+                  <h2 className="text-2xl font-bold mb-4">
+                    HRMS Portal
+                  </h2>
+                  
+                  <p className="text-neutral-700 mb-6 leading-relaxed">
+                    Manage your human resources, employee data, attendance tracking, 
+                    and workforce analytics in one comprehensive platform.
+                  </p>
+                  <Button
+                    onClick={() => handlePortalSelect('hrms')}
+                    className="w-full max-w-xs bg-primary-600 hover:bg-primary-500 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+                    icon={<ArrowRight className="w-4 h-4" />}
+                    iconPosition="right"
+                  >
+                    Enter HRMS Portal
+                  </Button>
                 </div>
-                <div className="flex items-center justify-center">
-                  <span className="w-2 h-2 bg-white/70 rounded-full mr-2" />
-                  HR Analytics
-                </div>
-              </div>
-              
-              <Button
-                onClick={() => handlePortalSelect('hrms')}
-                className="w-full bg-primary-600 hover:bg-primary-500 text-white"
-                icon={<ArrowRight className="w-4 h-4" />}
-                iconPosition="right"
-              >
-                Enter HRMS Portal
-              </Button>
+              </Card>
             </div>
-          </Card>
+          </div>
 
           {/* Asset Tracker Portal */}
-          <Card variant="glass" className="group hover:scale-105 transition-transform duration-300 cursor-pointer backdrop-blur-md relative z-10">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-neutral-100 border border-neutral-200 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Package className="w-8 h-8 text-neutral-900" />
-              </div>
-              
-              <h2 className="text-2xl font-bold mb-4">
-                Asset Tracker Portal
-              </h2>
-              
-              <p className="text-neutral-700 mb-6 leading-relaxed">
-                Track and manage company assets, monitor assignments, 
-                maintenance schedules, and optimize asset utilization.
-              </p>
-              
-              <div className="space-y-3 mb-6 text-sm text-neutral-700">
-                <div className="flex items-center justify-center">
-                  <span className="w-2 h-2 bg-white/70 rounded-full mr-2" />
-                  Asset Management
+          <div className="flip-card-container cursor-pointer">
+            <div className="flip-card-inner">
+              {/* Front Face */}
+              <Card className="flip-card-front backdrop-blur-md w-full h-full">
+              <div className="text-center h-full flex flex-col">
+                  <div className="w-[15rem] h-[15rem] flex items-center justify-center mx-auto mb-6">
+                    <img src={'/asset_select_portal.jpg'} className="w-full h-full object-contain" />
+                  </div>
+                  
+                  <h2 className="text-2xl font-bold mb-4">
+                    Asset Tracker Portal
+                  </h2>
+                  
+                  <p className="text-neutral-700 mb-6 leading-relaxed">
+                    Track and manage company assets, monitor assignments, 
+                    maintenance schedules, and optimize asset utilization.
+                  </p>
                 </div>
-                <div className="flex items-center justify-center">
-                  <span className="w-2 h-2 bg-white/70 rounded-full mr-2" />
-                  Assignment Tracking
+              </Card>
+
+              {/* Back Face */}
+              <Card className="flip-card-back backdrop-blur-md w-full h-full !p-0">
+                <div className="flex flex-col items-center justify-center flip-card-back-content">
+                  <h2 className="text-2xl font-bold mb-4">
+                    Asset Tracker Portal
+                  </h2>
+                  
+                  <p className="text-neutral-700 mb-6 leading-relaxed">
+                    Track and manage company assets, monitor assignments, 
+                    maintenance schedules, and optimize asset utilization.
+                  </p>
+                  <Button
+                    onClick={() => handlePortalSelect('asset-tracker')}
+                    className="w-full max-w-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+                    icon={<ArrowRight className="w-4 h-4" />}
+                    iconPosition="right"
+                    >
+                    Enter Asset Tracker
+                  </Button>
                 </div>
-                <div className="flex items-center justify-center">
-                  <span className="w-2 h-2 bg-white/70 rounded-full mr-2" />
-                  Maintenance Logs
-                </div>
-              </div>
-              
-              <Button
-                onClick={() => handlePortalSelect('asset-tracker')}
-                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white"
-                icon={<ArrowRight className="w-4 h-4" />}
-                iconPosition="right"
-              >
-                Enter Asset Tracker
-              </Button>
+              </Card>
             </div>
-          </Card>
+          </div>
         </div>
 
         {/* Footer */}

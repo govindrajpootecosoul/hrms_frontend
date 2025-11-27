@@ -1,55 +1,48 @@
 'use client';
 
-import { Users, Clock, UserCheck, UserX } from 'lucide-react';
+import { isValidElement } from 'react';
 import Card from '@/components/common/Card';
 import Badge from '@/components/common/Badge';
 
 const StatisticsCards = ({ 
-  totalEmployees = 0, 
-  presentToday = 0, 
-  absentToday = 0, 
-  onLeave = 0,
-  loading = false 
+  cards = [],
+  loading = false,
+  valueFormatter,
+  compact = false
 }) => {
-  const stats = [
-    {
-      title: 'Total Employees',
-      value: totalEmployees,
-      icon: <Users className="w-6 h-6" />,
-      color: '#FF2B00',
-      bgColor: 'bg-primary-100',
-      textColor: 'text-primary-600'
-    },
-    {
-      title: 'Present Today',
-      value: presentToday,
-      icon: <UserCheck className="w-6 h-6" />,
-      color: 'success',
-      bgColor: 'bg-secondary-100',
-      textColor: 'text-secondary-600'
-    },
-    {
-      title: 'Absent Today',
-      value: absentToday,
-      icon: <UserX className="w-6 h-6" />,
-      color: 'danger',
-      bgColor: 'bg-danger-100',
-      textColor: 'text-danger-600'
-    },
-    {
-      title: 'On Leave',
-      value: onLeave,
-      icon: <Clock className="w-6 h-6" />,
-      color: 'warning',
-      bgColor: 'bg-accent-100',
-      textColor: 'text-accent-600'
+  const safeCards = Array.isArray(cards) ? cards : [];
+
+  const formatValue = (value, card) => {
+    if (typeof valueFormatter === 'function') {
+      return valueFormatter(value, card);
     }
-  ];
+    if (typeof value === 'number') {
+      return value.toLocaleString();
+    }
+    return value ?? '--';
+  };
+
+  const resolveColor = (color) => {
+    if (!color) return '#ffffff';
+    if (typeof color === 'string' && color.startsWith('#')) return color;
+    const map = {
+      primary: '#3b82f6',
+      success: '#10b981',
+      danger: '#ef4444',
+      warning: '#f59e0b',
+      info: '#0ea5e9',
+      secondary: '#8b5cf6',
+      accent: '#22d3ee',
+    };
+    return map[color] || '#ffffff';
+  };
+
+  const skeletonCount = safeCards.length || 4;
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {Array.from({ length: 4 }).map((_, index) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {Array.from({ length: skeletonCount }).map((_, index) => (
           <Card key={index} className="p-6">
             <div className="animate-pulse">
               <div className="flex items-center">
@@ -66,56 +59,112 @@ const StatisticsCards = ({
     );
   }
 
+  if (safeCards.length === 0) {
+    return (
+      <Card className="p-8 text-center text-neutral-500">
+        No statistics available.
+      </Card>
+    );
+  }
+
+  let gridClasses = ['grid', 'gap-4'];
+  if (compact) {
+    // Compact layout: responsive full-width row for metric-style cards
+    gridClasses.push(
+      'grid-cols-1',
+      'sm:grid-cols-2',
+      'md:grid-cols-3',
+      'lg:grid-cols-4',
+      'xl:grid-cols-5'
+    );
+  } else {
+    gridClasses.push('grid-cols-1');
+    if (safeCards.length > 1) gridClasses.push('md:grid-cols-2');
+    if (safeCards.length > 2) gridClasses.push('lg:grid-cols-3');
+    if (safeCards.length > 3) gridClasses.push('xl:grid-cols-4');
+  }
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      {stats.map((stat, index) => {
-        const resolveColor = (c) => {
-          if (!c) return '#ffffff';
-          if (typeof c === 'string' && c.startsWith('#')) return c;
-          const map = {
-            primary: '#3b82f6',
-            success: '#10b981',
-            danger: '#ef4444',
-            warning: '#f59e0b',
-            info: '#0ea5e9',
-            secondary: '#8b5cf6',
-            accent: '#22d3ee'
-          };
-          return map[c] || '#ffffff';
-        };
+    <div className={gridClasses.join(' ')}>
+      {safeCards.map((stat, index) => {
         const themeColor = resolveColor(stat.color);
-        return (
-          <Card key={index} variant="glass" className="p-6 hover:shadow-lg transition-all duration-300">
-            <div className="flex items-center">
-              <div
-                className={`w-14 h-14 rounded-xl flex items-center justify-center mr-4 shadow-lg`}
-                style={{ backgroundColor: `${themeColor}20`, border: `1px solid ${themeColor}40` }}
-              >
-                <span style={{ color: themeColor }}>
-                  {stat.icon}
-                </span>
-              </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-neutral-600 mb-2">
-                {stat.title}
-              </p>
-              <p className="text-3xl font-bold text-neutral-900">
-                {stat.value.toLocaleString()}
-              </p>
-            </div>
-          </div>
-          
-          {/* Optional trend indicator */}
-          {stat.title === 'Present Today' && totalEmployees > 0 && (
-            <div className="mt-3">
-              <Badge 
-                variant={presentToday / totalEmployees >= 0.8 ? 'success' : 'warning'}
-                size="sm"
-              >
-                {Math.round((presentToday / totalEmployees) * 100)}% attendance
+        const rawBadge = typeof stat.badge === 'function' ? stat.badge(stat) : stat.badge;
+
+        const renderBadge = () => {
+          if (!rawBadge) return null;
+
+          if (isValidElement(rawBadge)) {
+            return rawBadge;
+          }
+
+          if (typeof rawBadge === 'string' || typeof rawBadge === 'number') {
+            return (
+              <Badge size="sm">
+                {rawBadge}
               </Badge>
+            );
+          }
+
+          if (typeof rawBadge === 'object' && rawBadge !== null) {
+            const { size = 'sm', text, value } = rawBadge;
+            const content = text ?? formatValue(value ?? stat.value, stat);
+            return (
+              <Badge size={size}>
+                {content}
+              </Badge>
+            );
+          }
+
+          return rawBadge;
+        };
+
+        const hasBackground = Boolean(stat.backgroundColor);
+
+        return (
+          <Card
+            key={stat.key ?? index}
+            className={`transition-all duration-300 ${
+              hasBackground
+                ? 'shadow-lg hover:shadow-xl ring-1 ring-black/5'
+                : 'hover:shadow-lg'
+            } ${compact ? 'px-6 py-4' : 'p-6'}`}
+            style={hasBackground ? { background: stat.backgroundColor } : undefined}
+          >
+            <div className="flex items-center">
+              {stat.icon && (
+                <div
+                  className={`rounded-xl flex items-center justify-center mr-4 shadow-lg ${
+                    compact ? 'w-12 h-12' : 'w-14 h-14'
+                  }`}
+                  style={{ backgroundColor: `${themeColor}20`, border: `1px solid ${themeColor}40` }}
+                >
+                  <span style={{ color: themeColor }}>
+                    {stat.icon}
+                  </span>
+                </div>
+              )}
+              <div className="flex-1">
+                {stat.title && (
+                  <p className={`font-medium text-white mb-2 ${compact ? 'text-sm' : 'text-sm'}`}>
+                    {stat.title}
+                  </p>
+                )}
+                <p className={`font-bold text-white ${compact ? 'text-3xl' : 'text-3xl'}`}>
+                  {formatValue(stat.value, stat)}
+                </p>
+                {stat.subtitle && (
+                  <p className="text-xs text-neutral-500 mt-1 hidden">
+                    {stat.subtitle}
+                  </p>
+                )}
+              </div>
             </div>
-          )}
+
+            {(rawBadge || stat.footer) && (
+              <div className="mt-3 hidden">
+                {renderBadge() || stat.footer}
+              </div>
+            )}
           </Card>
         );
       })}

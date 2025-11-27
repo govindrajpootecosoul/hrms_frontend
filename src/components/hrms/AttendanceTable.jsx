@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Search, Filter, Download, Calendar, Clock } from 'lucide-react';
+import { Search, Filter, Download, Upload, Calendar, Clock } from 'lucide-react';
 import { ATTENDANCE_STATUS } from '@/lib/utils/constants';
 import Table from '@/components/common/Table';
 import Button from '@/components/common/Button';
@@ -13,6 +13,7 @@ const AttendanceTable = ({
   attendance = [],
   loading = false,
   onExport,
+  onUpload,
   onStatusUpdate,
   pagination = true,
   currentPage = 1,
@@ -158,9 +159,14 @@ const AttendanceTable = ({
       {/* Header with Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center space-x-3">
-          <Button variant="ghost" onClick={onExport} icon={<Download className="w-4 h-4" />}>
+          <Button onClick={onExport} icon={<Download className="w-4 h-4" />}>
             Export CSV
           </Button>
+          {onUpload && (
+            <Button onClick={onUpload} icon={<Upload className="w-4 h-4" />}>
+              Upload Attendance
+            </Button>
+          )}
         </div>
         
         <div className="text-sm text-neutral-700">
@@ -212,7 +218,7 @@ const AttendanceTable = ({
                   <p className="text-sm font-medium text-neutral-600">{status.label}</p>
                   <p className="text-2xl font-bold text-neutral-900">{count}</p>
                 </div>
-                <Badge variant={status.color === 'green' ? 'success' : status.color === 'red' ? 'danger' : status.color === 'orange' ? 'warning' : 'info'}>
+                <Badge>
                   {status.label}
                 </Badge>
               </div>

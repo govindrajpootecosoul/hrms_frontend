@@ -22,9 +22,6 @@ const EmployeeDetailsPage = () => {
   return (
     <div className="min-h-screen space-y-6">
       <PageHeader
-        breadcrumbs={[
-          { label: 'Employees', href: `/hrms/${companyId}/employees` }
-        ]}
         leadingAction={
           <button
             aria-label="Back"

@@ -199,7 +199,7 @@ const CategoriesSettingsPage = () => {
               />
 
               {/* Categories Tree */}
-              <Card variant="glass">
+              <Card>
                 <div className="space-y-4">
                   {categories.map((category) => (
                     <div key={category.id} className="border border-neutral-200 rounded-lg">
@@ -223,7 +223,6 @@ const CategoriesSettingsPage = () => {
                         </div>
                         <div className="flex items-center space-x-2">
                           <Button
-                            variant="ghost"
                             size="sm"
                             onClick={() => handleAddSubcategory(category)}
                             icon={<Plus className="w-4 h-4" />}
@@ -231,7 +230,6 @@ const CategoriesSettingsPage = () => {
                             Add Subcategory
                           </Button>
                           <Button
-                            variant="ghost"
                             size="sm"
                             onClick={() => handleEditCategory(category)}
                             icon={<Edit className="w-4 h-4" />}
@@ -239,7 +237,6 @@ const CategoriesSettingsPage = () => {
                             Edit
                           </Button>
                           <Button
-                            variant="ghost"
                             size="sm"
                             onClick={() => handleDeleteCategory(category)}
                             icon={<Trash2 className="w-4 h-4" />}
@@ -261,7 +258,6 @@ const CategoriesSettingsPage = () => {
                                 </div>
                                 <div className="flex items-center space-x-2">
                                   <Button
-                                    variant="ghost"
                                     size="sm"
                                     onClick={() => handleEditSubcategory(category, subcategory)}
                                     icon={<Edit className="w-4 h-4" />}
@@ -269,7 +265,6 @@ const CategoriesSettingsPage = () => {
                                     Edit
                                   </Button>
                                   <Button
-                                    variant="ghost"
                                     size="sm"
                                     onClick={() => handleDeleteSubcategory(category, subcategory)}
                                     icon={<Trash2 className="w-4 h-4" />}
@@ -320,7 +315,6 @@ const CategoriesSettingsPage = () => {
           
           <div className="flex justify-end space-x-3 pt-4">
             <Button 
-              variant="ghost" 
               onClick={() => setShowAddCategory(false)}
             >
               Cancel
@@ -364,7 +358,6 @@ const CategoriesSettingsPage = () => {
           
           <div className="flex justify-end space-x-3 pt-4">
             <Button 
-              variant="ghost" 
               onClick={() => setShowAddSubcategory(false)}
             >
               Cancel

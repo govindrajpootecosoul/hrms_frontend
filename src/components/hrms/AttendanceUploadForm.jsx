@@ -257,7 +257,6 @@ const AttendanceUploadForm = ({
                     </p>
                   </div>
                   <Button
-                    variant="ghost"
                     onClick={removeFile}
                     icon={<X className="w-4 h-4" />}
                   >
@@ -285,7 +284,6 @@ const AttendanceUploadForm = ({
                     className="hidden"
                   />
                   <Button
-                    variant="ghost"
                     onClick={() => fileInputRef.current?.click()}
                   >
                     Choose File
@@ -321,7 +319,7 @@ const AttendanceUploadForm = ({
 
       {/* Action Buttons */}
       <div className="flex justify-end space-x-3">
-        <Button variant="ghost" onClick={onCancel}>
+        <Button onClick={onCancel}>
           Cancel
         </Button>
         <Button

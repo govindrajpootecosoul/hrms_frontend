@@ -94,7 +94,7 @@ const MetricCards = ({
         };
         const themeColor = resolveColor(metric.color);
         return (
-        <Card key={index} variant="glass" className="p-6 hover:shadow-lg transition-all duration-300">
+        <Card key={index} className="p-6 hover:shadow-lg transition-all duration-300">
           <div className="flex items-center">
             <div
               className={`w-14 h-14 rounded-xl flex items-center justify-center mr-4 shadow-lg`}
@@ -118,7 +118,6 @@ const MetricCards = ({
           {metric.title === 'Assigned' && totalAssets > 0 && (
             <div className="mt-3">
               <Badge 
-                variant={assigned / totalAssets >= 0.7 ? 'success' : 'warning'}
                 size="sm"
               >
                 {Math.round((assigned / totalAssets) * 100)}% assigned
@@ -129,7 +128,6 @@ const MetricCards = ({
           {metric.title === 'Available' && totalAssets > 0 && (
             <div className="mt-3">
               <Badge 
-                variant={available / totalAssets >= 0.2 ? 'success' : 'warning'}
                 size="sm"
               >
                 {Math.round((available / totalAssets) * 100)}% available

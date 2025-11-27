@@ -109,7 +109,7 @@ const AssetTable = ({
       title: 'Category',
       render: (value, asset) => (
         <div>
-          <Badge variant="info" size="sm" className="mb-1">
+          <Badge size="sm" className="mb-1">
             {asset.category}
           </Badge>
           <div className="text-xs text-neutral-600">{asset.subcategory}</div>
@@ -121,10 +121,7 @@ const AssetTable = ({
       title: 'Status',
       render: (value) => {
         const statusConfig = ASSET_STATUS.find(s => s.value === value);
-        const variant = statusConfig?.color === 'green' ? 'success' : 
-                      statusConfig?.color === 'blue' ? 'info' :
-                      statusConfig?.color === 'orange' ? 'warning' : 'danger';
-        return <Badge variant={variant} size="sm">{statusConfig?.label || value}</Badge>;
+        return <Badge size="sm">{statusConfig?.label || value}</Badge>;
       }
     },
     {
@@ -195,7 +192,7 @@ const AssetTable = ({
           <Button onClick={onAdd} icon={<Plus className="w-4 h-4" />}>
             Add Asset
           </Button>
-          <Button variant="ghost" onClick={onExport} icon={<Download className="w-4 h-4" />}>
+          <Button onClick={onExport} icon={<Download className="w-4 h-4" />}>
             Export CSV
           </Button>
         </div>
@@ -276,7 +273,7 @@ const AssetTable = ({
           </div>
           
           <div className="flex justify-end space-x-3 pt-4">
-            <Button variant="ghost" onClick={() => setShowAssignModal(false)}>
+            <Button onClick={() => setShowAssignModal(false)}>
               Cancel
             </Button>
             <Button onClick={() => handleAssignSubmit('')}>

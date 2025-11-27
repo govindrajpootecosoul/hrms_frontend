@@ -8,6 +8,8 @@ import { useToast } from '@/components/common/Toast';
 import Button from '@/components/common/Button';
 import Input from '@/components/common/Input';
 import Card from '@/components/common/Card';
+import { Globe } from '@/components/visuals/Globe';
+import { LogoCarousel } from '@/components/visuals/LogoCarousel';
 
 const LoginPage = () => {
   const router = useRouter();
@@ -82,14 +84,16 @@ const LoginPage = () => {
       <div className="fixed inset-0 -z-10 bg-white/60" />
 
       {/* Left side - Branding overlay */}
-      <div className="hidden lg:flex lg:w-1/2 relative">
-        <div className="relative z-10 flex flex-col justify-center items-center p-12">
-          <div className="text-center mx-50">
-            <h1 className="text-7xl font-bold mb-4">Welcome Back</h1>
-            <p className="text-xl text-neutral-700 mb-8">
-              Access your HRMS & Asset Tracker portals
-            </p>
-            <div className="w-24 h-1 bg-neutral-300 rounded-full mx-auto" />
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
+        <div className="relative z-10 flex flex-col justify-center items-center p-12 w-full">
+          {/* Logo Carousel */}
+          <div className="mb-8 flex justify-center">
+            <LogoCarousel columnCount={1} />
+          </div>
+          
+          {/* Globe Component */}
+          <div className="relative w-full max-w-[500px] h-[450px] flex items-center justify-center mt-4">
+            <Globe className="w-full h-full" />
           </div>
         </div>
       </div>
@@ -97,6 +101,10 @@ const LoginPage = () => {
       {/* Right side - Login Form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
+          <div className="text-center mb-6">
+            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-10 mt-10 text-neutral-900 whitespace-nowrap -ml-10">Welcome Back</h1>
+          </div>
+
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold mb-2">Sign In</h2>
             <p className="text-neutral-700">
@@ -104,7 +112,7 @@ const LoginPage = () => {
             </p>
           </div>
 
-          <Card variant="glass" className="backdrop-blur-md">
+          <Card className="backdrop-blur-md mx-auto w-full">
             <form onSubmit={handleSubmit} className="space-y-6">
               <Input
                 label="Email Address"
@@ -116,7 +124,6 @@ const LoginPage = () => {
                 required
                 icon={<Mail className="w-4 h-4" />}
                 placeholder="Enter your email"
-                variant="glass"
               />
 
               <Input
@@ -129,7 +136,6 @@ const LoginPage = () => {
                 required
                 icon={<Lock className="w-4 h-4" />}
                 placeholder="Enter your password"
-                variant="glass"
               />
 
               <div className="flex items-center justify-between">

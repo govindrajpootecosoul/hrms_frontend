@@ -16,6 +16,8 @@ const Table = forwardRef(({
   currentPage = 1,
   totalPages = 1,
   onPageChange,
+  scrollable = false,
+  maxHeight,
   className = '',
   ...props
 }, ref) => {
@@ -54,9 +56,14 @@ const Table = forwardRef(({
     );
   }
 
+  const scrollableStyle = scrollable ? {
+    maxHeight: maxHeight || '400px',
+    overflowY: 'auto'
+  } : {};
+
   return (
         <div className={`relative overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm ${className}`} {...props}>
-      <div className="overflow-x-auto relative z-10">
+      <div className={`overflow-x-auto relative z-10 ${scrollable ? 'overflow-y-auto' : ''}`} style={scrollableStyle}>
         <table ref={ref} className="w-full border-collapse">
               <thead className="bg-neutral-50 border-b border-neutral-200">
             <tr>
@@ -141,7 +148,6 @@ const Table = forwardRef(({
           </div>
           <div className="flex items-center space-x-2">
             <Button
-              variant="ghost"
               size="sm"
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
@@ -150,7 +156,6 @@ const Table = forwardRef(({
               Previous
             </Button>
             <Button
-              variant="ghost"
               size="sm"
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}

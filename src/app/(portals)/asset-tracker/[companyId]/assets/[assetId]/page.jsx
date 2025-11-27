@@ -43,7 +43,6 @@ const AssetDetailsPage = () => {
         breadcrumbs={[{ label: 'Assets', href: `/asset-tracker/${companyId}/assets` }]}
         leadingAction={
           <Button
-            variant="ghost"
             size="sm"
             aria-label="Back"
             className="!p-2 rounded-lg border border-neutral-200 hover:bg-neutral-100"

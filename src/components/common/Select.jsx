@@ -13,7 +13,6 @@ const Select = forwardRef(({
   disabled = false,
   placeholder = 'Select an option',
   className = '',
-  variant = 'glass', // default | glass
   ...props
 }, ref) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -28,13 +27,9 @@ const Select = forwardRef(({
     setIsOpen(false);
   };
 
-  const base = 'w-full px-4 py-3 rounded-xl focus:ring-2 transition-all duration-200 cursor-pointer text-left';
-  const variants = {
-    default: 'border border-neutral-200 bg-neutral-50 focus:bg-white focus:ring-primary-500',
-    glass: 'border border-neutral-300 bg-white text-neutral-900 focus:border-primary-300 focus:ring-primary-200'
-  };
+  const base = 'w-full px-4 py-3 rounded-xl focus:ring-2 transition-all duration-200 cursor-pointer text-left border border-neutral-300 bg-white text-neutral-900 focus:border-primary-300 focus:ring-primary-200';
   const selectClasses = `
-    ${base} ${variants[variant] || variants.default}
+    ${base}
     ${error ? 'border-red-500 focus:ring-red-500' : ''}
     ${disabled ? 'bg-gray-100 cursor-not-allowed' : ''}
     ${className}

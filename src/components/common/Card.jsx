@@ -9,19 +9,14 @@ const Card = forwardRef(({
   subtitle,
   className = '',
   headerAction,
-  variant = 'default', // default | glass
   ...props
 }, ref) => {
-  const base = 'rounded-xl transition-all duration-300 p-6';
-  const variants = {
-    default: 'bg-white border border-neutral-200 shadow-sm hover:shadow-md',
-    glass: 'bg-white/80 backdrop-blur-md border border-neutral-300 shadow-sm'
-  };
-  const cardClasses = `${base} ${variants[variant] || variants.default} ${className}`.trim();
+  const base = 'rounded-xl transition-all duration-300 p-6 bg-white border border-neutral-200 shadow-sm hover:shadow-md';
+  const cardClasses = `${base} ${className}`.trim();
   return (
       <div
         ref={ref}
-        className={`${cardClasses} ${variant === 'glass' ? 'relative overflow-hidden' : ''}`}
+        className={cardClasses}
         {...props}
       >
       {/* Removed Silk background overlay for light theme */}

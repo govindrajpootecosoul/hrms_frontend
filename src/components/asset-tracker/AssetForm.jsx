@@ -348,14 +348,13 @@ const AssetForm = ({
       </div>
 
       {/* Form Content */}
-      <Card variant="glass">
+      <Card>
         {renderCurrentStep()}
       </Card>
 
       {/* Navigation Buttons */}
       <div className="flex justify-between">
         <Button
-          variant="ghost"
           onClick={currentStep === 1 ? onCancel : handlePrevious}
           icon={<ChevronLeft className="w-4 h-4" />}
         >

@@ -4,22 +4,33 @@ import { forwardRef } from 'react';
 
 const Badge = forwardRef(({
   children,
-  variant = 'info',
+  variant = 'default',
   size = 'md',
   className = '',
   ...props
 }, ref) => {
-    const baseClasses = 'inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium shadow-sm';
-  
-  const variantClasses = {
-    success: 'bg-green-100 text-green-700',
-    warning: 'bg-yellow-100 text-yellow-700',
-    danger: 'bg-red-100 text-red-700',
-    info: 'bg-blue-100 text-blue-700'
+    const baseClasses = 'inline-flex items-center rounded-full text-sm font-medium shadow-sm text-black';
+
+  const variantClassesMap = {
+    default: 'bg-blue-100 text-blue-700',
+    // Talent & people updates
+    newHire: 'bg-[#ffe4d6]',
+    leaveApproved: 'bg-[#ffe0e3]',
+    promotion: 'bg-[#ffe9d6]',
+    departmentChange: 'bg-[#ffe4d6]',
+    interview: 'bg-[#fff5d6]',
+    training: 'bg-[#e5f5dd]',
+    meeting: 'bg-[#ddf4ed]',
+    workshop: 'bg-[#e0f4ee]',
+    festival: 'bg-[#dde3ec]',
+    leave: 'bg-[#d8e9f4]',
+    anniversary: 'bg-[#f5d7e4] ',
   };
 
+  const variantClasses = variantClassesMap[variant] || variantClassesMap.default;
+
   const sizeClasses = {
-    sm: 'px-2 py-0.5 text-xs',
+    sm: 'px-3 py-1 text-[10px]',
     md: 'px-3 py-1 text-sm',
     lg: 'px-4 py-1.5 text-base'
   };
@@ -27,7 +38,7 @@ const Badge = forwardRef(({
   return (
     <span
       ref={ref}
-      className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
+      className={`${baseClasses} ${variantClasses} ${sizeClasses[size]} ${className}`}
       {...props}
     >
       {children}

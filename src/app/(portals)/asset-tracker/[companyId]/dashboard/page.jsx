@@ -152,7 +152,7 @@ const AssetTrackerDashboard = () => {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card variant="glass" className="p-6 hover:shadow-lg transition-all duration-300 cursor-pointer">
+        <Card className="p-6 hover:shadow-lg transition-all duration-300 cursor-pointer">
           <div className="flex items-center">
             <div className="w-14 h-14 bg-neutral-100 border border-neutral-200 rounded-xl flex items-center justify-center mr-4 shadow-lg">
               <Package className="w-7 h-7 text-neutral-900" />
@@ -164,7 +164,7 @@ const AssetTrackerDashboard = () => {
           </div>
         </Card>
 
-        <Card variant="glass" className="p-6 hover:shadow-lg transition-all duration-300 cursor-pointer">
+        <Card className="p-6 hover:shadow-lg transition-all duration-300 cursor-pointer">
           <div className="flex items-center">
             <div className="w-14 h-14 bg-neutral-100 border border-neutral-200 rounded-xl flex items-center justify-center mr-4 shadow-lg">
               <Users className="w-7 h-7 text-neutral-900" />
@@ -176,7 +176,7 @@ const AssetTrackerDashboard = () => {
           </div>
         </Card>
 
-        <Card variant="glass" className="p-6 hover:shadow-lg transition-all duration-300 cursor-pointer">
+        <Card className="p-6 hover:shadow-lg transition-all duration-300 cursor-pointer">
           <div className="flex items-center">
             <div className="w-14 h-14 bg-neutral-100 border border-neutral-200 rounded-xl flex items-center justify-center mr-4 shadow-lg">
               <MapPin className="w-7 h-7 text-neutral-900" />
@@ -188,7 +188,7 @@ const AssetTrackerDashboard = () => {
           </div>
         </Card>
 
-        <Card variant="glass" className="p-6 hover:shadow-lg transition-all duration-300 cursor-pointer">
+        <Card className="p-6 hover:shadow-lg transition-all duration-300 cursor-pointer">
           <div className="flex items-center">
             <div className="w-14 h-14 bg-neutral-100 border border-neutral-200 rounded-xl flex items-center justify-center mr-4 shadow-lg">
               <Settings className="w-7 h-7 text-neutral-900" />
