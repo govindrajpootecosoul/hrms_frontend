@@ -19,35 +19,40 @@ const RecruitmentHiringPage = () => {
       title: 'Total Candidates',
       value: hiringStats.totalCandidates,
       icon: <Users className="w-6 h-6" />,
-      color: 'primary',
+      color: '',
+      backgroundColor: 'linear-gradient(135deg, #1d4ed8, #3b82f6)', // professional blue
     },
     {
       key: 'shortlisted',
       title: 'Shortlisted',
       value: hiringStats.shortlisted,
       icon: <CheckCircle2 className="w-6 h-6" />,
-      color: 'secondary',
+      color: '',
+      backgroundColor: 'linear-gradient(135deg, #7c3aed, #a855f7)', // purple gradient
     },
     {
       key: 'in-interview',
       title: 'In Interview',
       value: hiringStats.inInterview,
       icon: <CalendarClock className="w-6 h-6" />,
-      color: 'warning',
+      color: '',
+      backgroundColor: 'linear-gradient(135deg, #f59e0b, #fbbf24)', // amber gradient
     },
     {
       key: 'hired',
       title: 'Hired',
       value: hiringStats.hired,
       icon: <Briefcase className="w-6 h-6" />,
-      color: 'success',
+      color: '',
+      backgroundColor: 'linear-gradient(135deg, #059669, #10b981)', // green gradient
     },
     {
       key: 'on-hold',
       title: 'On Hold',
       value: hiringStats.onHold,
       icon: <Hourglass className="w-6 h-6" />,
-      color: 'danger',
+      color: '',
+      backgroundColor: 'linear-gradient(135deg, #b91c1c, #f97316)', // deep red to amber
     },
   ];
 

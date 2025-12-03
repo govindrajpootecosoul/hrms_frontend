@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/components/common/Toast';
 import Button from '@/components/common/Button';
@@ -165,13 +165,54 @@ const LoginPage = () => {
             </form>
           </Card>
 
-          <div className="mt-6 text-center">
-            <p className="text-sm text-white/70">
-              Don't have an account?{' '}
-              <a href="#" className="text-white hover:text-white font-medium underline underline-offset-4">
-                Contact your administrator
-              </a>
-            </p>
+          {/* Dev helper section with mock user IDs */}
+          <div className="mt-6">
+            <Card className="backdrop-blur-md border border-neutral-200/70 bg-white/70">
+              <div className="flex items-start gap-4">
+                <div className="mt-1 rounded-full bg-neutral-900 text-white p-2">
+                  <User className="w-4 h-4" />
+                </div>
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <p className="font-semibold text-neutral-900">
+                      Development Login IDs
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData({
+                          email: 'admin@demo.com',
+                          password: 'password'
+                        })
+                      }
+                      className="text-left group rounded-xl border border-neutral-200 bg-white/80 hover:bg-neutral-900 hover:text-white transition-all px-3 py-3"
+                    >
+                      <p className="text-xs uppercase tracking-wide text-neutral-500 group-hover:text-neutral-200">
+                        Admin / Super Admin
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData({
+                          email: 'employee@demo.com',
+                          password: 'password'
+                        })
+                      }
+                      className="text-left group rounded-xl border border-neutral-200 bg-white/80 hover:bg-neutral-900 hover:text-white transition-all px-3 py-3"
+                    >
+                      <p className="text-xs uppercase tracking-wide text-neutral-500 group-hover:text-neutral-200">
+                        Employee
+                      </p>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </Card>
           </div>
         </div>
       </div>

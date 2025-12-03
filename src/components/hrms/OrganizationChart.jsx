@@ -18,30 +18,38 @@ const TreeNode = dynamic(
   { ssr: false }
 );
 
-const OrgNode = ({ title, subtitle, color, isCollapsed, onToggle }) => {
+const OrgNode = ({ title, subtitle, color, imageUrl, isCollapsed, onToggle }) => {
   const bg = color || 'from-primary-500 to-primary-600';
   return (
     <button
       type="button"
       onClick={onToggle}
-      className="inline-flex min-w-[200px] max-w-xs items-stretch text-left focus:outline-none"
+      className="inline-flex min-w-[200px] max-w-xs items-stretch text-left focus:outline-none relative"
     >
       <Card
-        className={`flex-1 flex items-center justify-between px-4 py-3 bg-gradient-to-r ${bg} text-white border-none shadow-md hover:shadow-lg transition-shadow duration-200`}
+        className={`flex-1 flex flex-col items-center justify-between px-4 py-3 bg-gradient-to-r ${bg} text-white border-none shadow-md hover:shadow-lg transition-shadow duration-200 relative overflow-hidden`}
       >
-        <div className="space-y-1">
+        <div className="flex items-center justify-between w-full mb-2">
           <h4 className="text-sm font-semibold">{title}</h4>
-          {subtitle && (
-            <p className="text-xs text-white/80 line-clamp-2">{subtitle}</p>
-          )}
+          <div className="flex items-center justify-center rounded-full bg-white/10 w-7 h-7 flex-shrink-0">
+            {isCollapsed ? (
+              <ChevronRight className="w-4 h-4 text-white" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-white" />
+            )}
+          </div>
         </div>
-        <div className="ml-3 flex items-center justify-center rounded-full bg-white/10 w-7 h-7">
-          {isCollapsed ? (
-            <ChevronRight className="w-4 h-4 text-white" />
-          ) : (
-            <ChevronDown className="w-4 h-4 text-white" />
-          )}
-        </div>
+        
+        {/* Photo below title */}
+        {imageUrl && (
+          <div className="w-12 h-12 rounded-full border-2 border-white/30 overflow-hidden bg-white/10 shadow-sm">
+            <img
+              src={imageUrl}
+              alt={title}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        )}
       </Card>
     </button>
   );
@@ -71,6 +79,7 @@ const OrganizationChart = () => {
         title={node.title}
         subtitle={node.subtitle}
         color={node.color}
+        imageUrl={node.imageUrl}
         isCollapsed={isCollapsed}
         onToggle={() => toggleNode(node.id)}
       />

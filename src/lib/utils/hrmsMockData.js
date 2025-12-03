@@ -180,30 +180,35 @@ export const mockOrgChart = {
   title: 'CEO',
   subtitle: 'Overall strategic leadership',
   color: 'from-primary-500 to-primary-600',
+  imageUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=CEO',
   children: [
     {
       id: 'cxo',
       title: 'CXO Leadership',
       subtitle: 'Finance, HR, Technology, Sales',
       color: 'from-emerald-500 to-emerald-600',
+      imageUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=CXO',
       children: [
         {
           id: 'vp-eng',
           title: 'VP Engineering',
           subtitle: 'Platform, Product, QA',
-          color: 'from-sky-500 to-sky-600'
+          color: 'from-sky-500 to-sky-600',
+          imageUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=VPEngineering'
         },
         {
           id: 'vp-sales',
           title: 'VP Sales',
           subtitle: 'Regional & Enterprise',
-          color: 'from-orange-500 to-orange-600'
+          color: 'from-orange-500 to-orange-600',
+          imageUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=VPSales'
         },
         {
           id: 'vp-hr',
           title: 'VP HR',
           subtitle: 'People, Culture & Talent',
-          color: 'from-violet-500 to-violet-600'
+          color: 'from-violet-500 to-violet-600',
+          imageUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=VPHR'
         }
       ]
     },
@@ -212,18 +217,21 @@ export const mockOrgChart = {
       title: 'Directors',
       subtitle: 'Department leadership and strategy',
       color: 'from-fuchsia-500 to-fuchsia-600',
+      imageUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Directors',
       children: [
         {
           id: 'eng-directors',
           title: 'Engineering Directors',
           subtitle: 'Backend, Frontend, DevOps',
-          color: 'from-indigo-500 to-indigo-600'
+          color: 'from-indigo-500 to-indigo-600',
+          imageUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=EngDirectors'
         },
         {
           id: 'biz-directors',
           title: 'Business Directors',
           subtitle: 'Marketing, Finance, Operations',
-          color: 'from-rose-500 to-rose-600'
+          color: 'from-rose-500 to-rose-600',
+          imageUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=BizDirectors'
         }
       ]
     }

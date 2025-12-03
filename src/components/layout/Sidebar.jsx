@@ -15,6 +15,11 @@ import {
   Settings,
   FileText,
   Network,
+  Receipt,
+  BarChart3,
+  Wallet,
+  CheckSquare,
+  FileCheck,
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, onClose, menuItems = [] }) => {
@@ -182,7 +187,7 @@ const Sidebar = ({ isOpen, onClose, menuItems = [] }) => {
   );
 };
 
-// Default menu items for HRMS
+// Default menu items for HRMS (admin portal)
 export const HRMS_MENU_ITEMS = [
   {
     id: 'dashboard',
@@ -221,6 +226,44 @@ export const HRMS_MENU_ITEMS = [
     icon: <Users className="w-5 h-5" />
   },
   {
+    id: 'expenses',
+    label: 'Expenses and Reimbursement',
+    path: '/hrms/expenses',
+    icon: <Receipt className="w-5 h-5" />,
+    children: [
+      {
+        id: 'expenses-overview',
+        label: 'Overview',
+        path: '/hrms/expenses',
+        icon: <BarChart3 className="w-4 h-4" />
+      },
+      {
+        id: 'expenses-expenses',
+        label: 'Expenses',
+        path: '/hrms/expenses/expenses',
+        icon: <Receipt className="w-4 h-4" />
+      },
+      {
+        id: 'expenses-advances',
+        label: 'Advances',
+        path: '/hrms/expenses/advances',
+        icon: <Wallet className="w-4 h-4" />
+      },
+      {
+        id: 'expenses-approvals',
+        label: 'Approvals',
+        path: '/hrms/expenses/approvals',
+        icon: <CheckSquare className="w-4 h-4" />
+      },
+      {
+        id: 'expenses-claims-policies',
+        label: 'Claims and Policies',
+        path: '/hrms/expenses/claims-policies',
+        icon: <FileCheck className="w-4 h-4" />
+      }
+    ]
+  },
+  {
     id: 'reports',
     label: 'Reports',
     path: '/hrms/reports',
@@ -247,6 +290,40 @@ export const ASSET_TRACKER_MENU_ITEMS = [
     label: 'Assets',
     path: '/asset-tracker/assets',
     icon: <Package className="w-5 h-5" />
+  }
+];
+
+// Default menu items for Employee Self-Service Portal
+export const EMPLOYEE_PORTAL_MENU_ITEMS = [
+  {
+    id: 'home',
+    label: 'Home',
+    path: '/employee-portal',
+    icon: <LayoutDashboard className="w-5 h-5" />
+  },
+  {
+    id: 'attendance',
+    label: 'Attendance',
+    path: '/employee-portal/attendance',
+    icon: <Clock className="w-5 h-5" />
+  },
+  {
+    id: 'requests',
+    label: 'Requests',
+    path: '/employee-portal/requests',
+    icon: <Settings className="w-5 h-5" />
+  },
+  {
+    id: 'my-organisation',
+    label: 'My Organisation',
+    path: '/employee-portal/my-organisation',
+    icon: <Network className="w-5 h-5" />
+  },
+  {
+    id: 'reports',
+    label: 'Reports',
+    path: '/employee-portal/reports',
+    icon: <FileText className="w-5 h-5" />
   }
 ];
 

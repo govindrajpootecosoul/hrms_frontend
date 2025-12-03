@@ -44,29 +44,59 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       setLoading(true);
+
       // TODO: Replace with actual API call
-      // const response = await fetch('/api/auth/login', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ email, password })
-      // });
-      // const data = await response.json();
-      
-      // Mock login for development
-      const mockUser = {
-        id: '1',
-        email,
-        name: 'John Doe',
-        companies: [
-          { id: mockCompany.id, name: mockCompany.name, role: 'admin', logo: mockCompany.logo },
-          { id: '2', name: 'Thrive Brands', role: 'user' }
-        ]
+      // For development, we support two mock identities keyed by email.
+      const trimmedEmail = (email || '').toLowerCase().trim();
+
+      const MOCK_USERS = {
+        // Super admin / admin user – full portal access
+        'admin@demo.com': {
+          id: 'admin-1',
+          email: 'admin@demo.com',
+          name: 'Demo Admin',
+          role: 'admin',
+          portalAccess: ['hrms-admin', 'asset-tracker', 'employee-portal'],
+          companies: [
+            {
+              id: mockCompany.id,
+              name: mockCompany.name,
+              role: 'admin',
+              logo: mockCompany.logo
+            }
+          ]
+        },
+        // Employee user – employee self-service portal only
+        'employee@demo.com': {
+          id: 'employee-1',
+          email: 'employee@demo.com',
+          name: 'Demo Employee',
+          role: 'employee',
+          portalAccess: ['employee-portal'],
+          companies: [
+            {
+              id: mockCompany.id,
+              name: mockCompany.name,
+              role: 'employee',
+              logo: mockCompany.logo
+            }
+          ]
+        }
       };
-      
+
+      const mockUser = MOCK_USERS[trimmedEmail];
+
+      if (!mockUser) {
+        return {
+          success: false,
+          error: 'Invalid mock credentials. Use the demo IDs shown on the login screen.'
+        };
+      }
+
       setUser(mockUser);
       setIsAuthenticated(true);
       localStorage.setItem('auth_token', 'mock_token');
-      
+
       return { success: true, user: mockUser };
     } catch (error) {
       console.error('Login failed:', error);

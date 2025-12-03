@@ -305,49 +305,63 @@ const AttendancePage = () => {
             title: 'Total Employees',
             value: stats.totalEmployees,
             icon: <Users className="w-6 h-6" />,
-            color: 'primary'
+            color: '',
+            backgroundColor: 'linear-gradient(135deg, #1d4ed8, #3b82f6)', // professional blue
+            subtitle: 'Across all departments'
           },
           {
             key: 'present-today',
             title: 'Present Today',
             value: stats.presentToday,
             icon: <UserCheck className="w-6 h-6" />,
-            color: 'success'
+            color: '',
+            backgroundColor: 'linear-gradient(135deg, #0f766e, #22c55e)', // teal to green
+            badge: stats.totalEmployees > 0
+              ? {
+                  variant: stats.presentToday / stats.totalEmployees >= 0.8 ? 'success' : 'warning',
+                  text: `${Math.round((stats.presentToday / stats.totalEmployees) * 100)}% attendance`
+                }
+              : null
           },
           {
             key: 'absent-today',
             title: 'Absent Today',
             value: stats.absentToday,
             icon: <UserX className="w-6 h-6" />,
-            color: 'danger'
+            color: '',
+            backgroundColor: 'linear-gradient(135deg, #b91c1c, #f97316)' // deep red to amber
           },
           {
             key: 'on-leave',
             title: 'On Leave',
             value: stats.onLeaveToday,
             icon: <CalendarDays className="w-6 h-6" />,
-            color: 'primary'
+            color: '',
+            backgroundColor: 'linear-gradient(135deg, #7c3aed, #a855f7)' // purple gradient
           },
           {
             key: 'on-wfh',
             title: 'On WFH',
             value: stats.onWFHToday,
             icon: <Home className="w-6 h-6" />,
-            color: 'secondary'
+            color: '',
+            backgroundColor: 'linear-gradient(135deg, #0891b2, #06b6d4)' // cyan gradient
           },
           {
             key: 'late-checkins',
             title: 'Late Check-ins',
             value: stats.lateCheckIns,
             icon: <Clock3 className="w-6 h-6" />,
-            color: 'accent'
+            color: '',
+            backgroundColor: 'linear-gradient(135deg, #ea580c, #f97316)' // orange gradient
           },
           {
             key: 'leave-approvals',
             title: 'Leave Approvals',
             value: stats.leaveApprovals,
             icon: <CheckCircle2 className="w-6 h-6" />,
-            color: 'success'
+            color: '',
+            backgroundColor: 'linear-gradient(135deg, #059669, #10b981)' // green gradient
           }
         ]}
         compact

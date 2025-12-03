@@ -1,42 +1,17 @@
 'use client';
 
-import { useState } from 'react';
-import { useCompany } from '@/lib/context/CompanyContext';
 import Navbar from '@/components/layout/Navbar';
-import Sidebar, { ASSET_TRACKER_MENU_ITEMS } from '@/components/layout/Sidebar';
 
 export default function AssetTrackerLayout({ children }) {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { currentCompany } = useCompany();
-
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-  };
-
   return (
-    <div className="min-h-screen">
-      <Navbar onMenuToggle={toggleMenu} isMenuOpen={isMenuOpen} />
+    <div className="min-h-screen bg-neutral-50">
+      <Navbar onMenuToggle={() => {}} isMenuOpen={false} />
       
-      <div className="flex">
-        <Sidebar 
-          isOpen={isMenuOpen} 
-          onClose={() => setIsMenuOpen(false)}
-          menuItems={ASSET_TRACKER_MENU_ITEMS.map(item => ({
-            ...item,
-            path: item.path ? `/asset-tracker/${currentCompany?.id}${item.path.replace('/asset-tracker', '')}` : item.path,
-            children: item.children ? item.children.map(child => ({
-              ...child,
-              path: `/asset-tracker/${currentCompany?.id}${child.path.replace('/asset-tracker', '')}`
-            })) : item.children
-          }))}
-        />
-        
-        <main className="flex-1 w-max-7xl">
-          <div className="w-full px-4 sm:px-6 lg:px-8 py-6 lg:py-8 space-y-6">
-            {children}
-          </div>
-        </main>
-      </div>
+      <main className="w-full">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-6 lg:py-8 space-y-6">
+          {children}
+        </div>
+      </main>
     </div>
   );
 }

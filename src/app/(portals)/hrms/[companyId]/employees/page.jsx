@@ -202,21 +202,20 @@ const EmployeesPage = () => {
   return (
     <div className="min-h-screen space-y-6">
       {/* Page Header */}
-      <div className="space-y-2">
+      <div className="flex flex-row items-center justify-between space-y-2">
         <h1 className="text-3xl font-bold text-neutral-900">
           Employee Management
         </h1>
+        <div className="items-center space-x-3">
+          <Button onClick={handleAddEmployee} icon={<Plus className="w-4 h-4" />} className="bg-[#A28752] text-white">
+            Add Employee
+          </Button>
+        </div>
       </div>
 
       {/* Header with Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center space-x-3">
-          <Button onClick={handleAddEmployee} icon={<Plus className="w-4 h-4" />} className="bg-[#A28752] text-white">
-            Add Employee
-          </Button>
-          <Button onClick={handleExportEmployees} icon={<Download className="w-4 h-4" />} className="bg-[#A28752] text-white">
-            Export CSV
-          </Button>
+        <div className="items-center space-x-3">
         </div>
         
         <div className="text-sm text-neutral-600">

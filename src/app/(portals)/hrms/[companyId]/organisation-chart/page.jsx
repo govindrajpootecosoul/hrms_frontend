@@ -12,28 +12,32 @@ const OrganizationChartPage = () => {
       title: 'Total Departments',
       value: 6,
       icon: <Building2 className="w-6 h-6" />,
-      color: 'primary'
+      color: '',
+      backgroundColor: 'linear-gradient(135deg, #1d4ed8, #3b82f6)', // professional blue
     },
     {
       key: 'total-employees',
       title: 'Total Employees',
       value: 142,
       icon: <Users className="w-6 h-6" />,
-      color: 'success'
+      color: '',
+      backgroundColor: 'linear-gradient(135deg, #059669, #10b981)', // green gradient
     },
     {
       key: 'cxo-leadership',
       title: 'CXO Leadership',
       value: 5,
       icon: <Briefcase className="w-6 h-6" />,
-      color: 'secondary'
+      color: '',
+      backgroundColor: 'linear-gradient(135deg, #7c3aed, #a855f7)', // purple gradient
     },
     {
       key: 'directors',
       title: 'Directors',
       value: 12,
       icon: <UserSquare2 className="w-6 h-6" />,
-      color: 'warning'
+      color: '',
+      backgroundColor: 'linear-gradient(135deg, #f59e0b, #fbbf24)', // amber gradient
     }
   ];
 

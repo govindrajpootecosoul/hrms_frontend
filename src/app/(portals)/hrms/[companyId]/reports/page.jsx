@@ -11,28 +11,32 @@ const ReportsPage = () => {
       title: 'Total Reports Generated',
       value: 247,
       icon: <FileText className="w-6 h-6" />,
-      color: 'primary'
+      color: '',
+      backgroundColor: 'linear-gradient(135deg, #1d4ed8, #3b82f6)', // professional blue
     },
     {
       key: 'reports-downloaded-today',
       title: 'Reports Downloaded Today',
       value: 18,
       icon: <Download className="w-6 h-6" />,
-      color: 'success'
+      color: '',
+      backgroundColor: 'linear-gradient(135deg, #059669, #10b981)', // green gradient
     },
     {
       key: 'active-report-types',
       title: 'Active Report Types',
       value: 11,
       icon: <FileCode2 className="w-6 h-6" />,
-      color: 'secondary'
+      color: '',
+      backgroundColor: 'linear-gradient(135deg, #7c3aed, #a855f7)', // purple gradient
     },
     {
       key: 'scheduled-reports',
       title: 'Scheduled Reports',
       value: 5,
       icon: <CalendarClock className="w-6 h-6" />,
-      color: 'warning'
+      color: '',
+      backgroundColor: 'linear-gradient(135deg, #f59e0b, #fbbf24)', // amber gradient
     }
   ];
 
