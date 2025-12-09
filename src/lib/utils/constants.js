@@ -101,3 +101,6 @@ export const FILE_LIMITS = {
   csv: { maxSize: 10 * 1024 * 1024, types: ['text/csv', 'application/csv'] },
   document: { maxSize: 20 * 1024 * 1024, types: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'] }
 };
+
+// API Configuration
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';

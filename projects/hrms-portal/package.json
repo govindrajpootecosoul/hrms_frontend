@@ -1,14 +1,15 @@
 {
-  "name": "test",
+  "name": "@worklytics/hrms-portal",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3001",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 3001",
     "lint": "eslint"
   },
   "dependencies": {
+    "@worklytics/shared": "workspace:*",
     "@react-three/fiber": "^9.4.0",
     "apexcharts": "^5.3.6",
     "clsx": "^2.1.1",
@@ -20,7 +21,6 @@
     "react": "19.2.0",
     "react-apexcharts": "^1.8.0",
     "react-dom": "19.2.0",
-    "react-organizational-chart": "^2.1.0",
     "tailwind-merge": "^3.3.1",
     "three": "^0.160.1"
   },
@@ -31,3 +31,4 @@
     "tailwindcss": "^4"
   }
 }
+

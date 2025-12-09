@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, Package, ArrowRight } from 'lucide-react';
+import { Users, Package, ArrowRight, DollarSign } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useCompany } from '@/lib/context/CompanyContext';
 import Button from '@/components/common/Button';
@@ -27,14 +27,16 @@ const PortalSelectionPage = () => {
   }, [isAuthenticated, user, router, loadCompanies]);
 
   const handlePortalSelect = (portal) => {
-    // Admin portals (HRMS / Asset Tracker) remain company-scoped.
-    if (portal === 'hrms' || portal === 'asset-tracker') {
+    // Admin portals (HRMS / Asset Tracker / Finance) remain company-scoped.
+    if (portal === 'hrms' || portal === 'asset-tracker' || portal === 'finance') {
       const companyId = currentCompany?.id ?? companies[0]?.id;
 
       if (portal === 'hrms') {
         router.push(`/hrms/${companyId}/dashboard`);
       } else if (portal === 'asset-tracker') {
         router.push(`/asset-tracker/${companyId}/dashboard`);
+      } else if (portal === 'finance') {
+        router.push(`/finance/${companyId}/dashboard`);
       }
       return;
     }
@@ -62,7 +64,7 @@ const PortalSelectionPage = () => {
         </div>
 
         {/* Portal Cards */}
-        <div className="w-full grid md:grid-cols-3 gap-8">
+        <div className="w-full grid md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* HRMS Portal (visible only to admin/super admin roles) */}
           <div className="flip-card-container cursor-pointer">
             <div className="flip-card-inner">
@@ -156,6 +158,53 @@ const PortalSelectionPage = () => {
               </Card>
             </div>
           </div>
+          {/* Finance Portal (visible only to admin/super admin roles) */}
+          <div className="flip-card-container cursor-pointer">
+            <div className="flip-card-inner">
+              {/* Front Face */}
+              <Card className="flip-card-front backdrop-blur-md w-full h-full">
+                <div className="text-center h-full flex flex-col">
+                  <div className="w-[15rem] h-[15rem] flex items-center justify-center mx-auto mb-6">
+                    <DollarSign className="w-32 h-32 text-blue-600" />
+                  </div>
+                  
+                  <h2 className="text-2xl font-bold mb-4">
+                    Finance Portal
+                  </h2>
+                  
+                  <p className="text-neutral-700 mb-6 leading-relaxed">
+                    Manage financial operations, accounting, budgets, invoices, 
+                    and financial reporting in one comprehensive platform.
+                  </p>
+                </div>
+              </Card>
+
+              {/* Back Face */}
+              <Card className="flip-card-back backdrop-blur-md w-full h-full !p-0">
+                <div className="flex flex-col items-center justify-center flip-card-back-content">
+                  <h2 className="text-2xl font-bold mb-4">
+                    Finance Portal
+                  </h2>
+                  
+                  <p className="text-neutral-700 mb-6 leading-relaxed">
+                    Manage financial operations, accounting, budgets, invoices, 
+                    and financial reporting in one comprehensive platform.
+                  </p>
+                  {user?.role === 'admin' && (
+                    <Button
+                      onClick={() => handlePortalSelect('finance')}
+                      className="w-full max-w-xs bg-blue-600 hover:bg-blue-500 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+                      icon={<ArrowRight className="w-4 h-4" />}
+                      iconPosition="right"
+                    >
+                      Enter Finance Portal
+                    </Button>
+                  )}
+                </div>
+              </Card>
+            </div>
+          </div>
+
           {/* Employee Self-Service Portal */}
           <div className="flip-card-container cursor-pointer">
             <div className="flip-card-inner">

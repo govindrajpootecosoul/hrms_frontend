@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect } from 'react';
 import { mockCompany } from '../utils/hrmsMockData';
+import { API_BASE_URL } from '../utils/constants';
 
 const AuthContext = createContext();
 
@@ -18,17 +19,57 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // Map backend user to frontend format
+  const mapUserToFrontendFormat = (backendUser) => {
+    // Determine portal access based on role
+    const portalAccess = backendUser.role === 'admin' 
+      ? ['hrms-admin', 'asset-tracker', 'employee-portal']
+      : ['employee-portal'];
+
+    return {
+      id: String(backendUser.id),
+      email: backendUser.email,
+      name: backendUser.name,
+      phone: backendUser.phone,
+      role: backendUser.role,
+      portalAccess,
+      companies: [
+        {
+          id: mockCompany.id,
+          name: mockCompany.name,
+          role: backendUser.role,
+          logo: mockCompany.logo
+        }
+      ]
+    };
+  };
+
   useEffect(() => {
     // Check for existing session/token
     const checkAuth = async () => {
       try {
-        // TODO: Replace with actual API call
         const token = localStorage.getItem('auth_token');
         if (token) {
           // Validate token with backend
-          // const userData = await validateToken(token);
-          // setUser(userData);
-          // setIsAuthenticated(true);
+          const response = await fetch(`${API_BASE_URL}/auth/verify`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.user) {
+              // Map backend user to frontend format
+              const mappedUser = mapUserToFrontendFormat(data.user);
+              setUser(mappedUser);
+              setIsAuthenticated(true);
+            } else {
+              localStorage.removeItem('auth_token');
+            }
+          } else {
+            localStorage.removeItem('auth_token');
+          }
         }
       } catch (error) {
         console.error('Auth check failed:', error);
@@ -45,62 +86,77 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
 
-      // TODO: Replace with actual API call
-      // For development, we support two mock identities keyed by email.
-      const trimmedEmail = (email || '').toLowerCase().trim();
-
-      const MOCK_USERS = {
-        // Super admin / admin user – full portal access
-        'admin@demo.com': {
-          id: 'admin-1',
-          email: 'admin@demo.com',
-          name: 'Demo Admin',
-          role: 'admin',
-          portalAccess: ['hrms-admin', 'asset-tracker', 'employee-portal'],
-          companies: [
-            {
-              id: mockCompany.id,
-              name: mockCompany.name,
-              role: 'admin',
-              logo: mockCompany.logo
-            }
-          ]
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
         },
-        // Employee user – employee self-service portal only
-        'employee@demo.com': {
-          id: 'employee-1',
-          email: 'employee@demo.com',
-          name: 'Demo Employee',
-          role: 'employee',
-          portalAccess: ['employee-portal'],
-          companies: [
-            {
-              id: mockCompany.id,
-              name: mockCompany.name,
-              role: 'employee',
-              logo: mockCompany.logo
-            }
-          ]
-        }
-      };
+        body: JSON.stringify({ email, password })
+      });
 
-      const mockUser = MOCK_USERS[trimmedEmail];
+      const data = await response.json();
 
-      if (!mockUser) {
+      if (data.success && data.token && data.user) {
+        // Map backend user to frontend format
+        const mappedUser = mapUserToFrontendFormat(data.user);
+        
+        setUser(mappedUser);
+        setIsAuthenticated(true);
+        localStorage.setItem('auth_token', data.token);
+
+        return { success: true, user: mappedUser };
+      } else {
         return {
           success: false,
-          error: 'Invalid mock credentials. Use the demo IDs shown on the login screen.'
+          error: data.error || 'Login failed'
         };
       }
-
-      setUser(mockUser);
-      setIsAuthenticated(true);
-      localStorage.setItem('auth_token', 'mock_token');
-
-      return { success: true, user: mockUser };
     } catch (error) {
       console.error('Login failed:', error);
-      return { success: false, error: error.message };
+      return { 
+        success: false, 
+        error: error.message || 'Network error. Please check if the backend server is running.'
+      };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const signup = async (userData) => {
+    try {
+      setLoading(true);
+
+      const response = await fetch(`${API_BASE_URL}/auth/signup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(userData)
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.token && data.user) {
+        // Map backend user to frontend format
+        const mappedUser = mapUserToFrontendFormat(data.user);
+        
+        setUser(mappedUser);
+        setIsAuthenticated(true);
+        localStorage.setItem('auth_token', data.token);
+
+        return { success: true, user: mappedUser };
+      } else {
+        return {
+          success: false,
+          error: data.error || 'Signup failed'
+        };
+      }
+    } catch (error) {
+      console.error('Signup failed:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Network error. Please check if the backend server is running.'
+      };
     } finally {
       setLoading(false);
     }
@@ -110,6 +166,10 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setIsAuthenticated(false);
     localStorage.removeItem('auth_token');
+    // Navigate to login page after logout
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    }
   };
 
   const value = {
@@ -117,6 +177,7 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated,
     loading,
     login,
+    signup,
     logout
   };
 

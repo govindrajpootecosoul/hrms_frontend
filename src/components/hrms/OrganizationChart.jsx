@@ -99,13 +99,24 @@ const OrganizationChart = () => {
     );
   };
 
+  const rootLabel = (
+    <OrgNode
+      title={mockOrgChart.title}
+      subtitle={mockOrgChart.subtitle}
+      color={mockOrgChart.color}
+      imageUrl={mockOrgChart.imageUrl}
+      isCollapsed={collapsedNodes.has(mockOrgChart.id)}
+      onToggle={() => toggleNode(mockOrgChart.id)}
+    />
+  );
+
   return (
     <div className="w-full overflow-x-auto py-6">
       <Tree
         lineWidth={'2px'}
         lineColor={'#e5e7eb'}
         lineBorderRadius={'8px'}
-        label={renderNode(mockOrgChart).props.label}
+        label={rootLabel}
       >
         {/* Children of root */}
         {!collapsedNodes.has(mockOrgChart.id) &&

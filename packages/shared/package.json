@@ -1,0 +1,19 @@
+{
+  "name": "@worklytics/shared",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./index.js",
+  "exports": {
+    "./components": "./components/index.js",
+    "./context": "./context/index.js",
+    "./utils": "./utils/index.js"
+  },
+  "dependencies": {
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "lucide-react": "^0.548.0",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^3.3.1"
+  }
+}
+
