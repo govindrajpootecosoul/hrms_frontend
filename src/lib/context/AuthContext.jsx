@@ -27,11 +27,14 @@ export const AuthProvider = ({ children }) => {
       : ['employee-portal'];
 
     return {
-      id: String(backendUser.id),
+      id: String(backendUser.id || backendUser._id || ''),
       email: backendUser.email,
       name: backendUser.name,
       phone: backendUser.phone,
       role: backendUser.role,
+      employeeId: backendUser.employeeId,
+      department: backendUser.department,
+      company: backendUser.company,
       portalAccess,
       companies: [
         {
@@ -58,13 +61,20 @@ export const AuthProvider = ({ children }) => {
           });
 
           if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.user) {
-              // Map backend user to frontend format
-              const mappedUser = mapUserToFrontendFormat(data.user);
-              setUser(mappedUser);
-              setIsAuthenticated(true);
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+              const data = await response.json();
+              if (data.success && data.user) {
+                // Map backend user to frontend format
+                const mappedUser = mapUserToFrontendFormat(data.user);
+                setUser(mappedUser);
+                setIsAuthenticated(true);
+              } else {
+                localStorage.removeItem('auth_token');
+              }
             } else {
+              // Response is not JSON (likely HTML error page)
+              console.error('Backend returned non-JSON response. Is the server running?');
               localStorage.removeItem('auth_token');
             }
           } else {
@@ -93,6 +103,17 @@ export const AuthProvider = ({ children }) => {
         },
         body: JSON.stringify({ email, password })
       });
+
+      // Check if response is JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Backend returned non-JSON response:', text.substring(0, 200));
+        return {
+          success: false,
+          error: 'Backend server is not responding correctly. Please check if the server is running on http://localhost:5000'
+        };
+      }
 
       const data = await response.json();
 
@@ -133,6 +154,17 @@ export const AuthProvider = ({ children }) => {
         },
         body: JSON.stringify(userData)
       });
+
+      // Check if response is JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Backend returned non-JSON response:', text.substring(0, 200));
+        return {
+          success: false,
+          error: 'Backend server is not responding correctly. Please check if the server is running on http://localhost:5000'
+        };
+      }
 
       const data = await response.json();
 

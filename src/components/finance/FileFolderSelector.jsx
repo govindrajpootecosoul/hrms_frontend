@@ -11,62 +11,175 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
   const [processingStatus, setProcessingStatus] = useState('');
   const [fileStatuses, setFileStatuses] = useState([]);
   const [progress, setProgress] = useState(0);
+  const [mode, setMode] = useState(feature?.id === 'gst-reconcile' ? 'amazon' : '');
+  const [availableSheets, setAvailableSheets] = useState([]);
+  const [selectedSheet, setSelectedSheet] = useState('');
+  const [excelFile, setExcelFile] = useState(null);
   const fileInputRef = useRef(null);
   const folderInputRef = useRef(null);
   const toast = useToast();
 
-  const handleFileSelect = (event) => {
+  const isGstFeature = feature?.id === 'gst-reconcile';
+  const isGstFileProcessing = feature?.id === 'gst-file-processing';
+  const isShippingQueue = feature?.id === 'amazon-shipping-queue';
+  const allowedExtensions = isGstFeature || isGstFileProcessing || isShippingQueue ? ['.csv', '.xlsx', '.xls'] : ['.pdf'];
+  const acceptString = allowedExtensions.join(',');
+
+  const MODE_REQUIREMENTS = {
+    amazon: {
+      label: 'Amazon (MTR, B2C, Stock)',
+      requiredCount: 3,
+      hint: 'Upload exactly 3 files: MTR B2B, B2C, and Stock transfer CSVs (any order).',
+    },
+    retail: {
+      label: 'Retail & Export (Invoice, Credit)',
+      requiredCount: 2,
+      hint: 'Upload exactly 2 files: Invoice and Credit Excel files (any order).',
+    },
+    jio: {
+      label: 'JioMart',
+      requiredCount: 1,
+      hint: 'Upload exactly 1 Jio CSV file.',
+    },
+    merge: {
+      label: 'Generic Merge',
+      minFiles: 2,
+      hint: 'Upload 2 or more CSV/XLSX files to merge.',
+    },
+  };
+
+  const readExcelSheets = async (file) => {
+    try {
+      // Read Excel file using FileReader
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          try {
+            // Use a simple approach: send file to backend to get sheets
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            const response = await fetch('/api/finance/amazon-shipping-queue/get-sheets', {
+              method: 'POST',
+              body: formData,
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              resolve(data.sheets || []);
+            } else {
+              reject(new Error('Failed to read Excel file'));
+            }
+          } catch (error) {
+            reject(error);
+          }
+        };
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+      });
+    } catch (error) {
+      console.error('Error reading Excel sheets:', error);
+      return [];
+    }
+  };
+
+  const handleFileSelect = async (event) => {
     const files = Array.from(event.target.files);
-    const pdfFiles = files.filter(file => file.name.toLowerCase().endsWith('.pdf'));
-    const nonPdfFiles = files.filter(file => !file.name.toLowerCase().endsWith('.pdf'));
-    
-    if (pdfFiles.length === 0) {
-      if (nonPdfFiles.length > 0) {
-        const invalidList = nonPdfFiles.map((f, idx) => `${idx + 1}. ${f.name} (${(f.size / 1024).toFixed(1)} KB)`).join('\n');
-        alert(`Error: Please select PDF files only.\n\nInvalid Files Selected:\n${invalidList}\n\nTotal Files: ${nonPdfFiles.length}\n\nPlease select only PDF files.`);
+    const validFiles = files.filter((file) =>
+      allowedExtensions.some((ext) => file.name.toLowerCase().endsWith(ext))
+    );
+    const invalidFiles = files.filter(
+      (file) => !allowedExtensions.some((ext) => file.name.toLowerCase().endsWith(ext))
+    );
+
+    if (validFiles.length === 0) {
+      if (invalidFiles.length > 0) {
+        const invalidList = invalidFiles
+          .map((f, idx) => `${idx + 1}. ${f.name} (${(f.size / 1024).toFixed(1)} KB)`)
+          .join('\n');
+        alert(
+          `Error: Please select files with extensions ${allowedExtensions.join(
+            ', '
+          )}.\n\nInvalid Files Selected:\n${invalidList}`
+        );
       } else {
-        alert('Error: Please select PDF files only.');
+        alert(`Error: Please select files with extensions ${allowedExtensions.join(', ')}.`);
       }
-      // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
       return;
     }
-    
-    // Initialize file statuses
-    const initialStatuses = pdfFiles.map((file, idx) => ({
+
+    // For Amazon Shipping Queue, need exactly 2 files (CSV and Excel)
+    if (isShippingQueue && validFiles.length !== 2) {
+      alert('Please select exactly 2 files: main_data CSV file and country Excel file.');
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+
+    // Find Excel file and read its sheets
+    if (isShippingQueue) {
+      const excelFile = validFiles.find(f => 
+        f.name.toLowerCase().endsWith('.xlsx') || f.name.toLowerCase().endsWith('.xls')
+      );
+      
+      if (excelFile) {
+        setExcelFile(excelFile);
+        try {
+          const sheets = await readExcelSheets(excelFile);
+          setAvailableSheets(sheets);
+          if (sheets.length > 0) {
+            setSelectedSheet(sheets[0]);
+          }
+        } catch (error) {
+          console.error('Error reading Excel sheets:', error);
+          alert('Error reading Excel file. Please ensure it is a valid Excel file.');
+          if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+          }
+          return;
+        }
+      }
+    }
+
+    const initialStatuses = validFiles.map((file) => ({
       fileName: file.name,
       status: 'pending',
-      message: 'Waiting to process...'
+      message: 'Waiting to process...',
     }));
     setFileStatuses(initialStatuses);
-    setSelectedFiles(pdfFiles);
+    setSelectedFiles(validFiles);
   };
 
   const handleFolderSelect = (event) => {
     const files = Array.from(event.target.files);
-    const pdfFiles = files.filter(file => file.name.toLowerCase().endsWith('.pdf'));
-    const nonPdfFiles = files.filter(file => !file.name.toLowerCase().endsWith('.pdf'));
-    
-    if (pdfFiles.length === 0) {
+    const validFiles = files.filter((file) =>
+      allowedExtensions.some((ext) => file.name.toLowerCase().endsWith(ext))
+    );
+
+    if (validFiles.length === 0) {
       const allFiles = files.map((f, idx) => `${idx + 1}. ${f.name}`).join('\n');
-      alert(`Error: No PDF files found in the selected folder.\n\nFiles in Folder (${files.length}):\n${allFiles}\n\nPlease select a folder containing PDF files.`);
-      // Reset folder input
+      alert(
+        `Error: No supported files found in the selected folder.\n\n` +
+          `Supported extensions: ${allowedExtensions.join(', ')}\n\n` +
+          `Files in Folder (${files.length}):\n${allFiles}`
+      );
       if (folderInputRef.current) {
         folderInputRef.current.value = '';
       }
       return;
     }
-    
-    // Initialize file statuses
-    const initialStatuses = pdfFiles.map((file, idx) => ({
+
+    const initialStatuses = validFiles.map((file) => ({
       fileName: file.name,
       status: 'pending',
-      message: 'Waiting to process...'
+      message: 'Waiting to process...',
     }));
     setFileStatuses(initialStatuses);
-    setSelectedFiles(pdfFiles);
+    setSelectedFiles(validFiles);
   };
 
   const removeFile = (index) => {
@@ -76,8 +189,33 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
 
   const handleProcess = async () => {
     if (selectedFiles.length === 0) {
-      alert('Error: Please select at least one PDF file to process.');
+      alert(`Error: Please select at least one file to process.`);
       return;
+    }
+
+    if (isGstFeature) {
+      const requirement = MODE_REQUIREMENTS[mode] || MODE_REQUIREMENTS.amazon;
+      if (requirement.requiredCount && selectedFiles.length !== requirement.requiredCount) {
+        alert(
+          `Please upload exactly ${requirement.requiredCount} file(s) for ${requirement.label}.`
+        );
+        return;
+      }
+      if (!requirement.requiredCount && requirement.minFiles && selectedFiles.length < requirement.minFiles) {
+        alert(`Please upload at least ${requirement.minFiles} file(s) for ${requirement.label}.`);
+        return;
+      }
+    }
+
+    if (isShippingQueue) {
+      if (selectedFiles.length !== 2) {
+        alert('Please upload exactly 2 files: main_data CSV file and country Excel file.');
+        return;
+      }
+      if (!selectedSheet) {
+        alert('Please select a worksheet from the Excel file.');
+        return;
+      }
     }
 
     setIsProcessing(true);
@@ -97,9 +235,18 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
         formData.append('files', file);
       });
       formData.append('feature', feature.id);
+      if (isGstFeature) {
+        formData.append('mode', mode);
+      }
+      if (isShippingQueue) {
+        formData.append('sheetName', selectedSheet);
+      }
 
       // Update status to processing
-      setProcessingStatus(`Processing ${selectedFiles.length} PDF file(s)...`);
+      const processingMessage = isShippingQueue 
+        ? `Processing shipment data...`
+        : `Processing ${selectedFiles.length} PDF file(s)...`;
+      setProcessingStatus(processingMessage);
       setFileStatuses(prev => prev.map(status => ({
         ...status,
         status: 'processing',
@@ -129,13 +276,49 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
         })));
         
         const fileList = selectedFiles.map((f, idx) => `${idx + 1}. ${f.name}`).join('\n');
-        alert(`Error: ${errorMessage}\n\nSelected Files:\n${fileList}\n\nPlease check:\n- All files are valid PDF files\n- Files contain Amazon tax invoice data\n- Python and required packages are installed`);
+        const fileTypeHint = isShippingQueue 
+          ? 'CSV and Excel files\n- Files contain valid shipment data'
+          : 'PDF files\n- Files contain Amazon tax invoice data';
+        alert(`Error: ${errorMessage}\n\nSelected Files:\n${fileList}\n\nPlease check:\n- All files are valid ${fileTypeHint}\n- Python and required packages are installed`);
         return;
+      }
+
+      // Check if response is JSON (no missing shipments found)
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const jsonData = await response.json();
+        setIsProcessing(false);
+        setProcessingStatus('');
+        setProgress(100);
+        
+        if (jsonData.message && jsonData.message.includes('No missing Shipment IDs found')) {
+          // Update all files to completed status
+          setFileStatuses(prev => prev.map(status => ({
+            ...status,
+            status: 'completed',
+            message: 'No missing shipments found'
+          })));
+          
+          toast.success(jsonData.message);
+          return;
+        } else {
+          // Other JSON error
+          setFileStatuses(prev => prev.map(status => ({
+            ...status,
+            status: 'error',
+            message: jsonData.message || 'Processing failed'
+          })));
+          alert(`Error: ${jsonData.message || 'Processing failed'}`);
+          return;
+        }
       }
 
       // Simulate incremental progress as files are processed
       setProgress(30);
-      setProcessingStatus('Extracting data from PDFs...');
+      const progressMessage = isShippingQueue 
+        ? 'Comparing Shipment IDs...'
+        : 'Extracting data from PDFs...';
+      setProcessingStatus(progressMessage);
       
       // Update progress incrementally
       const progressInterval = setInterval(() => {
@@ -147,7 +330,10 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
         });
       }, 500);
 
-      setProcessingStatus('Generating Excel file...');
+      const generatingMessage = isShippingQueue 
+        ? 'Generating missing shipments report...'
+        : 'Generating Excel file...';
+      setProcessingStatus(generatingMessage);
       setProgress(80);
 
       // Get the blob and download
@@ -180,7 +366,11 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
       a.href = url;
       const fileName = feature.id === 'amazon-credit-note' 
         ? `amazon_credit_notes_${new Date().getTime()}.xlsx`
-        : `amazon_tax_invoices_${new Date().getTime()}.xlsx`;
+        : feature.id === 'gst-reconcile'
+          ? `gst_${mode}_${new Date().getTime()}.csv`
+          : feature.id === 'amazon-shipping-queue'
+            ? `missing_shipments_${selectedSheet}_${new Date().getTime()}.xlsx`
+            : `amazon_tax_invoices_${new Date().getTime()}.xlsx`;
       a.download = fileName;
       document.body.appendChild(a);
       a.click();
@@ -252,7 +442,7 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".pdf"
+            accept={acceptString}
             multiple
             onChange={handleFileSelect}
             className="hidden"
@@ -263,7 +453,7 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
             className="w-full bg-primary-600 hover:bg-primary-700 text-white py-3 text-base font-semibold"
             icon={<File className="w-5 h-5" />}
           >
-            Select PDF File(s)
+            Select File(s)
           </Button>
         </div>
 
@@ -287,6 +477,56 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
           </Button>
         </div>
       </div>
+
+      {(isGstFeature || isGstFileProcessing) && (
+        <div className="space-y-2">
+          {isGstFeature ? (
+            <>
+              <label className="text-sm font-semibold text-neutral-700">Select process</label>
+              <select
+                className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                value={mode}
+                onChange={(e) => setMode(e.target.value)}
+                disabled={isProcessing}
+              >
+                {Object.entries(MODE_REQUIREMENTS).map(([key, value]) => (
+                  <option key={key} value={key}>
+                    {value.label}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-neutral-500">
+                {MODE_REQUIREMENTS[mode]?.hint || 'Upload the required files for the selected mode.'}
+              </p>
+            </>
+          ) : (
+            <p className="text-xs text-neutral-500">
+              Upload one or more GST Excel/CSV files; we will clean and merge them.
+            </p>
+          )}
+        </div>
+      )}
+
+      {isShippingQueue && availableSheets.length > 0 && (
+        <div className="space-y-2">
+          <label className="text-sm font-semibold text-neutral-700">Select Country Worksheet</label>
+          <select
+            className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            value={selectedSheet}
+            onChange={(e) => setSelectedSheet(e.target.value)}
+            disabled={isProcessing}
+          >
+            {availableSheets.map((sheet) => (
+              <option key={sheet} value={sheet}>
+                {sheet}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-neutral-500">
+            Select the worksheet from the Excel file that contains the Reference No. column.
+          </p>
+        </div>
+      )}
 
       {/* Process Button - Show before Selected Files */}
       {selectedFiles.length > 0 && !isProcessing && (
@@ -385,9 +625,13 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
           <div className="text-sm text-blue-800">
             <p className="font-medium mb-1">Instructions:</p>
             <ul className="list-disc list-inside space-y-1 text-xs">
-              <li>Select one or more PDF files, or select a folder containing PDFs</li>
-              <li>Only PDF files will be processed</li>
-              <li>The processed Excel file will be downloaded automatically</li>
+              <li>Select one or more files, or select a folder (supported: {allowedExtensions.join(', ')})</li>
+              {isGstFeature ? (
+                <li>Choose the GST process mode and upload the required files.</li>
+              ) : (
+                <li>Only PDF files will be processed</li>
+              )}
+              <li>The processed file will be downloaded automatically</li>
             </ul>
           </div>
         </div>

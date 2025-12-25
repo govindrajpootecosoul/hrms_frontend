@@ -1,0 +1,39 @@
+[
+  {
+    "name": "Admin-HRMS",
+    "color": "#8B5CF6",
+    "icon": "👑",
+    "gradient": "from-purple-500 to-purple-700"
+  },
+  {
+    "name": "HRMS",
+    "color": "#3B82F6",
+    "icon": "💼",
+    "gradient": "from-blue-500 to-blue-700"
+  },
+  {
+    "name": "DataHive",
+    "color": "#10B981",
+    "icon": "🐝",
+    "gradient": "from-green-500 to-green-700"
+  },
+  {
+    "name": "Asset Tracker",
+    "color": "#F59E0B",
+    "icon": "📦",
+    "gradient": "from-yellow-500 to-orange-600"
+  },
+  {
+    "name": "Finance Tools",
+    "color": "#EF4444",
+    "icon": "💰",
+    "gradient": "from-red-500 to-red-700"
+  },
+  {
+    "name": "Project Tracker",
+    "color": "#06B6D4",
+    "icon": "📊",
+    "gradient": "from-cyan-500 to-cyan-700"
+  }
+]
+

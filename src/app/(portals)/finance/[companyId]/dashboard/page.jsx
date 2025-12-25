@@ -11,7 +11,9 @@ import {
   Merge,
   FolderOpen,
   File,
-  ArrowLeft
+  ArrowLeft,
+  ScanLine,
+  Package
 } from 'lucide-react';
 import Card from '@/components/common/Card';
 import Modal from '@/components/common/Modal';
@@ -24,13 +26,14 @@ const FinanceDashboard = () => {
   const companyId = params.companyId;
   const [selectedFeature, setSelectedFeature] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [dragIndex, setDragIndex] = useState(null);
 
   const handleBack = () => {
     router.push('/select-portal');
   };
 
   // Finance features data - Only implemented features
-  const financeFeatures = [
+  const initialFinanceFeatures = [
     {
       id: 'amazon-tax-invoice',
       title: 'Amazon Tax Invoice',
@@ -63,13 +66,23 @@ const FinanceDashboard = () => {
     },
     {
       id: 'gst-reconcile',
-      title: 'GST Reconcile',
-      description: 'Reconcile GST returns and filings',
+      title: 'Channel/Platform GST Reconcile',
+      description: 'Reconcile your Amazon, Jio, Retail GST files with multi-file merger',
       icon: <Calculator className="w-8 h-8" />,
       color: 'from-orange-500 to-orange-600',
       bgColor: 'bg-orange-50',
       iconColor: 'text-orange-600',
-      enabled: false
+      enabled: true
+    },
+    {
+      id: 'gst-file-processing',
+      title: 'GST Reconcile',
+      description: 'Clean and process GST B2B Excel files into a single output',
+      icon: <Calculator className="w-8 h-8" />,
+      color: 'from-amber-500 to-amber-600',
+      bgColor: 'bg-amber-50',
+      iconColor: 'text-amber-600',
+      enabled: true
     },
     {
       id: 'books-vs-gst-reconciliation',
@@ -90,8 +103,30 @@ const FinanceDashboard = () => {
       bgColor: 'bg-pink-50',
       iconColor: 'text-pink-600',
       enabled: false
+    },
+    {
+      id: 'ocr',
+      title: 'OCR',
+      description: 'Extract text and data from images and documents using OCR technology',
+      icon: <ScanLine className="w-8 h-8" />,
+      color: 'from-teal-500 to-teal-600',
+      bgColor: 'bg-teal-50',
+      iconColor: 'text-teal-600',
+      enabled: false
+    },
+    {
+      id: 'amazon-shipping-queue',
+      title: 'Amazon Shipping Queue',
+      description: 'Find missing Shipment IDs by comparing main_data CSV with country Excel worksheets',
+      icon: <Package className="w-8 h-8" />,
+      color: 'from-cyan-500 to-cyan-600',
+      bgColor: 'bg-cyan-50',
+      iconColor: 'text-cyan-600',
+      enabled: true
     }
   ];
+
+  const [financeFeatures, setFinanceFeatures] = useState(initialFinanceFeatures);
 
   const handleCardClick = (feature) => {
     if (!feature.enabled) {
@@ -107,11 +142,38 @@ const FinanceDashboard = () => {
     setSelectedFeature(null);
   };
 
+  const handleDragStart = (index) => {
+    setDragIndex(index);
+  };
+
+  const handleDragOver = (event) => {
+    event.preventDefault();
+  };
+
+  const handleDrop = (index) => {
+    if (dragIndex === null || dragIndex === index) return;
+    setFinanceFeatures((prev) => {
+      const updated = [...prev];
+      const [moved] = updated.splice(dragIndex, 1);
+      updated.splice(index, 0, moved);
+      return updated;
+    });
+    setDragIndex(null);
+  };
+
   const getApiEndpoint = (featureId) => {
     if (featureId === 'amazon-tax-invoice') {
       return '/api/finance/amazon-tax-invoice/process';
     } else if (featureId === 'amazon-credit-note') {
       return '/api/finance/amazon-credit-note/process';
+    } else if (featureId === 'gst-reconcile') {
+      return '/api/finance/gst-reconcile/process';
+    } else if (featureId === 'gst-file-processing') {
+      return '/api/finance/gst-file-processing/process';
+    } else if (featureId === 'ocr') {
+      return '/api/finance/ocr/process';
+    } else if (featureId === 'amazon-shipping-queue') {
+      return '/api/finance/amazon-shipping-queue/process';
     }
     return '/api/finance/amazon-tax-invoice/process'; // default
   };
@@ -140,7 +202,7 @@ const FinanceDashboard = () => {
 
         {/* Feature Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {financeFeatures.map((feature) => (
+          {financeFeatures.map((feature, index) => (
             <Card
               key={feature.id}
               className={`${
@@ -149,6 +211,10 @@ const FinanceDashboard = () => {
                   : 'opacity-60 cursor-not-allowed'
               } overflow-hidden relative`}
               onClick={() => handleCardClick(feature)}
+              draggable
+              onDragStart={() => handleDragStart(index)}
+              onDragOver={handleDragOver}
+              onDrop={() => handleDrop(index)}
             >
               {!feature.enabled && (
                 <div className="absolute top-2 right-2 bg-neutral-200 text-neutral-600 text-xs font-semibold px-2 py-1 rounded">

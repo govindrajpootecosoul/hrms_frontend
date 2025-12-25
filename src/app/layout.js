@@ -3,7 +3,7 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/context/AuthContext";
 import { CompanyProvider } from "@/lib/context/CompanyContext";
 import ToastProvider from "@/components/common/Toast";
-import ErrorBoundary from "@/components/common/ErrorBoundary";
+import MaterialIconsLoader from "@/components/MaterialIconsLoader";
 
 const jakartaSans = Plus_Jakarta_Sans({
   variable: "--font-geist-sans", // reuse existing CSS variable wiring
@@ -25,19 +25,19 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${jakartaSans.variable} ${geistMono.variable} antialiased`}
+        suppressHydrationWarning
       >
-        <ErrorBoundary>
-          <AuthProvider>
-            <CompanyProvider>
-              <ToastProvider>
-                {children}
-              </ToastProvider>
-            </CompanyProvider>
-          </AuthProvider>
-        </ErrorBoundary>
+        <MaterialIconsLoader />
+        <AuthProvider>
+          <CompanyProvider>
+            <ToastProvider>
+              {children}
+            </ToastProvider>
+          </CompanyProvider>
+        </AuthProvider>
       </body>
     </html>
   );
