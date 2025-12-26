@@ -246,7 +246,6 @@ body {
 
 .flip-card-back {
   transform: rotateY(180deg);
-  pointer-events: auto;
 }
 
 /* Ensure proper centering on back face */
@@ -271,8 +270,6 @@ body {
   padding: 1.5rem;
   position: relative;
   margin: 0;
-  pointer-events: auto;
-  z-index: 1;
 }
 
 /* Fix front card content display - override Card component structure */

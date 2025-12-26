@@ -11,9 +11,7 @@ import {
   Merge,
   FolderOpen,
   File,
-  ArrowLeft,
-  ScanLine,
-  Package
+  ArrowLeft
 } from 'lucide-react';
 import Card from '@/components/common/Card';
 import Modal from '@/components/common/Modal';
@@ -85,6 +83,16 @@ const FinanceDashboard = () => {
       enabled: true
     },
     {
+      id: 'amazon-gst-process',
+      title: 'Amazon GST Process',
+      description: 'Process GST file for B2B, B2BA,B2B-CDNR,IMPG, & B2B-CDNRA and merge into single file',
+      icon: <FileText className="w-8 h-8" />,
+      color: 'from-teal-500 to-teal-600',
+      bgColor: 'bg-teal-50',
+      iconColor: 'text-teal-600',
+      enabled: true
+    },
+    {
       id: 'books-vs-gst-reconciliation',
       title: 'Books vs GST Reconciliation',
       description: 'Compare and reconcile books with GST records',
@@ -103,26 +111,6 @@ const FinanceDashboard = () => {
       bgColor: 'bg-pink-50',
       iconColor: 'text-pink-600',
       enabled: false
-    },
-    {
-      id: 'ocr',
-      title: 'OCR',
-      description: 'Extract text and data from images and documents using OCR technology',
-      icon: <ScanLine className="w-8 h-8" />,
-      color: 'from-teal-500 to-teal-600',
-      bgColor: 'bg-teal-50',
-      iconColor: 'text-teal-600',
-      enabled: false
-    },
-    {
-      id: 'amazon-shipping-queue',
-      title: 'Amazon Shipping Queue',
-      description: 'Find missing Shipment IDs by comparing main_data CSV with country Excel worksheets',
-      icon: <Package className="w-8 h-8" />,
-      color: 'from-cyan-500 to-cyan-600',
-      bgColor: 'bg-cyan-50',
-      iconColor: 'text-cyan-600',
-      enabled: true
     }
   ];
 
@@ -170,10 +158,8 @@ const FinanceDashboard = () => {
       return '/api/finance/gst-reconcile/process';
     } else if (featureId === 'gst-file-processing') {
       return '/api/finance/gst-file-processing/process';
-    } else if (featureId === 'ocr') {
-      return '/api/finance/ocr/process';
-    } else if (featureId === 'amazon-shipping-queue') {
-      return '/api/finance/amazon-shipping-queue/process';
+    } else if (featureId === 'amazon-gst-process') {
+      return '/api/finance/amazon-gst-process/process';
     }
     return '/api/finance/amazon-tax-invoice/process'; // default
   };

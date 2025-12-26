@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
 import Button from '@/components/common/Button';
 import Image from 'next/image';
-import { Bell, LogOut, Sparkles, User, ArrowLeft } from 'lucide-react';
+import { Bell, LogOut, Sparkles, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navLinks = [
@@ -51,19 +51,10 @@ export default function EmployeePortalLayout({ children }) {
         <div className="relative mx-auto flex w-full max-w-[1600px] flex-col gap-6 px-4 py-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:gap-6">
             <div className="order-2 lg:order-1">
-              <div className="flex items-center gap-3 mb-2">
-                <button
-                  onClick={() => router.push('/select-portal')}
-                  className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white border border-white/20 shadow-sm transition-colors"
-                  aria-label="Back to Select Portal"
-                >
-                  <ArrowLeft className="w-5 h-5" />
-                </button>
-                <p className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-sky-200">
-                  <Sparkles className="h-4 w-4" />
-                  Vectorlytics HRMS
-                </p>
-              </div>
+              <p className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-sky-200">
+                <Sparkles className="h-4 w-4" />
+                Vectorlytics HRMS
+              </p>
               <h1 className="mt-2 text-3xl font-semibold">Employee Workspace</h1>
               <p className="mt-1 text-sm text-slate-200">
                 Stay on top of your day with check-ins, tasks, and quick actions tailored just for you.

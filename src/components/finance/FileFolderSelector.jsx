@@ -12,17 +12,13 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
   const [fileStatuses, setFileStatuses] = useState([]);
   const [progress, setProgress] = useState(0);
   const [mode, setMode] = useState(feature?.id === 'gst-reconcile' ? 'amazon' : '');
-  const [availableSheets, setAvailableSheets] = useState([]);
-  const [selectedSheet, setSelectedSheet] = useState('');
-  const [excelFile, setExcelFile] = useState(null);
   const fileInputRef = useRef(null);
   const folderInputRef = useRef(null);
   const toast = useToast();
 
   const isGstFeature = feature?.id === 'gst-reconcile';
   const isGstFileProcessing = feature?.id === 'gst-file-processing';
-  const isShippingQueue = feature?.id === 'amazon-shipping-queue';
-  const allowedExtensions = isGstFeature || isGstFileProcessing || isShippingQueue ? ['.csv', '.xlsx', '.xls'] : ['.pdf'];
+  const allowedExtensions = isGstFeature || isGstFileProcessing ? ['.csv', '.xlsx', '.xls'] : ['.pdf'];
   const acceptString = allowedExtensions.join(',');
 
   const MODE_REQUIREMENTS = {
@@ -48,42 +44,7 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
     },
   };
 
-  const readExcelSheets = async (file) => {
-    try {
-      // Read Excel file using FileReader
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-          try {
-            // Use a simple approach: send file to backend to get sheets
-            const formData = new FormData();
-            formData.append('file', file);
-            
-            const response = await fetch('/api/finance/amazon-shipping-queue/get-sheets', {
-              method: 'POST',
-              body: formData,
-            });
-            
-            if (response.ok) {
-              const data = await response.json();
-              resolve(data.sheets || []);
-            } else {
-              reject(new Error('Failed to read Excel file'));
-            }
-          } catch (error) {
-            reject(error);
-          }
-        };
-        reader.onerror = reject;
-        reader.readAsArrayBuffer(file);
-      });
-    } catch (error) {
-      console.error('Error reading Excel sheets:', error);
-      return [];
-    }
-  };
-
-  const handleFileSelect = async (event) => {
+  const handleFileSelect = (event) => {
     const files = Array.from(event.target.files);
     const validFiles = files.filter((file) =>
       allowedExtensions.some((ext) => file.name.toLowerCase().endsWith(ext))
@@ -109,40 +70,6 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
         fileInputRef.current.value = '';
       }
       return;
-    }
-
-    // For Amazon Shipping Queue, need exactly 2 files (CSV and Excel)
-    if (isShippingQueue && validFiles.length !== 2) {
-      alert('Please select exactly 2 files: main_data CSV file and country Excel file.');
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-      return;
-    }
-
-    // Find Excel file and read its sheets
-    if (isShippingQueue) {
-      const excelFile = validFiles.find(f => 
-        f.name.toLowerCase().endsWith('.xlsx') || f.name.toLowerCase().endsWith('.xls')
-      );
-      
-      if (excelFile) {
-        setExcelFile(excelFile);
-        try {
-          const sheets = await readExcelSheets(excelFile);
-          setAvailableSheets(sheets);
-          if (sheets.length > 0) {
-            setSelectedSheet(sheets[0]);
-          }
-        } catch (error) {
-          console.error('Error reading Excel sheets:', error);
-          alert('Error reading Excel file. Please ensure it is a valid Excel file.');
-          if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-          }
-          return;
-        }
-      }
     }
 
     const initialStatuses = validFiles.map((file) => ({
@@ -207,17 +134,6 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
       }
     }
 
-    if (isShippingQueue) {
-      if (selectedFiles.length !== 2) {
-        alert('Please upload exactly 2 files: main_data CSV file and country Excel file.');
-        return;
-      }
-      if (!selectedSheet) {
-        alert('Please select a worksheet from the Excel file.');
-        return;
-      }
-    }
-
     setIsProcessing(true);
     setProgress(0);
     setProcessingStatus(`Uploading ${selectedFiles.length} file(s)...`);
@@ -238,15 +154,9 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
       if (isGstFeature) {
         formData.append('mode', mode);
       }
-      if (isShippingQueue) {
-        formData.append('sheetName', selectedSheet);
-      }
 
       // Update status to processing
-      const processingMessage = isShippingQueue 
-        ? `Processing shipment data...`
-        : `Processing ${selectedFiles.length} PDF file(s)...`;
-      setProcessingStatus(processingMessage);
+      setProcessingStatus(`Processing ${selectedFiles.length} PDF file(s)...`);
       setFileStatuses(prev => prev.map(status => ({
         ...status,
         status: 'processing',
@@ -276,49 +186,13 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
         })));
         
         const fileList = selectedFiles.map((f, idx) => `${idx + 1}. ${f.name}`).join('\n');
-        const fileTypeHint = isShippingQueue 
-          ? 'CSV and Excel files\n- Files contain valid shipment data'
-          : 'PDF files\n- Files contain Amazon tax invoice data';
-        alert(`Error: ${errorMessage}\n\nSelected Files:\n${fileList}\n\nPlease check:\n- All files are valid ${fileTypeHint}\n- Python and required packages are installed`);
+        alert(`Error: ${errorMessage}\n\nSelected Files:\n${fileList}\n\nPlease check:\n- All files are valid PDF files\n- Files contain Amazon tax invoice data\n- Python and required packages are installed`);
         return;
-      }
-
-      // Check if response is JSON (no missing shipments found)
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        const jsonData = await response.json();
-        setIsProcessing(false);
-        setProcessingStatus('');
-        setProgress(100);
-        
-        if (jsonData.message && jsonData.message.includes('No missing Shipment IDs found')) {
-          // Update all files to completed status
-          setFileStatuses(prev => prev.map(status => ({
-            ...status,
-            status: 'completed',
-            message: 'No missing shipments found'
-          })));
-          
-          toast.success(jsonData.message);
-          return;
-        } else {
-          // Other JSON error
-          setFileStatuses(prev => prev.map(status => ({
-            ...status,
-            status: 'error',
-            message: jsonData.message || 'Processing failed'
-          })));
-          alert(`Error: ${jsonData.message || 'Processing failed'}`);
-          return;
-        }
       }
 
       // Simulate incremental progress as files are processed
       setProgress(30);
-      const progressMessage = isShippingQueue 
-        ? 'Comparing Shipment IDs...'
-        : 'Extracting data from PDFs...';
-      setProcessingStatus(progressMessage);
+      setProcessingStatus('Extracting data from PDFs...');
       
       // Update progress incrementally
       const progressInterval = setInterval(() => {
@@ -330,10 +204,7 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
         });
       }, 500);
 
-      const generatingMessage = isShippingQueue 
-        ? 'Generating missing shipments report...'
-        : 'Generating Excel file...';
-      setProcessingStatus(generatingMessage);
+      setProcessingStatus('Generating Excel file...');
       setProgress(80);
 
       // Get the blob and download
@@ -368,9 +239,7 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
         ? `amazon_credit_notes_${new Date().getTime()}.xlsx`
         : feature.id === 'gst-reconcile'
           ? `gst_${mode}_${new Date().getTime()}.csv`
-          : feature.id === 'amazon-shipping-queue'
-            ? `missing_shipments_${selectedSheet}_${new Date().getTime()}.xlsx`
-            : `amazon_tax_invoices_${new Date().getTime()}.xlsx`;
+          : `amazon_tax_invoices_${new Date().getTime()}.xlsx`;
       a.download = fileName;
       document.body.appendChild(a);
       a.click();
@@ -504,27 +373,6 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
               Upload one or more GST Excel/CSV files; we will clean and merge them.
             </p>
           )}
-        </div>
-      )}
-
-      {isShippingQueue && availableSheets.length > 0 && (
-        <div className="space-y-2">
-          <label className="text-sm font-semibold text-neutral-700">Select Country Worksheet</label>
-          <select
-            className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-primary-500"
-            value={selectedSheet}
-            onChange={(e) => setSelectedSheet(e.target.value)}
-            disabled={isProcessing}
-          >
-            {availableSheets.map((sheet) => (
-              <option key={sheet} value={sheet}>
-                {sheet}
-              </option>
-            ))}
-          </select>
-          <p className="text-xs text-neutral-500">
-            Select the worksheet from the Excel file that contains the Reference No. column.
-          </p>
         </div>
       )}
 

@@ -26,60 +26,9 @@ const WORKDAY_TARGET_MINUTES = 8 * 60;
 
 const getTodayKey = () => new Date().toISOString().split('T')[0];
 
-// Generate last 7 days attendance from check-in history
-const generateLast7DaysAttendance = (checkInHistory) => {
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const last7Days = [];
-  
-  // Get last 7 days including today
-  for (let i = 6; i >= 0; i--) {
-    const date = new Date();
-    date.setDate(date.getDate() - i);
-    const dateKey = date.toISOString().split('T')[0];
-    const dayName = days[date.getDay()];
-    
-    // Find check-in record for this date
-    const checkInRecord = checkInHistory.find(record => record.date === dateKey);
-    
-    if (checkInRecord && checkInRecord.checkOutTime) {
-      // Has check-in and check-out - calculate hours
-      const hours = (checkInRecord.totalMinutes / 60).toFixed(1);
-      last7Days.push({
-        day: dayName,
-        date: dateKey,
-        status: 'Present',
-        hours: parseFloat(hours)
-      });
-    } else if (checkInRecord && !checkInRecord.checkOutTime) {
-      // Checked in but not checked out yet
-      const checkInTime = new Date(checkInRecord.checkInTime);
-      const now = new Date();
-      const minutes = Math.max(0, (now.getTime() - checkInTime.getTime()) / 60000);
-      const hours = (minutes / 60).toFixed(1);
-      last7Days.push({
-        day: dayName,
-        date: dateKey,
-        status: 'Present',
-        hours: parseFloat(hours)
-      });
-    } else {
-      // No check-in for this day
-      const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-      last7Days.push({
-        day: dayName,
-        date: dateKey,
-        status: isWeekend ? 'Weekend' : 'No data',
-        hours: null
-      });
-    }
-  }
-  
-  return last7Days;
-};
-
 // Load initial state - always start fresh, data comes from backend
 const loadInitialState = (employeeId = null) => {
-  // Always start fresh - no localStorage, no old data
+  // Don't use localStorage - always fetch from backend per employeeId
   return { 
     date: getTodayKey(), 
     status: 'checked-out', 
@@ -107,17 +56,19 @@ const EmployeePortalHome = () => {
   const { user } = useAuth();
   const [dashboardData, setDashboardData] = useState(null);
   const [loadingData, setLoadingData] = useState(false);
-  const [timeState, setTimeState] = useState(() => loadInitialState(null));
+  const [timeState, setTimeState] = useState(() => loadInitialState());
   const [now, setNow] = useState(new Date());
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [attendanceData, setAttendanceData] = useState([]);
 
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
 
-  // No localStorage - each employee's state is fetched fresh from backend per employeeId
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('employee-time-state', JSON.stringify(timeState));
+    }
+  }, [timeState]);
 
   const workedMinutes = useMemo(() => {
     // Only calculate if this state belongs to the current user
@@ -133,76 +84,44 @@ const EmployeePortalHome = () => {
   }, [timeState, now, user?.employeeId]);
 
   // Fetch check-in status from backend - runs on mount and when employeeId changes
-  // Each employee gets fresh state - no old data persistence
   useEffect(() => {
     const fetchCheckInStatus = async () => {
-      if (!user?.employeeId) {
-        // Reset state if no employeeId - start completely fresh
-        setTimeState(loadInitialState(null));
-        return;
-      }
-      
-      console.log(`[Check-in] Fetching status for employee ${user.employeeId}`);
-      
+      if (!user?.employeeId) return;
       try {
         const token = localStorage.getItem('auth_token');
-        // Backend route is /api/employee/checkin/status
         const res = await fetch(
-          `${API_BASE_URL}/employee/checkin/status?employeeId=${encodeURIComponent(user.employeeId)}`,
+          `${API_BASE_URL}/employee-portal/checkin/status?employeeId=${encodeURIComponent(user.employeeId)}`,
           {
             headers: {
               ...(token ? { Authorization: `Bearer ${token}` } : {}),
             },
           }
         );
-        
         if (res.ok) {
           const json = await res.json();
           if (json?.success && json?.data) {
             const { status, checkInTime, totalMinutes } = json.data;
-            // Always set fresh state for this specific employee - no old history
-            setTimeState({
-              date: getTodayKey(),
+            setTimeState((prev) => ({
+              ...prev,
               status: status || 'checked-out',
               checkInTime: checkInTime || null,
               totalMinutes: totalMinutes || 0,
-              history: [], // Always start fresh - no old attendance history
-              employeeId: user.employeeId, // Always set unique employeeId
-            });
-            console.log(`[Check-in] Status loaded: ${status} for employee ${user.employeeId}`);
-          } else {
-            // If API returns no data, reset to fresh state
-            setTimeState(loadInitialState(user.employeeId));
+              date: getTodayKey(),
+              employeeId: user.employeeId, // Ensure employeeId is set
+            }));
           }
-        } else {
-          // If API fails, reset to fresh state for this employee
-          console.warn(`[Check-in] Status fetch failed, resetting state for employee ${user.employeeId}`);
-          setTimeState(loadInitialState(user.employeeId));
         }
       } catch (err) {
-        console.error('[Check-in] Status fetch error:', err);
-        // On error, reset to fresh state for this employee
-        setTimeState(loadInitialState(user.employeeId));
+        console.error('Check-in status fetch failed', err);
       }
     };
     
-    // Fetch immediately when employeeId is available
-    if (user?.employeeId) {
-      fetchCheckInStatus();
-    } else {
-      // If no employeeId, reset to fresh state
-      setTimeState(loadInitialState(null));
-    }
+    fetchCheckInStatus();
     
     // Refresh check-in status every 30 seconds to keep it in sync
-    const interval = setInterval(() => {
-      if (user?.employeeId) {
-        fetchCheckInStatus();
-      }
-    }, 30000);
-    
+    const interval = setInterval(fetchCheckInStatus, 30000);
     return () => clearInterval(interval);
-  }, [user?.employeeId]); // Only re-run when employeeId changes - ensures each employee gets separate state
+  }, [user?.employeeId]); // Only re-run when employeeId changes
 
   // Fetch dashboard data from backend (fallback to static if unavailable)
   useEffect(() => {
@@ -236,82 +155,6 @@ const EmployeePortalHome = () => {
     fetchDashboard();
   }, [user]);
 
-  // Fetch real attendance data from check-in history
-  useEffect(() => {
-    const fetchAttendanceData = async () => {
-      if (!user?.employeeId) {
-        setAttendanceData([]);
-        return;
-      }
-
-      try {
-        const token = localStorage.getItem('auth_token');
-        const res = await fetch(
-          `${API_BASE_URL}/employee/checkin/history?employeeId=${encodeURIComponent(user.employeeId)}&limit=30`,
-          {
-            headers: {
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
-          }
-        );
-
-        if (res.ok) {
-          const json = await res.json();
-          if (json?.success && json?.data?.history) {
-            // Generate last 7 days attendance from check-in history
-            const last7Days = generateLast7DaysAttendance(json.data.history);
-            setAttendanceData(last7Days);
-          } else {
-            // No check-ins yet - show empty last 7 days
-            setAttendanceData(generateLast7DaysAttendance([]));
-          }
-        } else {
-          // On error, show empty last 7 days
-          setAttendanceData(generateLast7DaysAttendance([]));
-        }
-      } catch (err) {
-        console.error('[Attendance] Fetch error:', err);
-        // On error, show empty last 7 days
-        setAttendanceData(generateLast7DaysAttendance([]));
-      }
-    };
-
-    fetchAttendanceData();
-    // Refresh attendance data every 5 minutes
-    const interval = setInterval(fetchAttendanceData, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [user?.employeeId]);
-
-  // Also refresh attendance when check-in/out happens
-  useEffect(() => {
-    if (user?.employeeId && timeState.employeeId === user.employeeId) {
-      const fetchAttendanceData = async () => {
-        try {
-          const token = localStorage.getItem('auth_token');
-          const res = await fetch(
-            `${API_BASE_URL}/employee/checkin/history?employeeId=${encodeURIComponent(user.employeeId)}&limit=30`,
-            {
-              headers: {
-                ...(token ? { Authorization: `Bearer ${token}` } : {}),
-              },
-            }
-          );
-
-          if (res.ok) {
-            const json = await res.json();
-            if (json?.success && json?.data?.history) {
-              const last7Days = generateLast7DaysAttendance(json.data.history);
-              setAttendanceData(last7Days);
-            }
-          }
-        } catch (err) {
-          console.error('[Attendance] Refresh error:', err);
-        }
-      };
-      fetchAttendanceData();
-    }
-  }, [timeState.status, user?.employeeId, timeState.employeeId]);
-
   const greeting = useMemo(() => {
     const hours = now.getHours();
     if (hours < 12) return 'Good morning';
@@ -324,39 +167,56 @@ const EmployeePortalHome = () => {
     return mockEmployees.find((emp) => emp.email === user.email) || null;
   }, [user]);
 
-  const handleToggleCheck = async (e) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    
-    if (isProcessing) {
-      console.log('Already processing, ignoring click');
-      return; // Prevent double clicks
-    }
-
+  const handleToggleCheck = async () => {
     if (!user?.employeeId) {
       console.error('Employee ID not available');
       alert('Employee ID not found. Please log in again.');
       return;
     }
 
-    console.log(`[Check-in] Employee ${user.employeeId} attempting to ${timeState.status === 'checked-in' ? 'check out' : 'check in'}`);
-    setIsProcessing(true);
+    // Ensure we're working with the correct employee's data
+    if (timeState.employeeId !== user.employeeId) {
+      console.warn('Employee ID mismatch, refreshing state...');
+      // Trigger a refresh
+      const fetchCheckInStatus = async () => {
+        try {
+          const token = localStorage.getItem('auth_token');
+          const res = await fetch(
+            `${API_BASE_URL}/employee-portal/checkin/status?employeeId=${encodeURIComponent(user.employeeId)}`,
+            {
+              headers: {
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              },
+            }
+          );
+          if (res.ok) {
+            const json = await res.json();
+            if (json?.success && json?.data) {
+              const { status, checkInTime, totalMinutes } = json.data;
+              setTimeState({
+                date: getTodayKey(),
+                status: status || 'checked-out',
+                checkInTime: checkInTime || null,
+                totalMinutes: totalMinutes || 0,
+                history: [],
+                employeeId: user.employeeId,
+              });
+            }
+          }
+        } catch (err) {
+          console.error('Failed to refresh check-in status', err);
+        }
+      };
+      await fetchCheckInStatus();
+      return; // Wait for next click after refresh
+    }
+
+    const token = localStorage.getItem('auth_token');
+    const isCheckingIn = timeState.status === 'checked-out';
 
     try {
-      const token = localStorage.getItem('auth_token');
-      const isCheckingIn = timeState.status === 'checked-out';
       const endpoint = isCheckingIn ? '/checkin' : '/checkout';
-
-      console.log(`[Check-in] Calling ${endpoint} endpoint for employee ${user.employeeId}`);
-
-      // Perform check-in/check-out - Backend route is /api/employee/checkin or /api/employee/checkout
-      const url = `${API_BASE_URL}/employee${endpoint}`;
-      console.log(`[Check-in] Request URL: ${url}`);
-      console.log(`[Check-in] Request body:`, { employeeId: user.employeeId });
-      
-      const res = await fetch(url, {
+      const res = await fetch(`${API_BASE_URL}/employee-portal${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -365,90 +225,42 @@ const EmployeePortalHome = () => {
         body: JSON.stringify({ employeeId: user.employeeId }),
       });
 
-      console.log(`[Check-in] Response status: ${res.status} ${res.statusText}`);
-      console.log(`[Check-in] Response headers:`, Object.fromEntries(res.headers.entries()));
-
       if (res.ok) {
         const json = await res.json();
-        console.log(`[Check-in] Response data:`, json);
-        
         if (json?.success) {
-          console.log(`[Check-in] ${isCheckingIn ? 'Check-in' : 'Check-out'} successful`);
-          
-          // Fetch updated status after check-in/out - Backend route is /api/employee/checkin/status
-          const updatedStatusRes = await fetch(
-            `${API_BASE_URL}/employee/checkin/status?employeeId=${encodeURIComponent(user.employeeId)}`,
-            {
-              headers: {
-                ...(token ? { Authorization: `Bearer ${token}` } : {}),
-              },
-            }
-          );
-
-          if (updatedStatusRes.ok) {
-            const updatedJson = await updatedStatusRes.json();
-            if (updatedJson?.success && updatedJson?.data) {
-              const { status, checkInTime, totalMinutes } = updatedJson.data;
-              const timestamp = new Date().toISOString();
-              
-              // Update state with fresh data from backend - no old history
-              setTimeState({
-                date: getTodayKey(),
-                status: status || 'checked-out',
-                checkInTime: checkInTime || null,
-                totalMinutes: totalMinutes || 0,
-                history: [
-                  { 
-                    action: isCheckingIn ? 'Checked in' : 'Checked out', 
-                    time: timestamp,
-                    ...(isCheckingIn ? {} : { meta: `${(totalMinutes / 60).toFixed(1)} hrs logged` })
-                  }
-                ], // Fresh history - only current action, no old data
-                employeeId: user.employeeId, // Always set employeeId
-              });
-              
-              console.log(`[Check-in] State updated: status=${status}, employeeId=${user.employeeId}`);
-            }
+          const timestamp = new Date().toISOString();
+          if (isCheckingIn) {
+            setTimeState((prev) => ({
+              date: getTodayKey(),
+              status: 'checked-in',
+              checkInTime: json.data.checkInTime || timestamp,
+              totalMinutes: 0, // Reset for new check-in
+              history: [{ action: 'Checked in', time: timestamp }, ...(prev.history || [])].slice(0, 6),
+              employeeId: user.employeeId, // Ensure employeeId is set
+            }));
+          } else {
+            const totalMinutes = json.data.totalMinutes || 0;
+            const sessionHours = totalMinutes / 60;
+            setTimeState((prev) => ({
+              ...prev,
+              status: 'checked-out',
+              checkInTime: null,
+              totalMinutes: totalMinutes,
+              history: [
+                { action: 'Checked out', time: timestamp, meta: `${sessionHours.toFixed(1)} hrs logged` },
+                ...(prev.history || []),
+              ].slice(0, 6),
+              employeeId: user.employeeId, // Ensure employeeId is set
+            }));
           }
-        } else {
-          console.error(`[Check-in] API returned success=false:`, json);
-          const errorMsg = json.error || json.message || `Failed to ${isCheckingIn ? 'check in' : 'check out'}`;
-          alert(errorMsg);
         }
       } else {
-        // Try to get error message from response
-        let errorData = {};
-        let errorText = '';
-        
-        try {
-          const contentType = res.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
-            errorData = await res.json();
-          } else {
-            errorText = await res.text();
-          }
-        } catch (parseError) {
-          console.error('[Check-in] Failed to parse error response:', parseError);
-          errorText = `HTTP ${res.status} ${res.statusText}`;
-        }
-        
-        console.error(`[Check-in] API error - Status: ${res.status}`, {
-          errorData,
-          errorText,
-          url,
-          endpoint,
-          employeeId: user.employeeId
-        });
-        
-        const errorMsg = errorData.error || errorData.message || errorText || `Failed to ${isCheckingIn ? 'check in' : 'check out'}. Status: ${res.status}`;
-        alert(errorMsg);
+        const errorData = await res.json().catch(() => ({}));
+        alert(errorData.error || `Failed to ${isCheckingIn ? 'check in' : 'check out'}`);
       }
     } catch (err) {
-      console.error('[Check-in] Error:', err);
-      const action = timeState.status === 'checked-in' ? 'check out' : 'check in';
-      alert(`Failed to ${action}. Please try again.`);
-    } finally {
-      setIsProcessing(false);
+      console.error(`Check-${isCheckingIn ? 'in' : 'out'} error:`, err);
+      alert(`Failed to ${isCheckingIn ? 'check in' : 'check out'}. Please try again.`);
     }
   };
 
@@ -458,7 +270,15 @@ const EmployeePortalHome = () => {
       { id: 'ann2', title: 'Cybersecurity Refresher Due Friday', date: '2025-01-17', type: 'reminder', audience: 'Product & Tech' },
       { id: 'ann3', title: 'People Pulse Survey Results', date: '2025-01-15', type: 'update', audience: 'Company-wide' },
     ],
-    // attendanceTrend removed - using real check-in data instead
+    attendanceTrend: [
+      { day: 'Mon', status: 'Present', hours: 8.2 },
+      { day: 'Tue', status: 'Present', hours: 7.9 },
+      { day: 'Wed', status: 'WFH', hours: 8.5 },
+      { day: 'Thu', status: 'Present', hours: 8.1 },
+      { day: 'Fri', status: 'Present', hours: 6.4 },
+      { day: 'Sat', status: 'Weekend', hours: 0 },
+      { day: 'Sun', status: 'Weekend', hours: 0 },
+    ],
     quickStats: {
       leaveBalance: 12,
       upcomingShift: '09:30 AM Tomorrow',
@@ -490,7 +310,7 @@ const EmployeePortalHome = () => {
   };
 
   const announcements = dashboardData?.announcements || fallbackData.announcements;
-  // attendanceTrend now comes from real check-in data (attendanceData state)
+  const attendanceTrend = dashboardData?.attendanceTrend || fallbackData.attendanceTrend;
   const quickStats = dashboardData?.quickStats || fallbackData.quickStats;
   const requestHistory = dashboardData?.requestHistory || fallbackData.requestHistory;
   const assets = dashboardData?.assets || fallbackData.assets;
@@ -549,23 +369,14 @@ const EmployeePortalHome = () => {
               </div>
               <div className="flex flex-col gap-3">
                 <Button
-                  onClick={(e) => {
-                    console.log('[Check-in] Button clicked');
-                    handleToggleCheck(e);
-                  }}
-                  disabled={isProcessing || !user?.employeeId}
+                  onClick={handleToggleCheck}
                   className={
                     timeState.status === 'checked-in'
                       ? 'bg-rose-500 hover:bg-rose-600'
                       : 'bg-primary-600 hover:bg-primary-700'
                   }
                 >
-                  {isProcessing ? (
-                    <>
-                      <Clock className="w-4 h-4 mr-2 animate-spin" />
-                      Processing...
-                    </>
-                  ) : timeState.status === 'checked-in' ? (
+                  {timeState.status === 'checked-in' ? (
                     <>
                       <Square className="w-4 h-4 mr-2" />
                       Check out
@@ -712,24 +523,17 @@ const EmployeePortalHome = () => {
           <h3 className="font-semibold">Attendance pulse</h3>
           <p className="text-sm text-neutral-500 mb-3">Last 7 days</p>
           <div className="space-y-2">
-            {attendanceData.length === 0 ? (
-              <div className="text-center py-8 text-neutral-500">
-                <p className="text-sm">No attendance data available</p>
-                <p className="text-xs mt-1">Check in to start tracking your attendance</p>
-              </div>
-            ) : (
-              attendanceData.map((day) => (
-                <div key={day.date} className="flex items-center justify-between rounded-lg border p-2 text-sm">
-                  <div className="flex items-center gap-3">
-                    <Badge>{day.day}</Badge>
-                    <span>{day.status}</span>
-                  </div>
-                  <span className="font-medium">
-                    {day.hours !== null && day.hours !== undefined ? `${day.hours} hrs` : '-'}
-                  </span>
+            {attendanceTrend.map((day) => (
+              <div key={day.day} className="flex items-center justify-between rounded-lg border p-2 text-sm">
+                <div className="flex items-center gap-3">
+                  <Badge>{day.day}</Badge>
+                  <span>{day.status}</span>
                 </div>
-              ))
-            )}
+                <span className="font-medium">
+                  {day.hours ? `${day.hours} hrs` : '-'}
+                </span>
+              </div>
+            ))}
           </div>
         </Card>
 
