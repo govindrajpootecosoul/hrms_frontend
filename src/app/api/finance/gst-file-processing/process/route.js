@@ -15,6 +15,26 @@ export async function POST(request) {
       return NextResponse.json({ message: 'No files provided' }, { status: 400 });
     }
 
+    // Validate file types - only accept Excel files
+    const allowedExtensions = ['.xlsx', '.xls', '.csv'];
+    const invalidFiles = [];
+    for (const file of files) {
+      const fileName = file.name?.split(/[/\\]/).pop() || '';
+      const fileExt = fileName.toLowerCase().substring(fileName.lastIndexOf('.'));
+      if (!allowedExtensions.includes(fileExt)) {
+        invalidFiles.push(fileName);
+      }
+    }
+
+    if (invalidFiles.length > 0) {
+      return NextResponse.json(
+        { 
+          message: `Invalid file type(s). Only Excel files (.xlsx, .xls) and CSV files are supported. Invalid files: ${invalidFiles.join(', ')}` 
+        },
+        { status: 400 }
+      );
+    }
+
     const tempDir = join(tmpdir(), `gst-file-processing-${Date.now()}`);
     await mkdir(tempDir, { recursive: true });
 
@@ -30,8 +50,8 @@ export async function POST(request) {
       savedFiles.push({ path: filePath, name: sanitizedName });
     }
 
-    const scriptPath = join(process.cwd(), 'scripts', 'gst_file_processing.py');
-    const outputPath = join(tempDir, 'cleaned_gst.csv');
+    const scriptPath = join(process.cwd(), 'scripts', 'process_gst_files.py');
+    const outputPath = join(tempDir, `GST_Combined_${Date.now()}.xlsx`);
     const inputPath = savedFiles.length === 1 ? savedFiles[0].path : tempDir;
     const pythonCommand = process.platform === 'win32' ? 'python' : 'python3';
 
@@ -72,8 +92,8 @@ export async function POST(request) {
           resolve(
             new NextResponse(outputBuffer, {
               headers: {
-                'Content-Type': 'text/csv',
-                'Content-Disposition': `attachment; filename="cleaned_gst_${Date.now()}.csv"`,
+                'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition': `attachment; filename="GST_Combined_${Date.now()}.xlsx"`,
               },
             }),
           );

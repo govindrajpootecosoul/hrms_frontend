@@ -91,11 +91,11 @@ Each portal has its own API route folder:
 
 When making API calls to the backend server, use the following base URLs:
 
-- **Shared**: `http://localhost:5000/api/auth/*`
-- **HRMS**: `http://localhost:5000/api/hrms/*`
-- **Asset Tracker**: `http://localhost:5000/api/asset-tracker/*`
-- **Finance**: `http://localhost:5000/api/finance/*`
-- **Employee**: `http://localhost:5000/api/employee/*`
+- **Shared**: `http://localhost:5008/api/auth/*`
+- **HRMS**: `http://localhost:5008/api/hrms/*`
+- **Asset Tracker**: `http://localhost:5008/api/asset-tracker/*`
+- **Finance**: `http://localhost:5008/api/finance/*`
+- **Employee**: `http://localhost:5008/api/employee/*`
 
 ## Notes
 

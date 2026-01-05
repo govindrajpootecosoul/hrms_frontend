@@ -129,7 +129,7 @@ const mockOnboardingCandidates = [
     stageProgress: 15,
     offerDetails: {
       positionTitle: 'Product Manager',
-      offeredCTC: 1500000,
+      offeredCTC: 1500800,
       doj: '2024-02-20',
       offerSentDate: '2024-01-25',
       offerAcceptedDate: null,

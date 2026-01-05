@@ -6,6 +6,10 @@ Processes single or multiple GST Excel files, extracts data from worksheets,
 combines info_data with each worksheet, and appends similar worksheets from all files.
 
 Usage:
+    # Interactive mode
+    python process_gst_files.py
+    
+    # Command-line mode (for API)
     python process_gst_files.py -i "path/to/file_or_folder" -o "output.xlsx"
 """
 
@@ -386,10 +390,14 @@ def get_excel_files(input_path, recursive=True):
     input_path = Path(input_path)
     
     if input_path.is_file():
-        if input_path.suffix.lower() in ['.xlsx', '.xls']:
+        file_ext = input_path.suffix.lower()
+        if file_ext in ['.xlsx', '.xls']:
             return [str(input_path)]
         else:
-            print(f"❌ Error: {input_path} is not an Excel file")
+            if file_ext == '.pdf':
+                print(f"❌ Error: PDF files are not supported. Please provide an Excel file (.xlsx or .xls)")
+            else:
+                print(f"❌ Error: {input_path} is not an Excel file. Only .xlsx and .xls files are supported.")
             return []
     elif input_path.is_dir():
         excel_files = []
@@ -495,41 +503,20 @@ def align_columns(df_list):
     return aligned_dfs
 
 
-def main():
-    """Main function"""
-    parser = argparse.ArgumentParser(
-        description='Process GST Excel files and merge worksheets',
-        formatter_class=argparse.RawDescriptionHelpFormatter
-    )
-    parser.add_argument(
-        '-i', '--input',
-        required=True,
-        help='Input Excel file or folder containing Excel files'
-    )
-    parser.add_argument(
-        '-o', '--output',
-        required=True,
-        help='Output Excel file path'
-    )
+def process_files(input_path, output_path=None):
+    """Process GST files - core processing logic"""
+    input_path_obj = Path(input_path)
     
-    args = parser.parse_args()
-    
-    input_path = Path(args.input)
-    output_path = Path(args.output)
-    
-    if not input_path.exists():
-        print(f"❌ Error: Input path does not exist: {input_path}")
-        sys.exit(1)
-    
-    print("\n" + "="*60)
-    print("  GST FILE PROCESSOR")
-    print("="*60)
+    # Check if it's a folder and confirm
+    if input_path_obj.is_dir():
+        print(f"\n✅ Folder detected: {input_path}")
+        print(f"   Will process all Excel files (.xlsx, .xls) in this folder and subdirectories")
     
     # Get Excel files
     excel_files = get_excel_files(input_path, recursive=True)
     if not excel_files:
         print("❌ No Excel files found. Exiting.")
-        sys.exit(1)
+        return None
     
     print(f"\n📁 Total: {len(excel_files)} Excel file(s) to process")
     
@@ -580,7 +567,30 @@ def main():
     
     if not combined_dataframes:
         print("\n❌ No data to export. Exiting.")
-        sys.exit(1)
+        return None
+    
+    # Determine output path
+    if output_path is None:
+        # Default output location: same as input or current directory
+        if Path(input_path).is_file():
+            default_dir = Path(input_path).parent
+        else:
+            default_dir = Path(input_path)
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_path = default_dir / f"GST_Combined_{timestamp}.xlsx"
+    else:
+        output_path = Path(output_path)
+        
+        # If user provided a folder, create file in that folder
+        if output_path.is_dir():
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_path = output_path / f"GST_Combined_{timestamp}.xlsx"
+        else:
+            # User provided a file path
+            # Ensure .xlsx extension
+            if output_path.suffix.lower() != '.xlsx':
+                output_path = output_path.with_suffix('.xlsx')
     
     # Create output directory if it doesn't exist
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -609,11 +619,56 @@ def main():
         for sheet_name, df in combined_dataframes.items():
             print(f"  - {sheet_name}: {len(df)} rows")
         
+        return str(output_path)
+        
     except Exception as e:
         print(f"❌ Error creating output file: {e}")
         import traceback
         traceback.print_exc()
-        sys.exit(1)
+        return None
+
+
+def main():
+    """Main function - supports both interactive and command-line modes"""
+    # Check for command-line arguments
+    parser = argparse.ArgumentParser(
+        description='Process GST Excel files and merge worksheets',
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        '-i', '--input',
+        help='Input Excel file or folder containing Excel files (optional for interactive mode)'
+    )
+    parser.add_argument(
+        '-o', '--output',
+        help='Output Excel file path (optional for interactive mode)'
+    )
+    
+    args = parser.parse_args()
+    
+    print("\n" + "="*60)
+    print("  GST FILE PROCESSOR")
+    print("="*60)
+    
+    # If command-line arguments provided, use them
+    if args.input:
+        if not Path(args.input).exists():
+            print(f"❌ Error: Input path does not exist: {args.input}")
+            sys.exit(1)
+        process_files(args.input, args.output)
+        return
+    
+    # Otherwise, use interactive mode
+    input_path = get_file_path("Enter path to Excel file or folder containing Excel files:")
+    if not input_path:
+        print("❌ No input path provided. Exiting.")
+        return
+    
+    # Get output location
+    print(f"\n{'='*60}")
+    output_path_input = get_file_path("Enter output file path or folder (or press Enter for default location):", file_type="file_or_folder")
+    
+    process_files(input_path, output_path_input)
 
 
 if __name__ == "__main__":
@@ -621,10 +676,8 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         print("\n\nOperation cancelled by user.")
-        sys.exit(1)
     except Exception as e:
         print(f"\n❌ Unexpected error: {e}")
         import traceback
         traceback.print_exc()
-        sys.exit(1)
 

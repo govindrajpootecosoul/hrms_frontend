@@ -1,12 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import api from '../lib/api';
-import { useAuth } from '@/lib/context/AuthContext';
+import api from '../utils/api';
+import { useQueryTrackerAuth } from '../hooks/useQueryTrackerAuth';
 
-export default function QueryModal({ query, users, onClose }) {
-  const { user } = useAuth();
-  const isAdmin = () => user?.role === 'admin' || user?.role === 'superadmin';
+const QueryModal = ({ query, users, onClose }) => {
+  const { isAdmin } = useQueryTrackerAuth();
   const [formData, setFormData] = useState({
     platform: 'Website',
     customerName: '',
@@ -20,7 +19,8 @@ export default function QueryModal({ query, users, onClose }) {
     agentCallingDate: '',
     status: 'Open',
     assignedTo: '',
-    queryType: ''
+    queryType: '',
+    howDidYouHearAboutUs: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -40,7 +40,8 @@ export default function QueryModal({ query, users, onClose }) {
         agentCallingDate: query.agentCallingDate ? new Date(query.agentCallingDate).toISOString().split('T')[0] : '',
         status: query.status || 'Open',
         assignedTo: query.assignedTo?._id || '',
-        queryType: query.queryType || ''
+        queryType: query.queryType || '',
+        howDidYouHearAboutUs: query.howDidYouHearAboutUs || ''
       });
     }
   }, [query]);
@@ -66,9 +67,9 @@ export default function QueryModal({ query, users, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="glass-glow rounded-2xl w-full max-w-5xl shadow-2xl">
+      <div className="bg-white/75 backdrop-blur-lg rounded-2xl w-full max-w-5xl shadow-2xl border border-white/50">
         <div className="flex justify-between items-center p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold bg-gradient-to-r from-primary-blue via-accent-purple to-primary-blue-light bg-clip-text text-transparent">
+          <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent">
             {query ? 'Edit Query' : 'Add New Query'}
           </h2>
           <button
@@ -89,12 +90,12 @@ export default function QueryModal({ query, users, onClose }) {
           <div className="grid grid-cols-4 gap-3">
             {/* Row 1 */}
             <div className="col-span-1">
-              <label className="block text-gray-700 text-xs mb-1 font-medium">Platform *</label>
+              <label className="block text-gray-900 text-xs mb-1 font-medium">Platform *</label>
               <select
                 value={formData.platform}
                 onChange={(e) => setFormData({ ...formData, platform: e.target.value })}
                 required
-                className="w-full border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all"
+                className="w-full border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               >
                 <option value="Website">Website</option>
                 <option value="Email">Email</option>
@@ -104,12 +105,12 @@ export default function QueryModal({ query, users, onClose }) {
             </div>
 
             <div className="col-span-1">
-              <label className="block text-gray-700 text-xs mb-1 font-medium">Status *</label>
+              <label className="block text-gray-900 text-xs mb-1 font-medium">Status *</label>
               <select
                 value={formData.status}
                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                 required
-                className="w-full border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all"
+                className="w-full border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               >
                 <option value="Open">Open</option>
                 <option value="In-Progress">In-Progress</option>
@@ -118,23 +119,23 @@ export default function QueryModal({ query, users, onClose }) {
             </div>
 
             <div className="col-span-1">
-              <label className="block text-gray-700 text-xs mb-1 font-medium">Query Type</label>
+              <label className="block text-gray-900 text-xs mb-1 font-medium">Query Type</label>
               <input
                 type="text"
                 value={formData.queryType}
                 onChange={(e) => setFormData({ ...formData, queryType: e.target.value })}
-                className="w-full border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all"
+                className="w-full border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 placeholder="Type"
               />
             </div>
 
             {isAdmin() && (
               <div className="col-span-1">
-                <label className="block text-gray-700 text-xs mb-1 font-medium">Assign To</label>
+                <label className="block text-gray-900 text-xs mb-1 font-medium">Assign To</label>
                 <select
                   value={formData.assignedTo}
                   onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
-                  className="w-full border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all"
+                  className="w-full border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 >
                   <option value="">Unassigned</option>
                   {users.map((u) => (
@@ -150,36 +151,36 @@ export default function QueryModal({ query, users, onClose }) {
           {/* Row 2 */}
           <div className="grid grid-cols-4 gap-3 mt-3">
             <div className="col-span-2">
-              <label className="block text-gray-700 text-xs mb-1 font-medium">Customer Name *</label>
+              <label className="block text-gray-900 text-xs mb-1 font-medium">Customer Name *</label>
               <input
                 type="text"
                 value={formData.customerName}
                 onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
                 required
-                className="w-full border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all"
+                className="w-full border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 placeholder="Full Name"
               />
             </div>
 
             <div className="col-span-1">
-              <label className="block text-gray-700 text-xs mb-1 font-medium">Customer Mobile *</label>
+              <label className="block text-gray-900 text-xs mb-1 font-medium">Customer Mobile *</label>
               <input
                 type="text"
                 value={formData.customerMobile}
                 onChange={(e) => setFormData({ ...formData, customerMobile: e.target.value })}
                 required
-                className="w-full border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all"
+                className="w-full border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 placeholder="Mobile"
               />
             </div>
 
             <div className="col-span-1">
-              <label className="block text-gray-700 text-xs mb-1 font-medium">Customer Email</label>
+              <label className="block text-gray-900 text-xs mb-1 font-medium">Customer Email</label>
               <input
                 type="email"
                 value={formData.customerEmail}
                 onChange={(e) => setFormData({ ...formData, customerEmail: e.target.value })}
-                className="w-full border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all"
+                className="w-full border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 placeholder="Email"
               />
             </div>
@@ -188,23 +189,23 @@ export default function QueryModal({ query, users, onClose }) {
           {/* Row 3 */}
           <div className="grid grid-cols-4 gap-3 mt-3">
             <div className="col-span-2">
-              <label className="block text-gray-700 text-xs mb-1 font-medium">Company Name</label>
+              <label className="block text-gray-900 text-xs mb-1 font-medium">Company Name</label>
               <input
                 type="text"
                 value={formData.companyName}
                 onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                className="w-full border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all"
+                className="w-full border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 placeholder="Company"
               />
             </div>
 
             <div className="col-span-2">
-              <label className="block text-gray-700 text-xs mb-1 font-medium">Location</label>
+              <label className="block text-gray-900 text-xs mb-1 font-medium">Location</label>
               <input
                 type="text"
                 value={formData.location}
                 onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                className="w-full border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all"
+                className="w-full border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 placeholder="City, Country"
               />
             </div>
@@ -213,23 +214,23 @@ export default function QueryModal({ query, users, onClose }) {
           {/* Row 4 */}
           <div className="grid grid-cols-2 gap-3 mt-3">
             <div>
-              <label className="block text-gray-700 text-xs mb-1 font-medium">Query Received Date *</label>
+              <label className="block text-gray-900 text-xs mb-1 font-medium">Query Received Date *</label>
               <input
                 type="date"
                 value={formData.queryReceivedDate}
                 onChange={(e) => setFormData({ ...formData, queryReceivedDate: e.target.value })}
                 required
-                className="w-full border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all"
+                className="w-full border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               />
             </div>
 
             <div>
-              <label className="block text-gray-700 text-xs mb-1 font-medium">Agent Calling Date</label>
+              <label className="block text-gray-900 text-xs mb-1 font-medium">Agent Calling Date</label>
               <input
                 type="date"
                 value={formData.agentCallingDate}
                 onChange={(e) => setFormData({ ...formData, agentCallingDate: e.target.value })}
-                className="w-full border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all"
+                className="w-full border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               />
             </div>
           </div>
@@ -242,7 +243,7 @@ export default function QueryModal({ query, users, onClose }) {
               onChange={(e) => setFormData({ ...formData, customerQuery: e.target.value })}
               required
               rows="2"
-              className="w-full border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all resize-none"
+              className="w-full border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
               placeholder="Enter customer query details..."
             />
           </div>
@@ -254,8 +255,20 @@ export default function QueryModal({ query, users, onClose }) {
               value={formData.agentRemark}
               onChange={(e) => setFormData({ ...formData, agentRemark: e.target.value })}
               rows="2"
-              className="w-full border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all resize-none"
+              className="w-full border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
               placeholder="Add agent remarks or notes..."
+            />
+          </div>
+
+          {/* Row 7 - How did you hear about us */}
+          <div className="mt-3">
+            <label className="block text-gray-700 text-xs mb-1 font-medium">How did you hear about us?</label>
+            <input
+              type="text"
+              value={formData.howDidYouHearAboutUs}
+              onChange={(e) => setFormData({ ...formData, howDidYouHearAboutUs: e.target.value })}
+              className="w-full border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              placeholder="e.g., Google Search, Social Media, Referral, etc."
             />
           </div>
 
@@ -271,7 +284,7 @@ export default function QueryModal({ query, users, onClose }) {
             <button
               type="submit"
               disabled={loading}
-              className="px-6 py-2 rounded-lg bg-gradient-to-r from-primary-blue to-primary-blue-light text-white font-semibold text-sm hover:shadow-lg transition-all disabled:opacity-50 transform hover:scale-[1.02]"
+              className="px-6 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold text-sm hover:shadow-lg transition-all disabled:opacity-50 transform hover:scale-[1.02]"
             >
               {loading ? 'Saving...' : query ? 'Update' : 'Create'}
             </button>
@@ -280,5 +293,7 @@ export default function QueryModal({ query, users, onClose }) {
       </div>
     </div>
   );
-}
+};
+
+export default QueryModal;
 

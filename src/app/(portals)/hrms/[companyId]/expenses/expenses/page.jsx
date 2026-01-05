@@ -28,7 +28,7 @@ const ExpensesListPage = () => {
       id: '1',
       employeeName: 'John Doe',
       category: 'Travel',
-      amount: 5000,
+      amount: 5008,
       date: '2024-01-15',
       status: 'approved',
       description: 'Client meeting travel expenses'

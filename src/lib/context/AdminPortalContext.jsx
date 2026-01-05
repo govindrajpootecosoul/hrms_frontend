@@ -1,34 +1,7 @@
 'use client';
 
-import { createContext, useContext, useState } from 'react';
-
-// Mock data - in production, this would come from an API
-const initialUsers = [
-  {
-    id: 1,
-    name: 'John Doe',
-    email: 'john@company.com',
-    password: 'test123',
-    active: true,
-    portals: ['HRMS', 'Asset Tracker']
-  },
-  {
-    id: 2,
-    name: 'Jane Smith',
-    email: 'jane@company.com',
-    password: 'password456',
-    active: true,
-    portals: ['Admin-HRMS', 'Finance Tools']
-  },
-  {
-    id: 3,
-    name: 'Bob Johnson',
-    email: 'bob@company.com',
-    password: 'secure789',
-    active: false,
-    portals: ['DataHive', 'Project Tracker']
-  }
-];
+import { createContext, useContext, useState, useEffect } from 'react';
+import { API_BASE_URL } from '@/lib/utils/constants';
 
 const initialPortalFeatures = [
   {
@@ -42,12 +15,6 @@ const initialPortalFeatures = [
     categories: ['Employee', 'Department'],
     subcategories: ['Full-time', 'Part-time'],
     locations: ['Delhi', 'Bangalore', 'Mumbai']
-  },
-  {
-    portal: 'Admin-HRMS',
-    categories: ['Admin', 'Settings'],
-    subcategories: ['User Management', 'Permissions'],
-    locations: ['Delhi']
   },
   {
     portal: 'DataHive',
@@ -80,27 +47,125 @@ export const useAdminPortal = () => {
 };
 
 export const AdminPortalProvider = ({ children }) => {
-  const [users, setUsers] = useState(initialUsers);
+  const [users, setUsers] = useState([]);
   const [portalFeatures, setPortalFeatures] = useState(initialPortalFeatures);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const addUser = (userData) => {
-    const newId = Math.max(...users.map(u => u.id), 0) + 1;
-    const newUser = { ...userData, id: newId };
-    setUsers([...users, newUser]);
+  // Fetch users from API on mount
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch(`${API_BASE_URL}/admin-users`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setUsers(data.users || []);
+      } else {
+        setError(data.error || 'Failed to fetch users');
+        console.error('Failed to fetch users:', data.error);
+      }
+    } catch (err) {
+      console.error('Error fetching users:', err);
+      setError(err.message || 'Failed to fetch users');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const updateUser = (id, userData) => {
-    setUsers(users.map(user => user.id === id ? { ...user, ...userData } : user));
+  const addUser = async (userData) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin-users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Refresh users list
+        await fetchUsers();
+        return data.user;
+      } else {
+        throw new Error(data.error || 'Failed to create user');
+      }
+    } catch (err) {
+      console.error('Error creating user:', err);
+      throw err;
+    }
   };
 
-  const deleteUser = (id) => {
-    setUsers(users.filter(user => user.id !== id));
+  const updateUser = async (id, userData) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin-users/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Refresh users list
+        await fetchUsers();
+        return data.user;
+      } else {
+        throw new Error(data.error || 'Failed to update user');
+      }
+    } catch (err) {
+      console.error('Error updating user:', err);
+      throw err;
+    }
   };
 
-  const toggleUserActive = (id) => {
-    setUsers(users.map(user => 
-      user.id === id ? { ...user, active: !user.active } : user
-    ));
+  const deleteUser = async (id) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin-users/${id}`, {
+        method: 'DELETE',
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Refresh users list
+        await fetchUsers();
+      } else {
+        throw new Error(data.error || 'Failed to delete user');
+      }
+    } catch (err) {
+      console.error('Error deleting user:', err);
+      throw err;
+    }
+  };
+
+  const toggleUserActive = async (id) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin-users/${id}/toggle-active`, {
+        method: 'PATCH',
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Refresh users list
+        await fetchUsers();
+      } else {
+        throw new Error(data.error || 'Failed to toggle user status');
+      }
+    } catch (err) {
+      console.error('Error toggling user status:', err);
+      throw err;
+    }
   };
 
   const updatePortalFeature = (portal, feature) => {
@@ -160,10 +225,13 @@ export const AdminPortalProvider = ({ children }) => {
   const value = {
     users,
     portalFeatures,
+    loading,
+    error,
     addUser,
     updateUser,
     deleteUser,
     toggleUserActive,
+    fetchUsers, // Expose fetchUsers for manual refresh
     updatePortalFeature,
     addCategory,
     deleteCategory,
@@ -179,5 +247,15 @@ export const AdminPortalProvider = ({ children }) => {
     </AdminPortalContext.Provider>
   );
 };
+
+
+
+
+
+
+
+
+
+
 
 

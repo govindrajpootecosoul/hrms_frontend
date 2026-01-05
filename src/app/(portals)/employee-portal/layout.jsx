@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
 import Button from '@/components/common/Button';
 import Image from 'next/image';
-import { Bell, LogOut, Sparkles, User } from 'lucide-react';
+import { Bell, LogOut, Sparkles, User, Home, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navLinks = [
@@ -90,6 +90,15 @@ export default function EmployeePortalLayout({ children }) {
               <p className="font-semibold">Focus sprint • Hybrid mode</p>
               <p className="text-xs text-white/70">Set your intent and log time with one tap.</p>
             </div>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="text-white hover:bg-white/10"
+              onClick={() => router.push('/select-portal')}
+              title="Back to Select Portal"
+            >
+              <Home className="h-5 w-5" />
+            </Button>
             <Button variant="ghost" size="icon" className="text-white hover:bg-white/10">
               <Bell className="h-5 w-5" />
             </Button>

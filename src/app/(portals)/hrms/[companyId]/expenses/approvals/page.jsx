@@ -70,7 +70,7 @@ const ApprovalsPage = () => {
       id: '1',
       employeeName: 'John Doe',
       type: 'Expense',
-      amount: 5000,
+      amount: 5008,
       submittedDate: '2024-01-15',
       status: 'pending',
       description: 'Travel expenses for client meeting'

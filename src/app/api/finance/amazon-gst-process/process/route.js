@@ -15,6 +15,26 @@ export async function POST(request) {
       return NextResponse.json({ message: 'No files provided' }, { status: 400 });
     }
 
+    // Validate file types - only accept Excel files
+    const allowedExtensions = ['.xlsx', '.xls', '.csv'];
+    const invalidFiles = [];
+    for (const file of files) {
+      const fileName = file.name?.split(/[/\\]/).pop() || '';
+      const fileExt = fileName.toLowerCase().substring(fileName.lastIndexOf('.'));
+      if (!allowedExtensions.includes(fileExt)) {
+        invalidFiles.push(fileName);
+      }
+    }
+
+    if (invalidFiles.length > 0) {
+      return NextResponse.json(
+        { 
+          message: `Invalid file type(s). Only Excel files (.xlsx, .xls) and CSV files are supported. Invalid files: ${invalidFiles.join(', ')}` 
+        },
+        { status: 400 }
+      );
+    }
+
     const tempDir = join(tmpdir(), `amazon-gst-process-${Date.now()}`);
     await mkdir(tempDir, { recursive: true });
 

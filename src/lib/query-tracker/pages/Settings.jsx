@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import api from '../lib/api';
+import api from '../utils/api';
 import UserModal from '../components/UserModal';
 import Icon from '../components/Icon';
 
-export default function Settings() {
+const Settings = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -27,13 +27,15 @@ export default function Settings() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to deactivate this user?')) return;
+    if (typeof window !== 'undefined' && !window.confirm('Are you sure you want to deactivate this user?')) return;
     
     try {
       await api.delete(`/users/${id}`);
       fetchUsers();
     } catch (error) {
-      alert('Error deactivating user');
+      if (typeof window !== 'undefined') {
+        alert('Error deactivating user');
+      }
     }
   };
 
@@ -56,20 +58,20 @@ export default function Settings() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-primary-blue via-accent-purple to-primary-blue-light bg-clip-text text-transparent">User Management</h1>
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent">User Management</h1>
         <button
           onClick={handleAdd}
-          className="px-6 py-2 rounded-lg bg-gradient-to-r from-primary-blue to-primary-blue-light text-white font-semibold hover:shadow-lg transition-all transform hover:scale-[1.02] flex items-center space-x-2"
+          className="px-6 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold hover:shadow-lg transition-all transform hover:scale-[1.02] flex items-center space-x-2"
         >
           <Icon name="person_add" size={20} />
           <span>Add User</span>
         </button>
       </div>
 
-      <div className="glass-glow rounded-2xl overflow-hidden">
+      <div className="bg-white/75 backdrop-blur-lg rounded-2xl overflow-hidden shadow-lg border border-white/50">
         {loading ? (
           <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-blue"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -91,7 +93,7 @@ export default function Settings() {
                     <td className="p-4">
                       <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                         user.role === 'admin' 
-                          ? 'bg-gradient-to-r from-primary-blue/20 to-primary-blue-light/20 text-primary-blue border border-primary-blue/30' 
+                          ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-700 border border-blue-500/30' 
                           : 'bg-blue-100 text-blue-700'
                       }`}>
                         {user.role}
@@ -141,5 +143,7 @@ export default function Settings() {
       )}
     </div>
   );
-}
+};
+
+export default Settings;
 

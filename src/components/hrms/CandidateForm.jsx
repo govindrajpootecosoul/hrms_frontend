@@ -230,7 +230,7 @@ const CandidateForm = ({
           value={formData.expectedSalary}
           onChange={(e) => handleChange('expectedSalary', e.target.value)}
           error={errors.expectedSalary}
-          placeholder="e.g., 50000"
+          placeholder="e.g., 50080"
         />
         
         <Input

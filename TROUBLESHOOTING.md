@@ -7,7 +7,7 @@ This error occurs when the frontend receives HTML instead of JSON from the backe
 ### Common Causes:
 
 1. **Backend server is not running**
-   - The backend server must be running on `http://localhost:5000`
+   - The backend server must be running on `http://localhost:5008`
    - Start it with: `cd worklytics_HRMS_backend && npm run dev`
 
 2. **Backend server crashed or has errors**
@@ -16,7 +16,7 @@ This error occurs when the frontend receives HTML instead of JSON from the backe
 
 3. **Wrong API URL**
    - Check `NEXT_PUBLIC_API_URL` in `.env.local` (if set)
-   - Default is `http://localhost:5000/api`
+   - Default is `http://localhost:5008/api`
 
 4. **CORS issues**
    - Backend should have CORS enabled (already configured)
@@ -31,7 +31,7 @@ This error occurs when the frontend receives HTML instead of JSON from the backe
    ```
 
 2. **Verify backend is running:**
-   - Open: http://localhost:5000/api/health
+   - Open: http://localhost:5008/api/health
    - Should return: `{"status":"OK","message":"Server is running"}`
 
 3. **Check browser console:**

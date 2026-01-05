@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useAdminPortal } from '@/lib/context/AdminPortalContext';
 import { AdminTable } from '@/components/admin-portal/ui/AdminTable';
 import { AdminButton } from '@/components/admin-portal/ui/AdminButton';
@@ -10,16 +10,20 @@ import { AdminMultiSelect } from '@/components/admin-portal/ui/AdminMultiSelect'
 import portalList from '@/data/admin-portal/portalList.json';
 
 export default function UsersPage() {
-  const { users, addUser, updateUser, deleteUser, toggleUserActive } = useAdminPortal();
+  const { users, addUser, updateUser, deleteUser, toggleUserActive, loading, error } = useAdminPortal();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
     active: true,
+    role: 'user',
     portals: [],
   });
 
@@ -29,6 +33,7 @@ export default function UsersPage() {
       email: '',
       password: '',
       active: true,
+      role: 'user',
       portals: [],
     });
     setIsCreateModalOpen(true);
@@ -41,6 +46,7 @@ export default function UsersPage() {
       email: user.email,
       password: user.password,
       active: user.active,
+      role: user.role || 'user',
       portals: user.portals,
     });
     setIsEditModalOpen(true);
@@ -51,47 +57,119 @@ export default function UsersPage() {
     setIsDeleteModalOpen(true);
   };
 
-  const handleSubmitCreate = (e) => {
+  const handleSubmitCreate = async (e) => {
     e.preventDefault();
-    addUser(formData);
-    setIsCreateModalOpen(false);
-    setFormData({
-      name: '',
-      email: '',
-      password: '',
-      active: true,
-      portals: [],
-    });
-  };
-
-  const handleSubmitEdit = (e) => {
-    e.preventDefault();
-    if (selectedUser) {
-      updateUser(selectedUser.id, formData);
-      setIsEditModalOpen(false);
-      setSelectedUser(null);
+    setIsSubmitting(true);
+    setSubmitError(null);
+    try {
+      await addUser(formData);
+      setIsCreateModalOpen(false);
+      setFormData({
+        name: '',
+        email: '',
+        password: '',
+        active: true,
+        role: 'user',
+        portals: [],
+      });
+    } catch (err) {
+      setSubmitError(err.message || 'Failed to create user');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleConfirmDelete = () => {
+  const handleSubmitEdit = async (e) => {
+    e.preventDefault();
     if (selectedUser) {
-      deleteUser(selectedUser.id);
-      setIsDeleteModalOpen(false);
-      setSelectedUser(null);
+      setIsSubmitting(true);
+      setSubmitError(null);
+      try {
+        await updateUser(selectedUser.id, formData);
+        setIsEditModalOpen(false);
+        setSelectedUser(null);
+      } catch (err) {
+        setSubmitError(err.message || 'Failed to update user');
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
-  const handleTogglePortal = (userId, portal) => {
+  const handleConfirmDelete = async () => {
+    if (selectedUser) {
+      setIsSubmitting(true);
+      setSubmitError(null);
+      try {
+        await deleteUser(selectedUser.id);
+        setIsDeleteModalOpen(false);
+        setSelectedUser(null);
+      } catch (err) {
+        setSubmitError(err.message || 'Failed to delete user');
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
+  };
+
+  const handleTogglePortal = async (userId, portal) => {
     const user = users.find(u => u.id === userId);
     if (user) {
       const newPortals = user.portals.includes(portal)
         ? user.portals.filter(p => p !== portal)
         : [...user.portals, portal];
-      updateUser(userId, { portals: newPortals });
+      try {
+        await updateUser(userId, { portals: newPortals });
+      } catch (err) {
+        console.error('Failed to update user portals:', err);
+        setSubmitError(err.message || 'Failed to update portal access');
+      }
     }
   };
 
-  const tableHeaders = ['Name', 'Email', 'Active', ...portalList, 'Actions'];
+  // Ensure portalList is an array
+  const portals = Array.isArray(portalList) ? portalList : [];
+  const tableHeaders = ['Name', 'Email', 'Role', 'Active', ...portals, 'Actions'];
+
+  // Filter users based on search query
+  const filteredUsers = useMemo(() => {
+    // Ensure users is an array
+    if (!Array.isArray(users)) {
+      return [];
+    }
+    
+    // If no search query, return all users
+    if (!searchQuery || searchQuery.trim() === '') {
+      return users;
+    }
+    
+    // Normalize search query
+    const query = searchQuery.toLowerCase().trim();
+    
+    // Filter users
+    return users.filter((user) => {
+      if (!user) return false;
+      const name = String(user.name || '').toLowerCase();
+      const email = String(user.email || '').toLowerCase();
+      return name.includes(query) || email.includes(query);
+    });
+  }, [users, searchQuery]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-gray-500">Loading users...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="text-red-800">Error: {error}</div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -100,9 +178,53 @@ export default function UsersPage() {
         <AdminButton onClick={handleCreate}>Create User</AdminButton>
       </div>
 
+      {submitError && (
+        <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="text-red-800">Error: {submitError}</div>
+        </div>
+      )}
+
+      {/* Search Filter */}
+      <div className="mb-4">
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Search users by name or email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+          <svg
+            className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
+          </svg>
+        </div>
+        {searchQuery && (
+          <div className="mt-2 text-sm text-gray-600">
+            Showing {filteredUsers.length} of {users.length} users
+          </div>
+        )}
+      </div>
+
       <div className="bg-white rounded-lg shadow overflow-x-auto">
         <AdminTable headers={tableHeaders}>
-          {users.map((user) => (
+          {filteredUsers.length === 0 ? (
+            <tr>
+              <td colSpan={tableHeaders.length} className="px-6 py-8 text-center text-gray-500">
+                {searchQuery ? 'No users found matching your search.' : 'No users found.'}
+              </td>
+            </tr>
+          ) : (
+            filteredUsers.map((user) => (
             <tr key={user.id} className="hover:bg-gray-50">
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                 <div className="flex items-center space-x-3">
@@ -116,12 +238,21 @@ export default function UsersPage() {
                 {user.email}
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  user.role === 'admin' || user.role === 'superadmin'
+                    ? 'bg-purple-100 text-purple-800'
+                    : 'bg-gray-100 text-gray-800'
+                }`}>
+                  {user.role === 'superadmin' ? 'Super Admin' : user.role === 'admin' ? 'Admin' : 'User'}
+                </span>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
                 <AdminToggle
                   checked={user.active}
                   onChange={() => toggleUserActive(user.id)}
                 />
               </td>
-              {portalList.map((portal) => (
+              {portals.map((portal) => (
                 <td key={portal} className="px-4 py-4 whitespace-nowrap text-center">
                   <label className="flex items-center justify-center cursor-pointer">
                     <input
@@ -153,7 +284,8 @@ export default function UsersPage() {
                 </div>
               </td>
             </tr>
-          ))}
+            ))
+          )}
         </AdminTable>
       </div>
 
@@ -206,6 +338,20 @@ export default function UsersPage() {
             />
           </div>
           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Role
+            </label>
+            <select
+              value={formData.role}
+              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              required
+            >
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div>
             <AdminToggle
               checked={formData.active}
               onChange={(checked) => setFormData({ ...formData, active: checked })}
@@ -214,7 +360,7 @@ export default function UsersPage() {
           </div>
           <div>
             <AdminMultiSelect
-              options={portalList}
+              options={portals}
               selected={formData.portals}
               onChange={(selected) => setFormData({ ...formData, portals: selected })}
               label="Portals"
@@ -225,10 +371,13 @@ export default function UsersPage() {
               type="button"
               variant="outline"
               onClick={() => setIsCreateModalOpen(false)}
+              disabled={isSubmitting}
             >
               Cancel
             </AdminButton>
-            <AdminButton type="submit">Create</AdminButton>
+            <AdminButton type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Creating...' : 'Create'}
+            </AdminButton>
           </div>
         </form>
       </AdminModal>
@@ -282,6 +431,20 @@ export default function UsersPage() {
             />
           </div>
           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Role
+            </label>
+            <select
+              value={formData.role}
+              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              required
+            >
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div>
             <AdminToggle
               checked={formData.active}
               onChange={(checked) => setFormData({ ...formData, active: checked })}
@@ -290,7 +453,7 @@ export default function UsersPage() {
           </div>
           <div>
             <AdminMultiSelect
-              options={portalList}
+              options={portals}
               selected={formData.portals}
               onChange={(selected) => setFormData({ ...formData, portals: selected })}
               label="Portals"
@@ -301,10 +464,13 @@ export default function UsersPage() {
               type="button"
               variant="outline"
               onClick={() => setIsEditModalOpen(false)}
+              disabled={isSubmitting}
             >
               Cancel
             </AdminButton>
-            <AdminButton type="submit">Update</AdminButton>
+            <AdminButton type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Updating...' : 'Update'}
+            </AdminButton>
           </div>
         </form>
       </AdminModal>
@@ -323,16 +489,27 @@ export default function UsersPage() {
           <AdminButton
             variant="outline"
             onClick={() => setIsDeleteModalOpen(false)}
+            disabled={isSubmitting}
           >
             Cancel
           </AdminButton>
-          <AdminButton variant="danger" onClick={handleConfirmDelete}>
-            Delete
+          <AdminButton variant="danger" onClick={handleConfirmDelete} disabled={isSubmitting}>
+            {isSubmitting ? 'Deleting...' : 'Delete'}
           </AdminButton>
         </div>
       </AdminModal>
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
 
 

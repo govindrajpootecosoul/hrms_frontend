@@ -1,0 +1,1115 @@
+2025-12-26T15:42:32: C:\shivank\worklytics_HRMSAsset_NextJS\worklytics_HRMS_frontend\node_modules\.bin\next:2
+2025-12-26T15:42:32: basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+2025-12-26T15:42:32:           ^^^^^^^
+2025-12-26T15:42:32: 
+2025-12-26T15:42:32: SyntaxError: missing ) after argument list
+2025-12-26T15:42:32:     at wrapSafe (node:internal/modules/cjs/loader:1378:20)
+2025-12-26T15:42:32:     at Module._compile (node:internal/modules/cjs/loader:1428:41)
+2025-12-26T15:42:32:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2025-12-26T15:42:32:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2025-12-26T15:42:32:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2025-12-26T15:42:32:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+2025-12-26T15:42:32:     at node:internal/main/run_main_module:28:49
+2025-12-26T15:42:32: 
+2025-12-26T15:42:32: Node.js v20.17.0
+2025-12-26T15:42:32: C:\shivank\worklytics_HRMSAsset_NextJS\worklytics_HRMS_frontend\node_modules\.bin\next:2
+2025-12-26T15:42:32: basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+2025-12-26T15:42:32:           ^^^^^^^
+2025-12-26T15:42:32: 
+2025-12-26T15:42:32: SyntaxError: missing ) after argument list
+2025-12-26T15:42:32:     at wrapSafe (node:internal/modules/cjs/loader:1378:20)
+2025-12-26T15:42:32:     at Module._compile (node:internal/modules/cjs/loader:1428:41)
+2025-12-26T15:42:32:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2025-12-26T15:42:32:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2025-12-26T15:42:32:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2025-12-26T15:42:32:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+2025-12-26T15:42:32:     at node:internal/main/run_main_module:28:49
+2025-12-26T15:42:32: 
+2025-12-26T15:42:32: Node.js v20.17.0
+2025-12-26T15:42:32: C:\shivank\worklytics_HRMSAsset_NextJS\worklytics_HRMS_frontend\node_modules\.bin\next:2
+2025-12-26T15:42:32: basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+2025-12-26T15:42:32:           ^^^^^^^
+2025-12-26T15:42:32: 
+2025-12-26T15:42:32: SyntaxError: missing ) after argument list
+2025-12-26T15:42:32:     at wrapSafe (node:internal/modules/cjs/loader:1378:20)
+2025-12-26T15:42:32:     at Module._compile (node:internal/modules/cjs/loader:1428:41)
+2025-12-26T15:42:32:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2025-12-26T15:42:32:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2025-12-26T15:42:32:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2025-12-26T15:42:32:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+2025-12-26T15:42:32:     at node:internal/main/run_main_module:28:49
+2025-12-26T15:42:32: 
+2025-12-26T15:42:32: Node.js v20.17.0
+2025-12-26T15:42:32: C:\shivank\worklytics_HRMSAsset_NextJS\worklytics_HRMS_frontend\node_modules\.bin\next:2
+2025-12-26T15:42:32: basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+2025-12-26T15:42:32:           ^^^^^^^
+2025-12-26T15:42:32: 
+2025-12-26T15:42:32: SyntaxError: missing ) after argument list
+2025-12-26T15:42:32:     at wrapSafe (node:internal/modules/cjs/loader:1378:20)
+2025-12-26T15:42:32:     at Module._compile (node:internal/modules/cjs/loader:1428:41)
+2025-12-26T15:42:32:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2025-12-26T15:42:32:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2025-12-26T15:42:32:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2025-12-26T15:42:32:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+2025-12-26T15:42:32:     at node:internal/main/run_main_module:28:49
+2025-12-26T15:42:32: 
+2025-12-26T15:42:32: Node.js v20.17.0
+2025-12-26T15:42:33: C:\shivank\worklytics_HRMSAsset_NextJS\worklytics_HRMS_frontend\node_modules\.bin\next:2
+2025-12-26T15:42:33: basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+2025-12-26T15:42:33:           ^^^^^^^
+2025-12-26T15:42:33: 
+2025-12-26T15:42:33: SyntaxError: missing ) after argument list
+2025-12-26T15:42:33:     at wrapSafe (node:internal/modules/cjs/loader:1378:20)
+2025-12-26T15:42:33:     at Module._compile (node:internal/modules/cjs/loader:1428:41)
+2025-12-26T15:42:33:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2025-12-26T15:42:33:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2025-12-26T15:42:33:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2025-12-26T15:42:33:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+2025-12-26T15:42:33:     at node:internal/main/run_main_module:28:49
+2025-12-26T15:42:33: 
+2025-12-26T15:42:33: Node.js v20.17.0
+2025-12-26T15:42:33: C:\shivank\worklytics_HRMSAsset_NextJS\worklytics_HRMS_frontend\node_modules\.bin\next:2
+2025-12-26T15:42:33: basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+2025-12-26T15:42:33:           ^^^^^^^
+2025-12-26T15:42:33: 
+2025-12-26T15:42:33: SyntaxError: missing ) after argument list
+2025-12-26T15:42:33:     at wrapSafe (node:internal/modules/cjs/loader:1378:20)
+2025-12-26T15:42:33:     at Module._compile (node:internal/modules/cjs/loader:1428:41)
+2025-12-26T15:42:33:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2025-12-26T15:42:33:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2025-12-26T15:42:33:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2025-12-26T15:42:33:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+2025-12-26T15:42:33:     at node:internal/main/run_main_module:28:49
+2025-12-26T15:42:33: 
+2025-12-26T15:42:33: Node.js v20.17.0
+2025-12-26T15:42:33: C:\shivank\worklytics_HRMSAsset_NextJS\worklytics_HRMS_frontend\node_modules\.bin\next:2
+2025-12-26T15:42:33: basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+2025-12-26T15:42:33:           ^^^^^^^
+2025-12-26T15:42:33: 
+2025-12-26T15:42:33: SyntaxError: missing ) after argument list
+2025-12-26T15:42:33:     at wrapSafe (node:internal/modules/cjs/loader:1378:20)
+2025-12-26T15:42:33:     at Module._compile (node:internal/modules/cjs/loader:1428:41)
+2025-12-26T15:42:33:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2025-12-26T15:42:33:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2025-12-26T15:42:33:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2025-12-26T15:42:33:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+2025-12-26T15:42:33:     at node:internal/main/run_main_module:28:49
+2025-12-26T15:42:33: 
+2025-12-26T15:42:33: Node.js v20.17.0
+2025-12-26T15:42:33: C:\shivank\worklytics_HRMSAsset_NextJS\worklytics_HRMS_frontend\node_modules\.bin\next:2
+2025-12-26T15:42:33: basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+2025-12-26T15:42:33:           ^^^^^^^
+2025-12-26T15:42:33: 
+2025-12-26T15:42:33: SyntaxError: missing ) after argument list
+2025-12-26T15:42:33:     at wrapSafe (node:internal/modules/cjs/loader:1378:20)
+2025-12-26T15:42:33:     at Module._compile (node:internal/modules/cjs/loader:1428:41)
+2025-12-26T15:42:33:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2025-12-26T15:42:33:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2025-12-26T15:42:33:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2025-12-26T15:42:33:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+2025-12-26T15:42:33:     at node:internal/main/run_main_module:28:49
+2025-12-26T15:42:33: 
+2025-12-26T15:42:33: Node.js v20.17.0
+2025-12-26T15:42:33: C:\shivank\worklytics_HRMSAsset_NextJS\worklytics_HRMS_frontend\node_modules\.bin\next:2
+2025-12-26T15:42:33: basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+2025-12-26T15:42:33:           ^^^^^^^
+2025-12-26T15:42:33: 
+2025-12-26T15:42:33: SyntaxError: missing ) after argument list
+2025-12-26T15:42:33:     at wrapSafe (node:internal/modules/cjs/loader:1378:20)
+2025-12-26T15:42:33:     at Module._compile (node:internal/modules/cjs/loader:1428:41)
+2025-12-26T15:42:33:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2025-12-26T15:42:33:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2025-12-26T15:42:33:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2025-12-26T15:42:33:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+2025-12-26T15:42:33:     at node:internal/main/run_main_module:28:49
+2025-12-26T15:42:33: 
+2025-12-26T15:42:33: Node.js v20.17.0
+2025-12-26T15:42:33: C:\shivank\worklytics_HRMSAsset_NextJS\worklytics_HRMS_frontend\node_modules\.bin\next:2
+2025-12-26T15:42:33: basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+2025-12-26T15:42:33:           ^^^^^^^
+2025-12-26T15:42:33: 
+2025-12-26T15:42:33: SyntaxError: missing ) after argument list
+2025-12-26T15:42:33:     at wrapSafe (node:internal/modules/cjs/loader:1378:20)
+2025-12-26T15:42:33:     at Module._compile (node:internal/modules/cjs/loader:1428:41)
+2025-12-26T15:42:33:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2025-12-26T15:42:33:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2025-12-26T15:42:33:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2025-12-26T15:42:33:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+2025-12-26T15:42:33:     at node:internal/main/run_main_module:28:49
+2025-12-26T15:42:33: 
+2025-12-26T15:42:33: Node.js v20.17.0
+2025-12-26T15:42:33: C:\shivank\worklytics_HRMSAsset_NextJS\worklytics_HRMS_frontend\node_modules\.bin\next:2
+2025-12-26T15:42:33: basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+2025-12-26T15:42:33:           ^^^^^^^
+2025-12-26T15:42:33: 
+2025-12-26T15:42:33: SyntaxError: missing ) after argument list
+2025-12-26T15:42:33:     at wrapSafe (node:internal/modules/cjs/loader:1378:20)
+2025-12-26T15:42:33:     at Module._compile (node:internal/modules/cjs/loader:1428:41)
+2025-12-26T15:42:33:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2025-12-26T15:42:33:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2025-12-26T15:42:33:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2025-12-26T15:42:33:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+2025-12-26T15:42:33:     at node:internal/main/run_main_module:28:49
+2025-12-26T15:42:33: 
+2025-12-26T15:42:33: Node.js v20.17.0
+2025-12-26T15:42:33: C:\shivank\worklytics_HRMSAsset_NextJS\worklytics_HRMS_frontend\node_modules\.bin\next:2
+2025-12-26T15:42:33: basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+2025-12-26T15:42:33:           ^^^^^^^
+2025-12-26T15:42:33: 
+2025-12-26T15:42:33: SyntaxError: missing ) after argument list
+2025-12-26T15:42:33:     at wrapSafe (node:internal/modules/cjs/loader:1378:20)
+2025-12-26T15:42:33:     at Module._compile (node:internal/modules/cjs/loader:1428:41)
+2025-12-26T15:42:33:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2025-12-26T15:42:33:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2025-12-26T15:42:33:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2025-12-26T15:42:33:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+2025-12-26T15:42:33:     at node:internal/main/run_main_module:28:49
+2025-12-26T15:42:33: 
+2025-12-26T15:42:33: Node.js v20.17.0
+2025-12-26T15:42:34: C:\shivank\worklytics_HRMSAsset_NextJS\worklytics_HRMS_frontend\node_modules\.bin\next:2
+2025-12-26T15:42:34: basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+2025-12-26T15:42:34:           ^^^^^^^
+2025-12-26T15:42:34: 
+2025-12-26T15:42:34: SyntaxError: missing ) after argument list
+2025-12-26T15:42:34:     at wrapSafe (node:internal/modules/cjs/loader:1378:20)
+2025-12-26T15:42:34:     at Module._compile (node:internal/modules/cjs/loader:1428:41)
+2025-12-26T15:42:34:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2025-12-26T15:42:34:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2025-12-26T15:42:34:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2025-12-26T15:42:34:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+2025-12-26T15:42:34:     at node:internal/main/run_main_module:28:49
+2025-12-26T15:42:34: 
+2025-12-26T15:42:34: Node.js v20.17.0
+2025-12-26T15:42:34: C:\shivank\worklytics_HRMSAsset_NextJS\worklytics_HRMS_frontend\node_modules\.bin\next:2
+2025-12-26T15:42:34: basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+2025-12-26T15:42:34:           ^^^^^^^
+2025-12-26T15:42:34: 
+2025-12-26T15:42:34: SyntaxError: missing ) after argument list
+2025-12-26T15:42:34:     at wrapSafe (node:internal/modules/cjs/loader:1378:20)
+2025-12-26T15:42:34:     at Module._compile (node:internal/modules/cjs/loader:1428:41)
+2025-12-26T15:42:34:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2025-12-26T15:42:34:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2025-12-26T15:42:34:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2025-12-26T15:42:34:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+2025-12-26T15:42:34:     at node:internal/main/run_main_module:28:49
+2025-12-26T15:42:34: 
+2025-12-26T15:42:34: Node.js v20.17.0
+2025-12-26T15:42:34: C:\shivank\worklytics_HRMSAsset_NextJS\worklytics_HRMS_frontend\node_modules\.bin\next:2
+2025-12-26T15:42:34: basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+2025-12-26T15:42:34:           ^^^^^^^
+2025-12-26T15:42:34: 
+2025-12-26T15:42:34: SyntaxError: missing ) after argument list
+2025-12-26T15:42:34:     at wrapSafe (node:internal/modules/cjs/loader:1378:20)
+2025-12-26T15:42:34:     at Module._compile (node:internal/modules/cjs/loader:1428:41)
+2025-12-26T15:42:34:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2025-12-26T15:42:34:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2025-12-26T15:42:34:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2025-12-26T15:42:34:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+2025-12-26T15:42:34:     at node:internal/main/run_main_module:28:49
+2025-12-26T15:42:34: 
+2025-12-26T15:42:34: Node.js v20.17.0
+2025-12-26T15:42:34: C:\shivank\worklytics_HRMSAsset_NextJS\worklytics_HRMS_frontend\node_modules\.bin\next:2
+2025-12-26T15:42:34: basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+2025-12-26T15:42:34:           ^^^^^^^
+2025-12-26T15:42:34: 
+2025-12-26T15:42:34: SyntaxError: missing ) after argument list
+2025-12-26T15:42:34:     at wrapSafe (node:internal/modules/cjs/loader:1378:20)
+2025-12-26T15:42:34:     at Module._compile (node:internal/modules/cjs/loader:1428:41)
+2025-12-26T15:42:34:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2025-12-26T15:42:34:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2025-12-26T15:42:34:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2025-12-26T15:42:34:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+2025-12-26T15:42:34:     at node:internal/main/run_main_module:28:49
+2025-12-26T15:42:34: 
+2025-12-26T15:42:34: Node.js v20.17.0
+2025-12-26T15:43:11: C:\shivank\worklytics_HRMSAsset_NextJS\worklytics_HRMS_frontend\node_modules\.bin\next:2
+2025-12-26T15:43:11: basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+2025-12-26T15:43:11:           ^^^^^^^
+2025-12-26T15:43:11: 
+2025-12-26T15:43:11: SyntaxError: missing ) after argument list
+2025-12-26T15:43:11:     at wrapSafe (node:internal/modules/cjs/loader:1378:20)
+2025-12-26T15:43:11:     at Module._compile (node:internal/modules/cjs/loader:1428:41)
+2025-12-26T15:43:11:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2025-12-26T15:43:11:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2025-12-26T15:43:11:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2025-12-26T15:43:11:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+2025-12-26T15:43:11:     at node:internal/main/run_main_module:28:49
+2025-12-26T15:43:11: 
+2025-12-26T15:43:11: Node.js v20.17.0
+2025-12-26T15:43:14: C:\shivank\worklytics_HRMSAsset_NextJS\worklytics_HRMS_frontend\node_modules\.bin\next:2
+2025-12-26T15:43:14: basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+2025-12-26T15:43:14:           ^^^^^^^
+2025-12-26T15:43:14: 
+2025-12-26T15:43:14: SyntaxError: missing ) after argument list
+2025-12-26T15:43:14:     at wrapSafe (node:internal/modules/cjs/loader:1378:20)
+2025-12-26T15:43:14:     at Module._compile (node:internal/modules/cjs/loader:1428:41)
+2025-12-26T15:43:14:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2025-12-26T15:43:14:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2025-12-26T15:43:14:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2025-12-26T15:43:14:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+2025-12-26T15:43:14:     at node:internal/main/run_main_module:28:49
+2025-12-26T15:43:14: 
+2025-12-26T15:43:14: Node.js v20.17.0
+2025-12-26T15:43:15: C:\shivank\worklytics_HRMSAsset_NextJS\worklytics_HRMS_frontend\node_modules\.bin\next:2
+2025-12-26T15:43:15: basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+2025-12-26T15:43:15:           ^^^^^^^
+2025-12-26T15:43:15: 
+2025-12-26T15:43:15: SyntaxError: missing ) after argument list
+2025-12-26T15:43:15:     at wrapSafe (node:internal/modules/cjs/loader:1378:20)
+2025-12-26T15:43:15:     at Module._compile (node:internal/modules/cjs/loader:1428:41)
+2025-12-26T15:43:15:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2025-12-26T15:43:15:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2025-12-26T15:43:15:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2025-12-26T15:43:15:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+2025-12-26T15:43:15:     at node:internal/main/run_main_module:28:49
+2025-12-26T15:43:15: 
+2025-12-26T15:43:15: Node.js v20.17.0
+2025-12-26T15:43:17: C:\shivank\worklytics_HRMSAsset_NextJS\worklytics_HRMS_frontend\node_modules\.bin\next:2
+2025-12-26T15:43:17: basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+2025-12-26T15:43:17:           ^^^^^^^
+2025-12-26T15:43:17: 
+2025-12-26T15:43:17: SyntaxError: missing ) after argument list
+2025-12-26T15:43:17:     at wrapSafe (node:internal/modules/cjs/loader:1378:20)
+2025-12-26T15:43:17:     at Module._compile (node:internal/modules/cjs/loader:1428:41)
+2025-12-26T15:43:17:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2025-12-26T15:43:17:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2025-12-26T15:43:17:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2025-12-26T15:43:17:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+2025-12-26T15:43:17:     at node:internal/main/run_main_module:28:49
+2025-12-26T15:43:17: 
+2025-12-26T15:43:17: Node.js v20.17.0
+2025-12-26T15:43:22: C:\shivank\worklytics_HRMSAsset_NextJS\worklytics_HRMS_frontend\node_modules\.bin\next:2
+2025-12-26T15:43:22: basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+2025-12-26T15:43:22:           ^^^^^^^
+2025-12-26T15:43:22: 
+2025-12-26T15:43:22: SyntaxError: missing ) after argument list
+2025-12-26T15:43:22:     at wrapSafe (node:internal/modules/cjs/loader:1378:20)
+2025-12-26T15:43:22:     at Module._compile (node:internal/modules/cjs/loader:1428:41)
+2025-12-26T15:43:22:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2025-12-26T15:43:22:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2025-12-26T15:43:22:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2025-12-26T15:43:22:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+2025-12-26T15:43:22:     at node:internal/main/run_main_module:28:49
+2025-12-26T15:43:22: 
+2025-12-26T15:43:22: Node.js v20.17.0
+2025-12-26T15:43:25: C:\shivank\worklytics_HRMSAsset_NextJS\worklytics_HRMS_frontend\node_modules\.bin\next:2
+2025-12-26T15:43:25: basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+2025-12-26T15:43:25:           ^^^^^^^
+2025-12-26T15:43:25: 
+2025-12-26T15:43:25: SyntaxError: missing ) after argument list
+2025-12-26T15:43:25:     at wrapSafe (node:internal/modules/cjs/loader:1378:20)
+2025-12-26T15:43:25:     at Module._compile (node:internal/modules/cjs/loader:1428:41)
+2025-12-26T15:43:25:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2025-12-26T15:43:25:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2025-12-26T15:43:25:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2025-12-26T15:43:25:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+2025-12-26T15:43:25:     at node:internal/main/run_main_module:28:49
+2025-12-26T15:43:25: 
+2025-12-26T15:43:25: Node.js v20.17.0
+2025-12-26T15:43:31: C:\shivank\worklytics_HRMSAsset_NextJS\worklytics_HRMS_frontend\node_modules\.bin\next:2
+2025-12-26T15:43:31: basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+2025-12-26T15:43:31:           ^^^^^^^
+2025-12-26T15:43:31: 
+2025-12-26T15:43:31: SyntaxError: missing ) after argument list
+2025-12-26T15:43:31:     at wrapSafe (node:internal/modules/cjs/loader:1378:20)
+2025-12-26T15:43:31:     at Module._compile (node:internal/modules/cjs/loader:1428:41)
+2025-12-26T15:43:31:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2025-12-26T15:43:31:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2025-12-26T15:43:31:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2025-12-26T15:43:31:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+2025-12-26T15:43:31:     at node:internal/main/run_main_module:28:49
+2025-12-26T15:43:31: 
+2025-12-26T15:43:31: Node.js v20.17.0
+2025-12-26T15:43:37: C:\shivank\worklytics_HRMSAsset_NextJS\worklytics_HRMS_frontend\node_modules\.bin\next:2
+2025-12-26T15:43:37: basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+2025-12-26T15:43:37:           ^^^^^^^
+2025-12-26T15:43:37: 
+2025-12-26T15:43:37: SyntaxError: missing ) after argument list
+2025-12-26T15:43:37:     at wrapSafe (node:internal/modules/cjs/loader:1378:20)
+2025-12-26T15:43:37:     at Module._compile (node:internal/modules/cjs/loader:1428:41)
+2025-12-26T15:43:37:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2025-12-26T15:43:37:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2025-12-26T15:43:37:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2025-12-26T15:43:37:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+2025-12-26T15:43:37:     at node:internal/main/run_main_module:28:49
+2025-12-26T15:43:37: 
+2025-12-26T15:43:37: Node.js v20.17.0
+2025-12-26T15:43:43: C:\shivank\worklytics_HRMSAsset_NextJS\worklytics_HRMS_frontend\node_modules\.bin\next:2
+2025-12-26T15:43:43: basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+2025-12-26T15:43:43:           ^^^^^^^
+2025-12-26T15:43:43: 
+2025-12-26T15:43:43: SyntaxError: missing ) after argument list
+2025-12-26T15:43:43:     at wrapSafe (node:internal/modules/cjs/loader:1378:20)
+2025-12-26T15:43:43:     at Module._compile (node:internal/modules/cjs/loader:1428:41)
+2025-12-26T15:43:43:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2025-12-26T15:43:43:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2025-12-26T15:43:43:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2025-12-26T15:43:43:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+2025-12-26T15:43:43:     at node:internal/main/run_main_module:28:49
+2025-12-26T15:43:43: 
+2025-12-26T15:43:43: Node.js v20.17.0
+2025-12-26T15:43:48: C:\shivank\worklytics_HRMSAsset_NextJS\worklytics_HRMS_frontend\node_modules\.bin\next:2
+2025-12-26T15:43:48: basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+2025-12-26T15:43:48:           ^^^^^^^
+2025-12-26T15:43:48: 
+2025-12-26T15:43:48: SyntaxError: missing ) after argument list
+2025-12-26T15:43:48:     at wrapSafe (node:internal/modules/cjs/loader:1378:20)
+2025-12-26T15:43:48:     at Module._compile (node:internal/modules/cjs/loader:1428:41)
+2025-12-26T15:43:48:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2025-12-26T15:43:48:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2025-12-26T15:43:48:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2025-12-26T15:43:48:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+2025-12-26T15:43:48:     at node:internal/main/run_main_module:28:49
+2025-12-26T15:43:48: 
+2025-12-26T15:43:48: Node.js v20.17.0
+2025-12-26T15:43:54: C:\shivank\worklytics_HRMSAsset_NextJS\worklytics_HRMS_frontend\node_modules\.bin\next:2
+2025-12-26T15:43:54: basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+2025-12-26T15:43:54:           ^^^^^^^
+2025-12-26T15:43:54: 
+2025-12-26T15:43:54: SyntaxError: missing ) after argument list
+2025-12-26T15:43:54:     at wrapSafe (node:internal/modules/cjs/loader:1378:20)
+2025-12-26T15:43:54:     at Module._compile (node:internal/modules/cjs/loader:1428:41)
+2025-12-26T15:43:54:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2025-12-26T15:43:54:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2025-12-26T15:43:54:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2025-12-26T15:43:54:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+2025-12-26T15:43:54:     at node:internal/main/run_main_module:28:49
+2025-12-26T15:43:54: 
+2025-12-26T15:43:54: Node.js v20.17.0
+2025-12-26T15:43:59: C:\shivank\worklytics_HRMSAsset_NextJS\worklytics_HRMS_frontend\node_modules\.bin\next:2
+2025-12-26T15:43:59: basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+2025-12-26T15:43:59:           ^^^^^^^
+2025-12-26T15:43:59: 
+2025-12-26T15:43:59: SyntaxError: missing ) after argument list
+2025-12-26T15:43:59:     at wrapSafe (node:internal/modules/cjs/loader:1378:20)
+2025-12-26T15:43:59:     at Module._compile (node:internal/modules/cjs/loader:1428:41)
+2025-12-26T15:43:59:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2025-12-26T15:43:59:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2025-12-26T15:43:59:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2025-12-26T15:43:59:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+2025-12-26T15:43:59:     at node:internal/main/run_main_module:28:49
+2025-12-26T15:43:59: 
+2025-12-26T15:43:59: Node.js v20.17.0
+2025-12-26T15:44:04: C:\shivank\worklytics_HRMSAsset_NextJS\worklytics_HRMS_frontend\node_modules\.bin\next:2
+2025-12-26T15:44:04: basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+2025-12-26T15:44:04:           ^^^^^^^
+2025-12-26T15:44:04: 
+2025-12-26T15:44:04: SyntaxError: missing ) after argument list
+2025-12-26T15:44:04:     at wrapSafe (node:internal/modules/cjs/loader:1378:20)
+2025-12-26T15:44:04:     at Module._compile (node:internal/modules/cjs/loader:1428:41)
+2025-12-26T15:44:04:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2025-12-26T15:44:04:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2025-12-26T15:44:04:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2025-12-26T15:44:04:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+2025-12-26T15:44:04:     at node:internal/main/run_main_module:28:49
+2025-12-26T15:44:04: 
+2025-12-26T15:44:04: Node.js v20.17.0
+2025-12-26T15:44:10: C:\shivank\worklytics_HRMSAsset_NextJS\worklytics_HRMS_frontend\node_modules\.bin\next:2
+2025-12-26T15:44:10: basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+2025-12-26T15:44:10:           ^^^^^^^
+2025-12-26T15:44:10: 
+2025-12-26T15:44:10: SyntaxError: missing ) after argument list
+2025-12-26T15:44:10:     at wrapSafe (node:internal/modules/cjs/loader:1378:20)
+2025-12-26T15:44:10:     at Module._compile (node:internal/modules/cjs/loader:1428:41)
+2025-12-26T15:44:10:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2025-12-26T15:44:10:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2025-12-26T15:44:10:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2025-12-26T15:44:10:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+2025-12-26T15:44:10:     at node:internal/main/run_main_module:28:49
+2025-12-26T15:44:10: 
+2025-12-26T15:44:10: Node.js v20.17.0
+2025-12-26T15:44:15: C:\shivank\worklytics_HRMSAsset_NextJS\worklytics_HRMS_frontend\node_modules\.bin\next:2
+2025-12-26T15:44:15: basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+2025-12-26T15:44:15:           ^^^^^^^
+2025-12-26T15:44:15: 
+2025-12-26T15:44:15: SyntaxError: missing ) after argument list
+2025-12-26T15:44:15:     at wrapSafe (node:internal/modules/cjs/loader:1378:20)
+2025-12-26T15:44:15:     at Module._compile (node:internal/modules/cjs/loader:1428:41)
+2025-12-26T15:44:15:     at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+2025-12-26T15:44:15:     at Module.load (node:internal/modules/cjs/loader:1288:32)
+2025-12-26T15:44:15:     at Module._load (node:internal/modules/cjs/loader:1104:12)
+2025-12-26T15:44:15:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+2025-12-26T15:44:15:     at node:internal/main/run_main_module:28:49
+2025-12-26T15:44:15: 
+2025-12-26T15:44:15: Node.js v20.17.0
+2025-12-26T15:44:24:  ⨯ Failed to start server
+2025-12-26T15:44:24: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:44:24:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:44:24:     at new Promise (<anonymous>) {
+2025-12-26T15:44:24:   code: 'EADDRINUSE',
+2025-12-26T15:44:24:   errno: -4091,
+2025-12-26T15:44:24:   syscall: 'listen',
+2025-12-26T15:44:24:   address: '::',
+2025-12-26T15:44:24:   port: 4000
+2025-12-26T15:44:24: }
+2025-12-26T15:44:24: Next.js server exited with code 1
+2025-12-26T15:44:30:  ⨯ Failed to start server
+2025-12-26T15:44:30: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:44:30:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:44:30:     at new Promise (<anonymous>) {
+2025-12-26T15:44:30:   code: 'EADDRINUSE',
+2025-12-26T15:44:30:   errno: -4091,
+2025-12-26T15:44:30:   syscall: 'listen',
+2025-12-26T15:44:30:   address: '::',
+2025-12-26T15:44:30:   port: 4000
+2025-12-26T15:44:30: }
+2025-12-26T15:44:30: Next.js server exited with code 1
+2025-12-26T15:44:36:  ⨯ Failed to start server
+2025-12-26T15:44:36: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:44:36:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:44:36:     at new Promise (<anonymous>) {
+2025-12-26T15:44:36:   code: 'EADDRINUSE',
+2025-12-26T15:44:36:   errno: -4091,
+2025-12-26T15:44:36:   syscall: 'listen',
+2025-12-26T15:44:36:   address: '::',
+2025-12-26T15:44:36:   port: 4000
+2025-12-26T15:44:36: }
+2025-12-26T15:44:36: Next.js server exited with code 1
+2025-12-26T15:44:43:  ⨯ Failed to start server
+2025-12-26T15:44:43: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:44:43:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:44:43:     at new Promise (<anonymous>) {
+2025-12-26T15:44:43:   code: 'EADDRINUSE',
+2025-12-26T15:44:43:   errno: -4091,
+2025-12-26T15:44:43:   syscall: 'listen',
+2025-12-26T15:44:43:   address: '::',
+2025-12-26T15:44:43:   port: 4000
+2025-12-26T15:44:43: }
+2025-12-26T15:44:43: Next.js server exited with code 1
+2025-12-26T15:44:49:  ⨯ Failed to start server
+2025-12-26T15:44:49: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:44:49:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:44:49:     at new Promise (<anonymous>) {
+2025-12-26T15:44:49:   code: 'EADDRINUSE',
+2025-12-26T15:44:49:   errno: -4091,
+2025-12-26T15:44:49:   syscall: 'listen',
+2025-12-26T15:44:49:   address: '::',
+2025-12-26T15:44:49:   port: 4000
+2025-12-26T15:44:49: }
+2025-12-26T15:44:49: Next.js server exited with code 1
+2025-12-26T15:44:55:  ⨯ Failed to start server
+2025-12-26T15:44:55: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:44:55:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:44:55:     at new Promise (<anonymous>) {
+2025-12-26T15:44:55:   code: 'EADDRINUSE',
+2025-12-26T15:44:55:   errno: -4091,
+2025-12-26T15:44:55:   syscall: 'listen',
+2025-12-26T15:44:55:   address: '::',
+2025-12-26T15:44:55:   port: 4000
+2025-12-26T15:44:55: }
+2025-12-26T15:44:55: Next.js server exited with code 1
+2025-12-26T15:45:01:  ⨯ Failed to start server
+2025-12-26T15:45:01: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:45:01:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:45:01:     at new Promise (<anonymous>) {
+2025-12-26T15:45:01:   code: 'EADDRINUSE',
+2025-12-26T15:45:01:   errno: -4091,
+2025-12-26T15:45:01:   syscall: 'listen',
+2025-12-26T15:45:01:   address: '::',
+2025-12-26T15:45:01:   port: 4000
+2025-12-26T15:45:01: }
+2025-12-26T15:45:01: Next.js server exited with code 1
+2025-12-26T15:45:07:  ⨯ Failed to start server
+2025-12-26T15:45:07: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:45:07:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:45:07:     at new Promise (<anonymous>) {
+2025-12-26T15:45:07:   code: 'EADDRINUSE',
+2025-12-26T15:45:07:   errno: -4091,
+2025-12-26T15:45:07:   syscall: 'listen',
+2025-12-26T15:45:07:   address: '::',
+2025-12-26T15:45:07:   port: 4000
+2025-12-26T15:45:07: }
+2025-12-26T15:45:07: Next.js server exited with code 1
+2025-12-26T15:45:13:  ⨯ Failed to start server
+2025-12-26T15:45:13: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:45:13:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:45:13:     at new Promise (<anonymous>) {
+2025-12-26T15:45:13:   code: 'EADDRINUSE',
+2025-12-26T15:45:13:   errno: -4091,
+2025-12-26T15:45:13:   syscall: 'listen',
+2025-12-26T15:45:13:   address: '::',
+2025-12-26T15:45:13:   port: 4000
+2025-12-26T15:45:13: }
+2025-12-26T15:45:13: Next.js server exited with code 1
+2025-12-26T15:45:19:  ⨯ Failed to start server
+2025-12-26T15:45:19: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:45:19:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:45:19:     at new Promise (<anonymous>) {
+2025-12-26T15:45:19:   code: 'EADDRINUSE',
+2025-12-26T15:45:19:   errno: -4091,
+2025-12-26T15:45:19:   syscall: 'listen',
+2025-12-26T15:45:19:   address: '::',
+2025-12-26T15:45:19:   port: 4000
+2025-12-26T15:45:19: }
+2025-12-26T15:45:19: Next.js server exited with code 1
+2025-12-26T15:45:25:  ⨯ Failed to start server
+2025-12-26T15:45:25: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:45:25:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:45:25:     at new Promise (<anonymous>) {
+2025-12-26T15:45:25:   code: 'EADDRINUSE',
+2025-12-26T15:45:25:   errno: -4091,
+2025-12-26T15:45:25:   syscall: 'listen',
+2025-12-26T15:45:25:   address: '::',
+2025-12-26T15:45:25:   port: 4000
+2025-12-26T15:45:25: }
+2025-12-26T15:45:25: Next.js server exited with code 1
+2025-12-26T15:45:31:  ⨯ Failed to start server
+2025-12-26T15:45:31: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:45:31:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:45:31:     at new Promise (<anonymous>) {
+2025-12-26T15:45:31:   code: 'EADDRINUSE',
+2025-12-26T15:45:31:   errno: -4091,
+2025-12-26T15:45:31:   syscall: 'listen',
+2025-12-26T15:45:31:   address: '::',
+2025-12-26T15:45:31:   port: 4000
+2025-12-26T15:45:31: }
+2025-12-26T15:45:31: Next.js server exited with code 1
+2025-12-26T15:45:36:  ⨯ Failed to start server
+2025-12-26T15:45:36: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:45:36:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:45:36:     at new Promise (<anonymous>) {
+2025-12-26T15:45:36:   code: 'EADDRINUSE',
+2025-12-26T15:45:36:   errno: -4091,
+2025-12-26T15:45:36:   syscall: 'listen',
+2025-12-26T15:45:36:   address: '::',
+2025-12-26T15:45:36:   port: 4000
+2025-12-26T15:45:36: }
+2025-12-26T15:45:36: Next.js server exited with code 1
+2025-12-26T15:45:41:  ⨯ Failed to start server
+2025-12-26T15:45:41: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:45:41:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:45:41:     at new Promise (<anonymous>) {
+2025-12-26T15:45:41:   code: 'EADDRINUSE',
+2025-12-26T15:45:41:   errno: -4091,
+2025-12-26T15:45:41:   syscall: 'listen',
+2025-12-26T15:45:41:   address: '::',
+2025-12-26T15:45:41:   port: 4000
+2025-12-26T15:45:41: }
+2025-12-26T15:45:41: Next.js server exited with code 1
+2025-12-26T15:45:45:  ⨯ Failed to start server
+2025-12-26T15:45:45: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:45:45:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:45:45:     at new Promise (<anonymous>) {
+2025-12-26T15:45:45:   code: 'EADDRINUSE',
+2025-12-26T15:45:45:   errno: -4091,
+2025-12-26T15:45:45:   syscall: 'listen',
+2025-12-26T15:45:45:   address: '::',
+2025-12-26T15:45:45:   port: 4000
+2025-12-26T15:45:45: }
+2025-12-26T15:45:45: Next.js server exited with code 1
+2025-12-26T15:45:50:  ⨯ Failed to start server
+2025-12-26T15:45:50: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:45:50:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:45:50:     at new Promise (<anonymous>) {
+2025-12-26T15:45:50:   code: 'EADDRINUSE',
+2025-12-26T15:45:50:   errno: -4091,
+2025-12-26T15:45:50:   syscall: 'listen',
+2025-12-26T15:45:50:   address: '::',
+2025-12-26T15:45:50:   port: 4000
+2025-12-26T15:45:50: }
+2025-12-26T15:45:50: Next.js server exited with code 1
+2025-12-26T15:45:54:  ⨯ Failed to start server
+2025-12-26T15:45:54: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:45:54:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:45:54:     at new Promise (<anonymous>) {
+2025-12-26T15:45:54:   code: 'EADDRINUSE',
+2025-12-26T15:45:54:   errno: -4091,
+2025-12-26T15:45:54:   syscall: 'listen',
+2025-12-26T15:45:54:   address: '::',
+2025-12-26T15:45:54:   port: 4000
+2025-12-26T15:45:54: }
+2025-12-26T15:45:54: Next.js server exited with code 1
+2025-12-26T15:45:59:  ⨯ Failed to start server
+2025-12-26T15:45:59: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:45:59:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:45:59:     at new Promise (<anonymous>) {
+2025-12-26T15:45:59:   code: 'EADDRINUSE',
+2025-12-26T15:45:59:   errno: -4091,
+2025-12-26T15:45:59:   syscall: 'listen',
+2025-12-26T15:45:59:   address: '::',
+2025-12-26T15:45:59:   port: 4000
+2025-12-26T15:45:59: }
+2025-12-26T15:45:59: Next.js server exited with code 1
+2025-12-26T15:46:04:  ⨯ Failed to start server
+2025-12-26T15:46:04: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:46:04:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:46:04:     at new Promise (<anonymous>) {
+2025-12-26T15:46:04:   code: 'EADDRINUSE',
+2025-12-26T15:46:04:   errno: -4091,
+2025-12-26T15:46:04:   syscall: 'listen',
+2025-12-26T15:46:04:   address: '::',
+2025-12-26T15:46:04:   port: 4000
+2025-12-26T15:46:04: }
+2025-12-26T15:46:04: Next.js server exited with code 1
+2025-12-26T15:46:08:  ⨯ Failed to start server
+2025-12-26T15:46:08: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:46:08:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:46:08:     at new Promise (<anonymous>) {
+2025-12-26T15:46:08:   code: 'EADDRINUSE',
+2025-12-26T15:46:08:   errno: -4091,
+2025-12-26T15:46:08:   syscall: 'listen',
+2025-12-26T15:46:08:   address: '::',
+2025-12-26T15:46:08:   port: 4000
+2025-12-26T15:46:08: }
+2025-12-26T15:46:08: Next.js server exited with code 1
+2025-12-26T15:46:13:  ⨯ Failed to start server
+2025-12-26T15:46:13: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:46:13:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:46:13:     at new Promise (<anonymous>) {
+2025-12-26T15:46:13:   code: 'EADDRINUSE',
+2025-12-26T15:46:13:   errno: -4091,
+2025-12-26T15:46:13:   syscall: 'listen',
+2025-12-26T15:46:13:   address: '::',
+2025-12-26T15:46:13:   port: 4000
+2025-12-26T15:46:13: }
+2025-12-26T15:46:13: Next.js server exited with code 1
+2025-12-26T15:46:17:  ⨯ Failed to start server
+2025-12-26T15:46:17: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:46:17:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:46:17:     at new Promise (<anonymous>) {
+2025-12-26T15:46:17:   code: 'EADDRINUSE',
+2025-12-26T15:46:17:   errno: -4091,
+2025-12-26T15:46:17:   syscall: 'listen',
+2025-12-26T15:46:17:   address: '::',
+2025-12-26T15:46:17:   port: 4000
+2025-12-26T15:46:17: }
+2025-12-26T15:46:17: Next.js server exited with code 1
+2025-12-26T15:46:21:  ⨯ Failed to start server
+2025-12-26T15:46:21: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:46:21:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:46:21:     at new Promise (<anonymous>) {
+2025-12-26T15:46:21:   code: 'EADDRINUSE',
+2025-12-26T15:46:21:   errno: -4091,
+2025-12-26T15:46:21:   syscall: 'listen',
+2025-12-26T15:46:21:   address: '::',
+2025-12-26T15:46:21:   port: 4000
+2025-12-26T15:46:21: }
+2025-12-26T15:46:21: Next.js server exited with code 1
+2025-12-26T15:46:25:  ⨯ Failed to start server
+2025-12-26T15:46:25: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:46:25:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:46:25:     at new Promise (<anonymous>) {
+2025-12-26T15:46:25:   code: 'EADDRINUSE',
+2025-12-26T15:46:25:   errno: -4091,
+2025-12-26T15:46:25:   syscall: 'listen',
+2025-12-26T15:46:25:   address: '::',
+2025-12-26T15:46:25:   port: 4000
+2025-12-26T15:46:25: }
+2025-12-26T15:46:25: Next.js server exited with code 1
+2025-12-26T15:46:30:  ⨯ Failed to start server
+2025-12-26T15:46:30: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:46:30:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:46:30:     at new Promise (<anonymous>) {
+2025-12-26T15:46:30:   code: 'EADDRINUSE',
+2025-12-26T15:46:30:   errno: -4091,
+2025-12-26T15:46:30:   syscall: 'listen',
+2025-12-26T15:46:30:   address: '::',
+2025-12-26T15:46:30:   port: 4000
+2025-12-26T15:46:30: }
+2025-12-26T15:46:30: Next.js server exited with code 1
+2025-12-26T15:46:34:  ⨯ Failed to start server
+2025-12-26T15:46:34: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:46:34:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:46:34:     at new Promise (<anonymous>) {
+2025-12-26T15:46:34:   code: 'EADDRINUSE',
+2025-12-26T15:46:34:   errno: -4091,
+2025-12-26T15:46:34:   syscall: 'listen',
+2025-12-26T15:46:34:   address: '::',
+2025-12-26T15:46:34:   port: 4000
+2025-12-26T15:46:34: }
+2025-12-26T15:46:34: Next.js server exited with code 1
+2025-12-26T15:46:39:  ⨯ Failed to start server
+2025-12-26T15:46:39: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:46:39:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:46:39:     at new Promise (<anonymous>) {
+2025-12-26T15:46:39:   code: 'EADDRINUSE',
+2025-12-26T15:46:39:   errno: -4091,
+2025-12-26T15:46:39:   syscall: 'listen',
+2025-12-26T15:46:39:   address: '::',
+2025-12-26T15:46:39:   port: 4000
+2025-12-26T15:46:39: }
+2025-12-26T15:46:39: Next.js server exited with code 1
+2025-12-26T15:46:43:  ⨯ Failed to start server
+2025-12-26T15:46:43: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:46:43:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:46:43:     at new Promise (<anonymous>) {
+2025-12-26T15:46:43:   code: 'EADDRINUSE',
+2025-12-26T15:46:43:   errno: -4091,
+2025-12-26T15:46:43:   syscall: 'listen',
+2025-12-26T15:46:43:   address: '::',
+2025-12-26T15:46:43:   port: 4000
+2025-12-26T15:46:43: }
+2025-12-26T15:46:43: Next.js server exited with code 1
+2025-12-26T15:46:48:  ⨯ Failed to start server
+2025-12-26T15:46:48: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:46:48:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:46:48:     at new Promise (<anonymous>) {
+2025-12-26T15:46:48:   code: 'EADDRINUSE',
+2025-12-26T15:46:48:   errno: -4091,
+2025-12-26T15:46:48:   syscall: 'listen',
+2025-12-26T15:46:48:   address: '::',
+2025-12-26T15:46:48:   port: 4000
+2025-12-26T15:46:48: }
+2025-12-26T15:46:48: Next.js server exited with code 1
+2025-12-26T15:46:52:  ⨯ Failed to start server
+2025-12-26T15:46:52: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:46:52:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:46:52:     at new Promise (<anonymous>) {
+2025-12-26T15:46:52:   code: 'EADDRINUSE',
+2025-12-26T15:46:52:   errno: -4091,
+2025-12-26T15:46:52:   syscall: 'listen',
+2025-12-26T15:46:52:   address: '::',
+2025-12-26T15:46:52:   port: 4000
+2025-12-26T15:46:52: }
+2025-12-26T15:46:52: Next.js server exited with code 1
+2025-12-26T15:46:57:  ⨯ Failed to start server
+2025-12-26T15:46:57: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:46:57:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:46:57:     at new Promise (<anonymous>) {
+2025-12-26T15:46:57:   code: 'EADDRINUSE',
+2025-12-26T15:46:57:   errno: -4091,
+2025-12-26T15:46:57:   syscall: 'listen',
+2025-12-26T15:46:57:   address: '::',
+2025-12-26T15:46:57:   port: 4000
+2025-12-26T15:46:57: }
+2025-12-26T15:46:57: Next.js server exited with code 1
+2025-12-26T15:47:02:  ⨯ Failed to start server
+2025-12-26T15:47:02: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:47:02:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:47:02:     at new Promise (<anonymous>) {
+2025-12-26T15:47:02:   code: 'EADDRINUSE',
+2025-12-26T15:47:02:   errno: -4091,
+2025-12-26T15:47:02:   syscall: 'listen',
+2025-12-26T15:47:02:   address: '::',
+2025-12-26T15:47:02:   port: 4000
+2025-12-26T15:47:02: }
+2025-12-26T15:47:02: Next.js server exited with code 1
+2025-12-26T15:47:06:  ⨯ Failed to start server
+2025-12-26T15:47:06: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:47:06:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:47:06:     at new Promise (<anonymous>) {
+2025-12-26T15:47:06:   code: 'EADDRINUSE',
+2025-12-26T15:47:06:   errno: -4091,
+2025-12-26T15:47:06:   syscall: 'listen',
+2025-12-26T15:47:06:   address: '::',
+2025-12-26T15:47:06:   port: 4000
+2025-12-26T15:47:06: }
+2025-12-26T15:47:06: Next.js server exited with code 1
+2025-12-26T15:47:12:  ⨯ Failed to start server
+2025-12-26T15:47:12: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:47:12:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:47:12:     at new Promise (<anonymous>) {
+2025-12-26T15:47:12:   code: 'EADDRINUSE',
+2025-12-26T15:47:12:   errno: -4091,
+2025-12-26T15:47:12:   syscall: 'listen',
+2025-12-26T15:47:12:   address: '::',
+2025-12-26T15:47:12:   port: 4000
+2025-12-26T15:47:12: }
+2025-12-26T15:47:12: Next.js server exited with code 1
+2025-12-26T15:47:18:  ⨯ Failed to start server
+2025-12-26T15:47:18: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:47:18:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:47:18:     at new Promise (<anonymous>) {
+2025-12-26T15:47:18:   code: 'EADDRINUSE',
+2025-12-26T15:47:18:   errno: -4091,
+2025-12-26T15:47:18:   syscall: 'listen',
+2025-12-26T15:47:18:   address: '::',
+2025-12-26T15:47:18:   port: 4000
+2025-12-26T15:47:18: }
+2025-12-26T15:47:18: Next.js server exited with code 1
+2025-12-26T15:47:23:  ⨯ Failed to start server
+2025-12-26T15:47:23: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:47:23:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:47:23:     at new Promise (<anonymous>) {
+2025-12-26T15:47:23:   code: 'EADDRINUSE',
+2025-12-26T15:47:23:   errno: -4091,
+2025-12-26T15:47:23:   syscall: 'listen',
+2025-12-26T15:47:23:   address: '::',
+2025-12-26T15:47:23:   port: 4000
+2025-12-26T15:47:23: }
+2025-12-26T15:47:23: Next.js server exited with code 1
+2025-12-26T15:47:29:  ⨯ Failed to start server
+2025-12-26T15:47:29: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:47:29:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:47:29:     at new Promise (<anonymous>) {
+2025-12-26T15:47:29:   code: 'EADDRINUSE',
+2025-12-26T15:47:29:   errno: -4091,
+2025-12-26T15:47:29:   syscall: 'listen',
+2025-12-26T15:47:29:   address: '::',
+2025-12-26T15:47:29:   port: 4000
+2025-12-26T15:47:29: }
+2025-12-26T15:47:29: Next.js server exited with code 1
+2025-12-26T15:47:34:  ⨯ Failed to start server
+2025-12-26T15:47:34: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:47:34:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:47:34:     at new Promise (<anonymous>) {
+2025-12-26T15:47:34:   code: 'EADDRINUSE',
+2025-12-26T15:47:34:   errno: -4091,
+2025-12-26T15:47:34:   syscall: 'listen',
+2025-12-26T15:47:34:   address: '::',
+2025-12-26T15:47:34:   port: 4000
+2025-12-26T15:47:34: }
+2025-12-26T15:47:34: Next.js server exited with code 1
+2025-12-26T15:47:39:  ⨯ Failed to start server
+2025-12-26T15:47:39: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:47:39:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:47:39:     at new Promise (<anonymous>) {
+2025-12-26T15:47:39:   code: 'EADDRINUSE',
+2025-12-26T15:47:39:   errno: -4091,
+2025-12-26T15:47:39:   syscall: 'listen',
+2025-12-26T15:47:39:   address: '::',
+2025-12-26T15:47:39:   port: 4000
+2025-12-26T15:47:39: }
+2025-12-26T15:47:39: Next.js server exited with code 1
+2025-12-26T15:47:44:  ⨯ Failed to start server
+2025-12-26T15:47:44: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:47:44:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:47:44:     at new Promise (<anonymous>) {
+2025-12-26T15:47:44:   code: 'EADDRINUSE',
+2025-12-26T15:47:44:   errno: -4091,
+2025-12-26T15:47:44:   syscall: 'listen',
+2025-12-26T15:47:44:   address: '::',
+2025-12-26T15:47:44:   port: 4000
+2025-12-26T15:47:44: }
+2025-12-26T15:47:44: Next.js server exited with code 1
+2025-12-26T15:47:49:  ⨯ Failed to start server
+2025-12-26T15:47:49: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:47:49:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:47:49:     at new Promise (<anonymous>) {
+2025-12-26T15:47:49:   code: 'EADDRINUSE',
+2025-12-26T15:47:49:   errno: -4091,
+2025-12-26T15:47:49:   syscall: 'listen',
+2025-12-26T15:47:49:   address: '::',
+2025-12-26T15:47:49:   port: 4000
+2025-12-26T15:47:49: }
+2025-12-26T15:47:49: Next.js server exited with code 1
+2025-12-26T15:47:54:  ⨯ Failed to start server
+2025-12-26T15:47:54: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:47:54:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:47:54:     at new Promise (<anonymous>) {
+2025-12-26T15:47:54:   code: 'EADDRINUSE',
+2025-12-26T15:47:54:   errno: -4091,
+2025-12-26T15:47:54:   syscall: 'listen',
+2025-12-26T15:47:54:   address: '::',
+2025-12-26T15:47:54:   port: 4000
+2025-12-26T15:47:54: }
+2025-12-26T15:47:54: Next.js server exited with code 1
+2025-12-26T15:48:00:  ⨯ Failed to start server
+2025-12-26T15:48:00: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:48:00:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:48:00:     at new Promise (<anonymous>) {
+2025-12-26T15:48:00:   code: 'EADDRINUSE',
+2025-12-26T15:48:00:   errno: -4091,
+2025-12-26T15:48:00:   syscall: 'listen',
+2025-12-26T15:48:00:   address: '::',
+2025-12-26T15:48:00:   port: 4000
+2025-12-26T15:48:00: }
+2025-12-26T15:48:00: Next.js server exited with code 1
+2025-12-26T15:48:06:  ⨯ Failed to start server
+2025-12-26T15:48:06: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:48:06:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:48:06:     at new Promise (<anonymous>) {
+2025-12-26T15:48:06:   code: 'EADDRINUSE',
+2025-12-26T15:48:06:   errno: -4091,
+2025-12-26T15:48:06:   syscall: 'listen',
+2025-12-26T15:48:06:   address: '::',
+2025-12-26T15:48:06:   port: 4000
+2025-12-26T15:48:06: }
+2025-12-26T15:48:06: Next.js server exited with code 1
+2025-12-26T15:48:11:  ⨯ Failed to start server
+2025-12-26T15:48:11: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:48:11:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:48:11:     at new Promise (<anonymous>) {
+2025-12-26T15:48:11:   code: 'EADDRINUSE',
+2025-12-26T15:48:11:   errno: -4091,
+2025-12-26T15:48:11:   syscall: 'listen',
+2025-12-26T15:48:11:   address: '::',
+2025-12-26T15:48:11:   port: 4000
+2025-12-26T15:48:11: }
+2025-12-26T15:48:12: Next.js server exited with code 1
+2025-12-26T15:48:17:  ⨯ Failed to start server
+2025-12-26T15:48:17: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:48:17:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:48:17:     at new Promise (<anonymous>) {
+2025-12-26T15:48:17:   code: 'EADDRINUSE',
+2025-12-26T15:48:17:   errno: -4091,
+2025-12-26T15:48:17:   syscall: 'listen',
+2025-12-26T15:48:17:   address: '::',
+2025-12-26T15:48:17:   port: 4000
+2025-12-26T15:48:17: }
+2025-12-26T15:48:17: Next.js server exited with code 1
+2025-12-26T15:48:22:  ⨯ Failed to start server
+2025-12-26T15:48:22: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:48:22:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:48:22:     at new Promise (<anonymous>) {
+2025-12-26T15:48:22:   code: 'EADDRINUSE',
+2025-12-26T15:48:22:   errno: -4091,
+2025-12-26T15:48:22:   syscall: 'listen',
+2025-12-26T15:48:22:   address: '::',
+2025-12-26T15:48:22:   port: 4000
+2025-12-26T15:48:22: }
+2025-12-26T15:48:22: Next.js server exited with code 1
+2025-12-26T15:48:26: ^C
+2025-12-26T15:48:26: Next.js server exited with code 3221225786
+2025-12-26T15:48:33:  ⨯ Failed to start server
+2025-12-26T15:48:33: Error: listen EADDRINUSE: address already in use :::4000
+2025-12-26T15:48:33:     at <unknown> (Error: listen EADDRINUSE: address already in use :::4000)
+2025-12-26T15:48:33:     at new Promise (<anonymous>) {
+2025-12-26T15:48:33:   code: 'EADDRINUSE',
+2025-12-26T15:48:33:   errno: -4091,
+2025-12-26T15:48:33:   syscall: 'listen',
+2025-12-26T15:48:33:   address: '::',
+2025-12-26T15:48:33:   port: 4000
+2025-12-26T15:48:33: }
+2025-12-26T15:48:33: Next.js server exited with code 1
+2025-12-26T15:55:58:    ▲ Next.js 16.0.0
+2025-12-26T15:55:58:    - Local:        http://localhost:4000
+2025-12-26T15:55:58:    - Network:      http://192.168.50.107:4000
+2025-12-26T15:55:58: 
+2025-12-26T15:55:58:  ✓ Starting...
+2025-12-26T15:55:58:  ✓ Ready in 500ms
+2025-12-26T16:06:14:    ▲ Next.js 16.0.0
+2025-12-26T16:06:14:    - Local:        http://localhost:4000
+2025-12-26T16:06:14:    - Network:      http://192.168.50.107:4000
+2025-12-26T16:06:14: 
+2025-12-26T16:06:14:  ✓ Starting...
+2025-12-26T16:06:14:  ✓ Ready in 413ms
+2025-12-26T16:07:23:    ▲ Next.js 16.0.0
+2025-12-26T16:07:23:    - Local:        http://localhost:4000
+2025-12-26T16:07:23:    - Network:      http://192.168.50.107:4000
+2025-12-26T16:07:23: 
+2025-12-26T16:07:23:  ✓ Starting...
+2025-12-26T16:07:23:  ✓ Ready in 378ms
+2025-12-26T16:29:01:    ▲ Next.js 16.0.0
+2025-12-26T16:29:01:    - Local:        http://localhost:4000
+2025-12-26T16:29:01:    - Network:      http://192.168.50.107:4000
+2025-12-26T16:29:01: 
+2025-12-26T16:29:01:  ✓ Starting...
+2025-12-26T16:29:01:  ✓ Ready in 368ms
+2025-12-26T16:35:43:    ▲ Next.js 16.0.0
+2025-12-26T16:35:43:    - Local:        http://localhost:4000
+2025-12-26T16:35:43:    - Network:      http://192.168.50.107:4000
+2025-12-26T16:35:43: 
+2025-12-26T16:35:43:  ✓ Starting...
+2025-12-26T16:35:44:  ✓ Ready in 404ms
+2025-12-26T16:51:12:    ▲ Next.js 16.0.0
+2025-12-26T16:51:12:    - Local:        http://localhost:4000
+2025-12-26T16:51:12:    - Network:      http://192.168.50.107:4000
+2025-12-26T16:51:12: 
+2025-12-26T16:51:12:  ✓ Starting...
+2025-12-26T16:51:12:  ✓ Ready in 300ms
+2025-12-26T16:51:49: Next.js server exited with code 3221225786
+2025-12-26T16:51:51:    ▲ Next.js 16.0.0
+2025-12-26T16:51:51:    - Local:        http://localhost:4000
+2025-12-26T16:51:51:    - Network:      http://192.168.50.107:4000
+2025-12-26T16:51:51: 
+2025-12-26T16:51:51:  ✓ Starting...
+2025-12-26T16:51:51:  ✓ Ready in 348ms
+2025-12-26T16:51:52: ^C
+2025-12-26T16:51:52: Next.js server exited with code 3221225786
+2025-12-26T16:51:54:    ▲ Next.js 16.0.0
+2025-12-26T16:51:54:    - Local:        http://localhost:4000
+2025-12-26T16:51:54:    - Network:      http://192.168.50.107:4000
+2025-12-26T16:51:54: 
+2025-12-26T16:51:54:  ✓ Starting...
+2025-12-26T16:51:54:  ✓ Ready in 499ms
+2025-12-26T16:51:55: ^C
+2025-12-26T16:51:55: Next.js server exited with code 3221225786
+2025-12-26T16:51:57:    ▲ Next.js 16.0.0
+2025-12-26T16:51:57:    - Local:        http://localhost:4000
+2025-12-26T16:51:57:    - Network:      http://192.168.50.107:4000
+2025-12-26T16:51:57: 
+2025-12-26T16:51:57:  ✓ Starting...
+2025-12-26T16:51:57:  ✓ Ready in 364ms
+2025-12-26T16:51:57: ^C
+2025-12-26T16:51:57: Next.js server exited with code 3221225786
+2025-12-26T16:51:59:    ▲ Next.js 16.0.0
+2025-12-26T16:51:59:    - Local:        http://localhost:4000
+2025-12-26T16:51:59:    - Network:      http://192.168.50.107:4000
+2025-12-26T16:51:59: 
+2025-12-26T16:51:59:  ✓ Starting...
+2025-12-26T16:52:00:  ✓ Ready in 363ms
+2025-12-26T16:52:00: ^C
+2025-12-26T16:52:00: Next.js server exited with code 3221225786
+2025-12-26T16:52:03:    ▲ Next.js 16.0.0
+2025-12-26T16:52:03:    - Local:        http://localhost:4000
+2025-12-26T16:52:03:    - Network:      http://192.168.50.107:4000
+2025-12-26T16:52:03: 
+2025-12-26T16:52:03:  ✓ Starting...
+2025-12-26T16:52:03:  ✓ Ready in 374ms
+2025-12-26T16:52:03: ^C
+2025-12-26T16:52:03: Next.js server exited with code 3221225786
+2025-12-26T16:52:06:    ▲ Next.js 16.0.0
+2025-12-26T16:52:06:    - Local:        http://localhost:4000
+2025-12-26T16:52:06:    - Network:      http://192.168.50.107:4000
+2025-12-26T16:52:06: 
+2025-12-26T16:52:06:  ✓ Starting...
+2025-12-26T16:52:06:  ✓ Ready in 398ms
+2025-12-26T16:52:06: ^C
+2025-12-26T16:52:06: Next.js server exited with code 3221225786
+2025-12-26T16:52:09:    ▲ Next.js 16.0.0
+2025-12-26T16:52:09:    - Local:        http://localhost:4000
+2025-12-26T16:52:09:    - Network:      http://192.168.50.107:4000
+2025-12-26T16:52:09: 
+2025-12-26T16:52:09:  ✓ Starting...
+2025-12-26T16:52:10:  ✓ Ready in 969ms
+2025-12-26T16:53:09:    ▲ Next.js 16.0.0
+2025-12-26T16:53:09:    - Local:        http://localhost:4000
+2025-12-26T16:53:09:    - Network:      http://192.168.50.107:4000
+2025-12-26T16:53:09: 
+2025-12-26T16:53:09:  ✓ Starting...
+2025-12-26T16:53:09:  ✓ Ready in 394ms
+2025-12-26T16:53:11: ^C
+2025-12-26T16:53:11: Next.js server exited with code 3221225786
+2025-12-26T16:53:13:    ▲ Next.js 16.0.0
+2025-12-26T16:53:13:    - Local:        http://localhost:4000
+2025-12-26T16:53:13:    - Network:      http://192.168.50.107:4000
+2025-12-26T16:53:13: 
+2025-12-26T16:53:13:  ✓ Starting...
+2025-12-26T16:53:13:  ✓ Ready in 378ms
+2025-12-26T16:54:28: ^C
+2025-12-26T16:54:28: Next.js server exited with code 3221225786
+2025-12-26T16:54:30:    ▲ Next.js 16.0.0
+2025-12-26T16:54:30:    - Local:        http://localhost:4000
+2025-12-26T16:54:30:    - Network:      http://192.168.50.107:4000
+2025-12-26T16:54:30: 
+2025-12-26T16:54:30:  ✓ Starting...
+2025-12-26T16:54:31:  ✓ Ready in 310ms
+2025-12-26T16:56:31:    ▲ Next.js 16.0.0
+2025-12-26T16:56:31:    - Local:        http://localhost:4000
+2025-12-26T16:56:31:    - Network:      http://192.168.50.107:4000
+2025-12-26T16:56:31: 
+2025-12-26T16:56:31:  ✓ Starting...
+2025-12-26T16:56:31:  ✓ Ready in 316ms
+2025-12-26T16:58:25: ^C
+2025-12-26T16:58:25: Next.js server exited with code 3221225786
+2025-12-26T16:58:27:    ▲ Next.js 16.0.0
+2025-12-26T16:58:27:    - Local:        http://localhost:4000
+2025-12-26T16:58:27:    - Network:      http://192.168.50.107:4000
+2025-12-26T16:58:27: 
+2025-12-26T16:58:27:  ✓ Starting...
+2025-12-26T16:58:27:  ✓ Ready in 353ms
+2025-12-26T16:58:28: ^C
+2025-12-26T16:58:28: Next.js server exited with code 3221225786
+2025-12-26T16:58:29:    ▲ Next.js 16.0.0
+2025-12-26T16:58:29:    - Local:        http://localhost:4000
+2025-12-26T16:58:29:    - Network:      http://192.168.50.107:4000
+2025-12-26T16:58:29: 
+2025-12-26T16:58:29:  ✓ Starting...
+2025-12-26T16:58:29:  ✓ Ready in 284ms
+2025-12-26T16:58:30: ^C
+2025-12-26T16:58:30: Next.js server exited with code 3221225786
+2025-12-26T16:58:32:    ▲ Next.js 16.0.0
+2025-12-26T16:58:32:    - Local:        http://localhost:4000
+2025-12-26T16:58:32:    - Network:      http://192.168.50.107:4000
+2025-12-26T16:58:32: 
+2025-12-26T16:58:32:  ✓ Starting...
+2025-12-26T16:58:33:  ✓ Ready in 401ms
+2025-12-26T16:58:33: ^C
+2025-12-26T16:58:33: Next.js server exited with code 3221225786
+2025-12-26T16:58:35:    ▲ Next.js 16.0.0
+2025-12-26T16:58:35:    - Local:        http://localhost:4000
+2025-12-26T16:58:35:    - Network:      http://192.168.50.107:4000
+2025-12-26T16:58:35: 
+2025-12-26T16:58:35:  ✓ Starting...
+2025-12-26T16:58:35:  ✓ Ready in 285ms

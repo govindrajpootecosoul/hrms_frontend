@@ -44,7 +44,7 @@ const ClaimsAndPoliciesPage = () => {
       id: '3',
       policyName: 'Office Supplies Policy',
       category: 'Supplies',
-      maxAmount: 5000,
+      maxAmount: 5008,
       description: 'Policy for office supplies and equipment purchases',
       effectiveDate: '2024-01-01',
       status: 'active'

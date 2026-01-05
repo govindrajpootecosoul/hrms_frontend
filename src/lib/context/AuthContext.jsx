@@ -21,10 +21,28 @@ export const AuthProvider = ({ children }) => {
 
   // Map backend user to frontend format
   const mapUserToFrontendFormat = (backendUser) => {
-    // Determine portal access based on role
-    const portalAccess = backendUser.role === 'admin' 
-      ? ['hrms-admin', 'asset-tracker', 'employee-portal']
-      : ['employee-portal'];
+    // Use portals from database - if no portals are checked, show no portals
+    let portalAccess = [];
+    
+    if (backendUser.portals && Array.isArray(backendUser.portals) && backendUser.portals.length > 0) {
+      // Map admin portal names to select portal identifiers
+      const portalMapping = {
+        'HRMS': 'hrms',
+        'DataHive': 'datahive',
+        'Asset Tracker': 'asset-tracker',
+        'Finance Tools': 'finance',
+        'Project Tracker': 'project-tracker',
+        'Employee Portal': 'employee-portal',
+        'Query Tracker': 'query-tracker',
+        'Demand / Panel': 'demand-panel'
+      };
+      
+      // Convert admin portal names to select portal identifiers
+      portalAccess = backendUser.portals
+        .map(portal => portalMapping[portal] || portal.toLowerCase().replace(/\s+/g, '-'))
+        .filter(Boolean);
+    }
+    // If no portals are set, portalAccess remains empty array - no portals will be shown
 
     return {
       id: String(backendUser.id || backendUser._id || ''),
@@ -35,7 +53,8 @@ export const AuthProvider = ({ children }) => {
       employeeId: backendUser.employeeId,
       department: backendUser.department,
       company: backendUser.company,
-      portalAccess,
+      portals: backendUser.portals || [], // Store original portal names from database
+      portalAccess, // Mapped portal identifiers for filtering
       companies: [
         {
           id: mockCompany.id,
@@ -53,12 +72,19 @@ export const AuthProvider = ({ children }) => {
       try {
         const token = localStorage.getItem('auth_token');
         if (token) {
+          // Create AbortController for timeout
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5008); // 5 second timeout
+
           // Validate token with backend
           const response = await fetch(`${API_BASE_URL}/auth/verify`, {
             headers: {
               'Authorization': `Bearer ${token}`
-            }
+            },
+            signal: controller.signal
           });
+
+          clearTimeout(timeoutId);
 
           if (response.ok) {
             const contentType = response.headers.get('content-type');
@@ -83,7 +109,14 @@ export const AuthProvider = ({ children }) => {
         }
       } catch (error) {
         console.error('Auth check failed:', error);
-        localStorage.removeItem('auth_token');
+        console.error('API URL:', `${API_BASE_URL}/auth/verify`);
+        console.error('Error details:', error.message);
+        // Don't remove token on network errors, just log them
+        if (error.name !== 'AbortError' && error.name !== 'TypeError') {
+          localStorage.removeItem('auth_token');
+        } else if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+          console.warn('Backend server may not be running. Please check:', API_BASE_URL);
+        }
       } finally {
         setLoading(false);
       }
@@ -96,22 +129,30 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
 
+      // Create AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password }),
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       // Check if response is JSON
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         const text = await response.text();
         console.error('Backend returned non-JSON response:', text.substring(0, 200));
+        const baseUrl = API_BASE_URL.replace('/api', '');
         return {
           success: false,
-          error: 'Backend server is not responding correctly. Please check if the server is running on http://localhost:5000'
+          error: `Backend server is not responding correctly. Please check if the server is running on ${baseUrl}`
         };
       }
 
@@ -134,9 +175,23 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Login failed:', error);
+      
+      // Handle different types of errors
+      let errorMessage = 'Network error. Please check if the backend server is running.';
+      
+      if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+        const baseUrl = API_BASE_URL.replace('/api', '');
+        errorMessage = `Request timed out. Cannot connect to backend server at ${baseUrl}. Please ensure the server is running.`;
+      } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError') || error.name === 'TypeError') {
+        const baseUrl = API_BASE_URL.replace('/api', '');
+        errorMessage = `Cannot connect to backend server at ${baseUrl}. Please ensure:\n1. The backend server is running\n2. The server is accessible at the configured URL\n3. There are no firewall or network issues\n\nTo start the backend server, run: cd worklytics_HRMS_backend && npm start`;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       return { 
         success: false, 
-        error: error.message || 'Network error. Please check if the backend server is running.'
+        error: errorMessage
       };
     } finally {
       setLoading(false);
@@ -160,9 +215,10 @@ export const AuthProvider = ({ children }) => {
       if (!contentType || !contentType.includes('application/json')) {
         const text = await response.text();
         console.error('Backend returned non-JSON response:', text.substring(0, 200));
+        const baseUrl = API_BASE_URL.replace('/api', '');
         return {
           success: false,
-          error: 'Backend server is not responding correctly. Please check if the server is running on http://localhost:5000'
+          error: `Backend server is not responding correctly. Please check if the server is running on ${baseUrl}`
         };
       }
 

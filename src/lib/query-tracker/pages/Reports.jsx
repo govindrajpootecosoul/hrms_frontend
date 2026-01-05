@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import api from '../lib/api';
+import api from '../utils/api';
 import Icon from '../components/Icon';
 
-export default function Reports() {
+const Reports = () => {
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState({ type: '', format: '' });
 
@@ -63,7 +63,9 @@ export default function Reports() {
       link.remove();
     } catch (error) {
       console.error('Error downloading report:', error);
-      alert('Error downloading report');
+      if (typeof window !== 'undefined') {
+        alert('Error downloading report');
+      }
     } finally {
       setLoading(false);
       setDownloading({ type: '', format: '' });
@@ -73,7 +75,7 @@ export default function Reports() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-primary-blue via-accent-purple to-primary-blue-light bg-clip-text text-transparent mb-2">
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent mb-2">
           Reports
         </h1>
         <p className="text-gray-500 text-sm">Download queries in various formats</p>
@@ -81,7 +83,7 @@ export default function Reports() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {reportTypes.map((report) => (
-          <div key={report.id} className="glass-glow p-6 rounded-2xl hover:shadow-xl transition-all">
+          <div key={report.id} className="bg-white/75 backdrop-blur-lg p-6 rounded-2xl hover:shadow-xl transition-all shadow-lg border border-white/50">
             {/* Category Header */}
             <div className="flex items-center space-x-3 mb-6">
               <Icon name={report.icon} size={24} className="text-gray-600" />
@@ -129,13 +131,15 @@ export default function Reports() {
 
       {loading && (
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="glass-glow p-8 rounded-2xl shadow-2xl">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-blue mx-auto"></div>
+          <div className="bg-white/75 backdrop-blur-lg p-8 rounded-2xl shadow-2xl border border-white/50">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
             <p className="text-gray-700 mt-4 text-center font-medium">Generating report...</p>
           </div>
         </div>
       )}
     </div>
   );
-}
+};
+
+export default Reports;
 

@@ -15,6 +15,37 @@ const PortalSelectionPage = () => {
   const { user, isAuthenticated } = useAuth();
   const { currentCompany, companies, selectCompany, loadCompanies } = useCompany();
 
+  // Portal mapping - maps select portal identifiers to admin portal names
+  const portalIdentifierToName = {
+    'hrms': 'HRMS',
+    'asset-tracker': 'Asset Tracker',
+    'finance': 'Finance Tools',
+    'project-tracker': 'Project Tracker',
+    'datahive': 'DataHive',
+    'employee-portal': 'Employee Portal',
+    'query-tracker': 'Query Tracker',
+    'demand-panel': 'Demand / Panel'
+  };
+
+  // Check if user has access to a portal
+  const hasPortalAccess = (portalIdentifier) => {
+    if (!user) return false;
+    
+    // Check if user has portals array from database
+    if (user.portals && Array.isArray(user.portals) && user.portals.length > 0) {
+      const portalName = portalIdentifierToName[portalIdentifier];
+      return user.portals.includes(portalName);
+    }
+    
+    // Check portalAccess array (mapped from portals)
+    if (user.portalAccess && Array.isArray(user.portalAccess) && user.portalAccess.length > 0) {
+      return user.portalAccess.includes(portalIdentifier);
+    }
+    
+    // If no portals are checked, show no portals
+    return false;
+  };
+
   useEffect(() => {
     if (!isAuthenticated) {
       router.push('/login');
@@ -27,8 +58,8 @@ const PortalSelectionPage = () => {
   }, [isAuthenticated, user, router, loadCompanies]);
 
   const handlePortalSelect = (portal) => {
-    // Admin portals (HRMS / Asset Tracker / Finance / Demand Panel) remain company-scoped.
-    if (portal === 'hrms' || portal === 'asset-tracker' || portal === 'finance' || portal === 'demand-panel') {
+    // Admin portals (HRMS / Asset Tracker / Finance / Demand Panel / DataHive) remain company-scoped.
+    if (portal === 'hrms' || portal === 'asset-tracker' || portal === 'finance' || portal === 'demand-panel' || portal === 'datahive') {
       const companyId = currentCompany?.id ?? companies[0]?.id;
 
       if (!companyId) {
@@ -43,7 +74,12 @@ const PortalSelectionPage = () => {
       } else if (portal === 'finance') {
         router.push(`/finance/${companyId}/dashboard`);
       } else if (portal === 'demand-panel') {
-        router.push(`/demand-panel/${companyId}/dashboard`);
+        // Open external URL for Demand / Panel
+        window.open('https://cp.thrivebrands-hrms.com/auth', '_blank');
+        return;
+      } else if (portal === 'datahive') {
+        // DataHive portal - you can customize this route as needed
+        router.push(`/datahive/${companyId}/dashboard`);
       }
       return;
     }
@@ -53,11 +89,12 @@ const PortalSelectionPage = () => {
       router.push('/employee-portal');
     }
 
-    // Query Tracker portal
+    // Query Tracker portal - integrated in Next.js
     if (portal === 'query-tracker') {
       router.push('/query-tracker');
       return;
     }
+
   };
 
   return (
@@ -66,7 +103,7 @@ const PortalSelectionPage = () => {
       <div className="fixed inset-0 -z-10 bg-white/60" />
       
       {/* Admin Portal Button - Top Right (visible only for superadmin) */}
-      {(user?.role === 'superadmin' || user?.role === 'admin') && (
+      {user?.role === 'superadmin' && (
         <div className="fixed top-4 right-4 z-50">
           <Button
             onClick={() => router.push('/admin-portal')}
@@ -90,8 +127,19 @@ const PortalSelectionPage = () => {
         </div>
 
         {/* Portal Cards */}
+        {(!user?.portals || user.portals.length === 0) && (!user?.portalAccess || user.portalAccess.length === 0) ? (
+          <div className="w-full bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center">
+            <div className="text-yellow-800">
+              <h3 className="text-xl font-semibold mb-2">No Portals Available</h3>
+              <p className="text-sm">
+                You don't have access to any portals yet. Please contact your administrator to grant you portal access.
+              </p>
+            </div>
+          </div>
+        ) : (
         <div className="w-full grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {/* HRMS Portal (visible only to admin/super admin roles) */}
+          {/* HRMS Portal */}
+          {hasPortalAccess('hrms') && (
           <div className="flip-card-container cursor-pointer">
             <div className="flip-card-inner">
               {/* Front Face */}
@@ -140,8 +188,10 @@ const PortalSelectionPage = () => {
               </Card>
             </div>
           </div>
+          )}
 
-          {/* Asset Tracker Portal (visible only to admin/super admin roles) */}
+          {/* Asset Tracker Portal */}
+          {hasPortalAccess('asset-tracker') && (
           <div className="flip-card-container cursor-pointer">
             <div className="flip-card-inner">
               {/* Front Face */}
@@ -190,7 +240,10 @@ const PortalSelectionPage = () => {
               </Card>
             </div>
           </div>
-          {/* Organisation Tools Portal (visible only to admin/super admin roles) */}
+          )}
+
+          {/* Organisation Tools Portal */}
+          {hasPortalAccess('finance') && (
           <div className="flip-card-container cursor-pointer">
             <div className="flip-card-inner">
               {/* Front Face */}
@@ -239,8 +292,10 @@ const PortalSelectionPage = () => {
               </Card>
             </div>
           </div>
+          )}
 
-          {/* Project Tracker Portal (external) */}
+          {/* Project Tracker Portal */}
+          {hasPortalAccess('project-tracker') && (
           <div className="flip-card-container cursor-pointer">
             <div className="flip-card-inner">
               {/* Front Face */}
@@ -288,8 +343,10 @@ const PortalSelectionPage = () => {
               </Card>
             </div>
           </div>
+          )}
 
           {/* Employee Self-Service Portal */}
+          {hasPortalAccess('employee-portal') && (
           <div className="flip-card-container cursor-pointer">
             <div className="flip-card-inner">
               {/* Front Face */}
@@ -336,8 +393,10 @@ const PortalSelectionPage = () => {
               </Card>
             </div>
           </div>
+          )}
 
           {/* Query Tracker Portal */}
+          {hasPortalAccess('query-tracker') && (
           <div className="flip-card-container cursor-pointer">
             <div className="flip-card-inner">
               {/* Front Face */}
@@ -385,8 +444,59 @@ const PortalSelectionPage = () => {
               </Card>
             </div>
           </div>
+          )}
 
-          {/* Demand / Panel Portal (visible only to admin/super admin roles) */}
+          {/* DataHive Portal */}
+          {hasPortalAccess('datahive') && (
+          <div className="flip-card-container cursor-pointer">
+            <div className="flip-card-inner">
+              {/* Front Face */}
+              <Card className="flip-card-front backdrop-blur-md w-full h-full">
+                <div className="text-center h-full flex flex-col">
+                  <div className="w-[15rem] h-[15rem] flex items-center justify-center mx-auto mb-6">
+                    <Building2 className="w-32 h-32 text-blue-600" />
+                  </div>
+                  
+                  <h2 className="text-2xl font-bold mb-4">
+                    DataHive
+                  </h2>
+                  
+                  <p className="text-neutral-700 mb-6 leading-relaxed">
+                    Access and manage your data sources, analytics, and reports in one centralized platform.
+                  </p>
+                </div>
+              </Card>
+
+              {/* Back Face */}
+              <Card className="flip-card-back backdrop-blur-md w-full h-full !p-0">
+                <div className="flex flex-col items-center justify-center flip-card-back-content">
+                  <h2 className="text-2xl font-bold mb-4">
+                    DataHive
+                  </h2>
+                  
+                  <p className="text-neutral-700 mb-6 leading-relaxed">
+                    Access and manage your data sources, analytics, and reports in one centralized platform.
+                  </p>
+                  <Button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handlePortalSelect('datahive');
+                    }}
+                    className="w-full max-w-xs bg-blue-600 hover:bg-blue-500 text-white shadow-lg hover:shadow-xl transition-all duration-300 relative z-10"
+                    icon={<ArrowRight className="w-4 h-4" />}
+                    iconPosition="right"
+                  >
+                    Enter DataHive
+                  </Button>
+                </div>
+              </Card>
+            </div>
+          </div>
+          )}
+
+          {/* Demand / Panel Portal */}
+          {hasPortalAccess('demand-panel') && (
           <div className="flip-card-container cursor-pointer">
             <div className="flip-card-inner">
               {/* Front Face */}
@@ -418,24 +528,26 @@ const PortalSelectionPage = () => {
                     Manage demand planning, panel management, and resource allocation 
                     in one comprehensive platform.
                   </p>
-                  {user?.role === 'admin' && (
-                    <Button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handlePortalSelect('demand-panel');
-                      }}
-                      className="w-full max-w-xs bg-purple-600 hover:bg-purple-500 text-white shadow-lg hover:shadow-xl transition-all duration-300 relative z-10"
-                      icon={<ArrowRight className="w-4 h-4" />}
-                      iconPosition="right"
-                    >
-                      Enter Demand / Panel
-                    </Button>
-                  )}
+                  <Button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      // Open external URL for Demand / Panel
+                      window.open('https://cp.thrivebrands-hrms.com/auth', '_blank');
+                    }}
+                    className="w-full max-w-xs bg-purple-600 hover:bg-purple-500 text-white shadow-lg hover:shadow-xl transition-all duration-300 relative z-10"
+                    icon={<ArrowRight className="w-4 h-4" />}
+                    iconPosition="right"
+                  >
+                    Enter Demand / Panel
+                  </Button>
                 </div>
               </Card>
             </div>
           </div>
+          )}
         </div>
+        )}
 
         {/* Footer */}
         <div className="text-center mt-12">

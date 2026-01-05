@@ -1,13 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import api from '../lib/api';
-import { useAuth } from '@/lib/context/AuthContext';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import api from '../utils/api';
+import { useQueryTrackerAuth } from '../hooks/useQueryTrackerAuth';
 
-export default function Dashboard() {
-  const { user } = useAuth();
-  const isAdmin = () => user?.role === 'admin' || user?.role === 'superadmin';
+const Dashboard = () => {
+  const { isAdmin } = useQueryTrackerAuth();
   const [stats, setStats] = useState({
     totalQueries: 0,
     openQueries: 0,
@@ -19,6 +18,7 @@ export default function Dashboard() {
   });
   const [recentQueries, setRecentQueries] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchDashboardData();
@@ -26,12 +26,13 @@ export default function Dashboard() {
 
   const fetchDashboardData = async () => {
     try {
+      setError(null);
       const [queriesRes, recentRes] = await Promise.all([
         api.get('/queries?limit=1000'),
         api.get('/queries?limit=10')
       ]);
 
-      const allQueries = queriesRes.data.queries;
+      const allQueries = queriesRes.data.queries || [];
       
       // Calculate stats
       const total = allQueries.length;
@@ -84,11 +85,30 @@ export default function Dashboard() {
         monthlyStats
       });
 
-      setRecentQueries(recentRes.data.queries);
+      setRecentQueries(recentRes.data.queries || []);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to load dashboard data';
+      console.error('Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: errorMessage
+      });
+      setError(errorMessage);
       setLoading(false);
+      // Set empty stats on error
+      setStats({
+        totalQueries: 0,
+        openQueries: 0,
+        closedQueries: 0,
+        inProgressQueries: 0,
+        sourceStats: [],
+        userStats: [],
+        monthlyStats: { open: 0, closed: 0 }
+      });
+      setRecentQueries([]);
     }
   };
 
@@ -97,7 +117,7 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-blue"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
   }
@@ -105,42 +125,84 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-primary-blue via-accent-purple to-primary-blue-light bg-clip-text text-transparent">
+        <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent">
           Dashboard
         </h1>
         <p className="text-gray-500 text-sm">Welcome to your query management center</p>
       </div>
 
+      {error && (
+        <div className={`border rounded-lg p-4 mb-4 ${
+          error.includes('Token') || error.includes('Unauthorized') || error.includes('401')
+            ? 'bg-red-50 border-red-200'
+            : 'bg-yellow-50 border-yellow-200'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <svg className={`w-5 h-5 mr-2 ${
+                error.includes('Token') || error.includes('Unauthorized') || error.includes('401')
+                  ? 'text-red-600'
+                  : 'text-yellow-600'
+              }`} fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              <div>
+                <p className={`text-sm font-medium ${
+                  error.includes('Token') || error.includes('Unauthorized') || error.includes('401')
+                    ? 'text-red-800'
+                    : 'text-yellow-800'
+                }`}>
+                  {error}
+                </p>
+                {(error.includes('Token') || error.includes('Unauthorized') || error.includes('401')) && (
+                  <p className="text-xs text-red-600 mt-1">
+                    Please try refreshing the page or logging in again.
+                  </p>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={() => setError(null)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="glass-glow p-6 rounded-2xl transform hover:scale-[1.02] transition-all relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-primary-blue/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-primary-blue/10 transition-all" />
+        <div className="bg-white/75 backdrop-blur-lg p-6 rounded-2xl transform hover:scale-[1.02] transition-all relative overflow-hidden group shadow-lg border border-white/50">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-blue-500/10 transition-all" />
           <div className="relative z-10">
             <div className="text-gray-500 text-xs font-medium mb-2 uppercase tracking-wide">Total Queries</div>
-            <div className="text-4xl font-bold bg-gradient-to-r from-primary-blue to-primary-blue-light bg-clip-text text-transparent">
+            <div className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               {stats.totalQueries}
             </div>
           </div>
         </div>
-        <div className="glass-glow p-6 rounded-2xl transform hover:scale-[1.02] transition-all relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-primary-blue/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-primary-blue/10 transition-all" />
+        <div className="bg-white/75 backdrop-blur-lg p-6 rounded-2xl transform hover:scale-[1.02] transition-all relative overflow-hidden group shadow-lg border border-white/50">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-blue-500/10 transition-all" />
           <div className="relative z-10">
             <div className="text-gray-500 text-xs font-medium mb-2 uppercase tracking-wide">Open Queries</div>
-            <div className="text-4xl font-bold text-primary-blue">{stats.openQueries}</div>
+            <div className="text-4xl font-bold text-blue-600">{stats.openQueries}</div>
           </div>
         </div>
-        <div className="glass-glow p-6 rounded-2xl transform hover:scale-[1.02] transition-all relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-accent-purple/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-accent-purple/10 transition-all" />
+        <div className="bg-white/75 backdrop-blur-lg p-6 rounded-2xl transform hover:scale-[1.02] transition-all relative overflow-hidden group shadow-lg border border-white/50">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-purple-500/10 transition-all" />
           <div className="relative z-10">
             <div className="text-gray-500 text-xs font-medium mb-2 uppercase tracking-wide">In Progress</div>
-            <div className="text-4xl font-bold text-accent-purple">{stats.inProgressQueries}</div>
+            <div className="text-4xl font-bold text-purple-600">{stats.inProgressQueries}</div>
           </div>
         </div>
-        <div className="glass-glow p-6 rounded-2xl transform hover:scale-[1.02] transition-all relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-accent-green/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-accent-green/10 transition-all" />
+        <div className="bg-white/75 backdrop-blur-lg p-6 rounded-2xl transform hover:scale-[1.02] transition-all relative overflow-hidden group shadow-lg border border-white/50">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-green-500/10 transition-all" />
           <div className="relative z-10">
             <div className="text-gray-500 text-xs font-medium mb-2 uppercase tracking-wide">Closed Queries</div>
-            <div className="text-4xl font-bold text-accent-green">{stats.closedQueries}</div>
+            <div className="text-4xl font-bold text-green-600">{stats.closedQueries}</div>
           </div>
         </div>
       </div>
@@ -148,9 +210,9 @@ export default function Dashboard() {
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Query Source Chart */}
-        <div className="glass-glow p-6 rounded-2xl">
+        <div className="bg-white/75 backdrop-blur-lg p-6 rounded-2xl shadow-lg border border-white/50">
           <h2 className="text-lg font-semibold text-gray-800 mb-6 flex items-center">
-            <span className="w-1 h-6 bg-gradient-to-b from-primary-blue to-primary-blue-light rounded-full mr-3"></span>
+            <span className="w-1 h-6 bg-gradient-to-b from-blue-600 to-purple-600 rounded-full mr-3"></span>
             Query Sources
           </h2>
           <ResponsiveContainer width="100%" height={300}>
@@ -183,9 +245,9 @@ export default function Dashboard() {
 
         {/* Monthly Stats Chart (Admin only) */}
         {isAdmin() && (
-          <div className="glass-glow p-6 rounded-2xl">
+          <div className="bg-white/75 backdrop-blur-lg p-6 rounded-2xl shadow-lg border border-white/50">
             <h2 className="text-lg font-semibold text-gray-800 mb-6 flex items-center">
-              <span className="w-1 h-6 bg-gradient-to-b from-accent-purple to-accent-purple-light rounded-full mr-3"></span>
+              <span className="w-1 h-6 bg-gradient-to-b from-purple-600 to-pink-600 rounded-full mr-3"></span>
               This Month's Queries
             </h2>
             <ResponsiveContainer width="100%" height={300}>
@@ -209,9 +271,9 @@ export default function Dashboard() {
 
         {/* User Stats Chart (Admin only) */}
         {isAdmin() && stats.userStats.length > 0 && (
-          <div className="glass-glow p-6 rounded-2xl lg:col-span-2">
+          <div className="bg-white/75 backdrop-blur-lg p-6 rounded-2xl shadow-lg border border-white/50 lg:col-span-2">
             <h2 className="text-lg font-semibold text-gray-800 mb-6 flex items-center">
-              <span className="w-1 h-6 bg-gradient-to-b from-accent-orange to-accent-orange-light rounded-full mr-3"></span>
+              <span className="w-1 h-6 bg-gradient-to-b from-orange-500 to-red-500 rounded-full mr-3"></span>
               Queries by User
             </h2>
             <ResponsiveContainer width="100%" height={300}>
@@ -235,11 +297,11 @@ export default function Dashboard() {
       </div>
 
       {/* Recent Queries Table */}
-      <div className="glass-glow p-6 rounded-2xl">
-          <h2 className="text-lg font-semibold text-gray-800 mb-6 flex items-center">
-            <span className="w-1 h-6 bg-gradient-to-b from-accent-pink to-accent-pink-light rounded-full mr-3"></span>
-            Recent Queries
-          </h2>
+      <div className="bg-white/75 backdrop-blur-lg p-6 rounded-2xl shadow-lg border border-white/50">
+        <h2 className="text-lg font-semibold text-gray-800 mb-6 flex items-center">
+          <span className="w-1 h-6 bg-gradient-to-b from-pink-500 to-rose-500 rounded-full mr-3"></span>
+          Recent Queries
+        </h2>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -277,5 +339,7 @@ export default function Dashboard() {
       </div>
     </div>
   );
-}
+};
+
+export default Dashboard;
 

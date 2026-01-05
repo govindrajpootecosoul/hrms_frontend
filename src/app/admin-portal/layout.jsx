@@ -16,8 +16,8 @@ export default function AdminPortalLayout({ children }) {
         router.push('/login');
         return;
       }
-      // Check if user is superadmin or admin
-      if (user?.role !== 'superadmin' && user?.role !== 'admin') {
+      // Check if user is superadmin only
+      if (user?.role !== 'superadmin') {
         router.push('/select-portal');
         return;
       }
@@ -32,7 +32,7 @@ export default function AdminPortalLayout({ children }) {
     );
   }
 
-  if (!isAuthenticated || (user?.role !== 'superadmin' && user?.role !== 'admin')) {
+  if (!isAuthenticated || user?.role !== 'superadmin') {
     return null;
   }
 
@@ -42,5 +42,15 @@ export default function AdminPortalLayout({ children }) {
     </AdminPortalProvider>
   );
 }
+
+
+
+
+
+
+
+
+
+
 
 

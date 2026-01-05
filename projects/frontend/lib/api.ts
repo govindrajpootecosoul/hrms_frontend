@@ -650,14 +650,14 @@ export const mockData = {
         id: 'ADV001',
         employeeId: 'EMP004',
         employeeName: 'Jane Smith',
-        requestedAmount: 5000,
+        requestedAmount: 5008,
         purpose: 'Outstation Travel - Mumbai',
         requestedOn: '2025-01-02',
         expectedStartDate: '2025-01-15',
         expectedEndDate: '2025-01-18',
         mode: 'Bank Transfer',
         status: 'Released',
-        releasedAmount: 5000,
+        releasedAmount: 5008,
         settlement: {
           actualExpense: 4600,
           balance: 400,
@@ -717,7 +717,7 @@ export const mockData = {
       categories: [
         { id: 'CAT001', name: 'Travel', limitPerDay: 3000, limitPerMonth: 20000, requiresReceipt: true, paymentModes: ['Card', 'UPI', 'Bank Transfer'] },
         { id: 'CAT002', name: 'Meals', limitPerDay: 1200, limitPerMonth: 8000, requiresReceipt: true, paymentModes: ['Card', 'Cash', 'UPI'] },
-        { id: 'CAT003', name: 'Office Supplies', limitPerDay: 5000, limitPerMonth: 15000, requiresReceipt: true, paymentModes: ['Card', 'Bank Transfer'] },
+        { id: 'CAT003', name: 'Office Supplies', limitPerDay: 5008, limitPerMonth: 15008, requiresReceipt: true, paymentModes: ['Card', 'Bank Transfer'] },
       ],
       paymentModes: ['Cash', 'Card', 'UPI', 'Bank Transfer'],
       travelPolicy: {

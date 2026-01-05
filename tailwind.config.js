@@ -4,7 +4,6 @@ module.exports = {
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/app/(portals)/query-tracker/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
     extend: {
@@ -69,18 +68,6 @@ module.exports = {
           800: '#1f2937',
           900: '#111827',
         },
-        // Query Tracker colors
-        'primary-blue': '#3b82f6',
-        'primary-blue-light': '#60a5fa',
-        'primary-blue-dark': '#2563eb',
-        'accent-green': '#10b981',
-        'accent-green-light': '#34d399',
-        'accent-purple': '#8b5cf6',
-        'accent-purple-light': '#a78bfa',
-        'accent-pink': '#ec4899',
-        'accent-pink-light': '#f472b6',
-        'accent-orange': '#f97316',
-        'accent-orange-light': '#fb923c',
       },
       backgroundImage: {
         'gradient-primary': 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)',

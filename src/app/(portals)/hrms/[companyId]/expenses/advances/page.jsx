@@ -26,7 +26,7 @@ const AdvancesPage = () => {
       id: '1',
       employeeName: 'Jane Smith',
       employeeId: 'EMP004',
-      amount: 5000,
+      amount: 5008,
       purpose: 'Outstation Travel - Mumbai',
       requestedOn: '2025-01-02',
       status: 'Released',

@@ -107,8 +107,8 @@ const ExpensesPage = () => {
 
   // 4. Advance vs Actual Expense (Stacked Bar Chart)
   const advanceVsActualData = [
-    { name: 'Advance', data: [20000, 25000, 30000, 32000, 35000] },
-    { name: 'Actual', data: [18000, 22000, 25000, 28000, 30000] }
+    { name: 'Advance', data: [20000, 25008, 30000, 32000, 35008] },
+    { name: 'Actual', data: [18000, 22000, 25008, 28000, 30000] }
   ];
   const advanceVsActualCategories = ['Sep', 'Oct', 'Nov', 'Dec', 'Jan'];
   const advanceVsActualColors = ['#1e40af', '#60a5fa'];

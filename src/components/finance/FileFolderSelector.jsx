@@ -12,13 +12,16 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
   const [fileStatuses, setFileStatuses] = useState([]);
   const [progress, setProgress] = useState(0);
   const [mode, setMode] = useState(feature?.id === 'gst-reconcile' ? 'amazon' : '');
+  const [availableSheets, setAvailableSheets] = useState([]);
+  const [selectedSheet, setSelectedSheet] = useState('');
   const fileInputRef = useRef(null);
   const folderInputRef = useRef(null);
   const toast = useToast();
 
   const isGstFeature = feature?.id === 'gst-reconcile';
-  const isGstFileProcessing = feature?.id === 'gst-file-processing';
-  const allowedExtensions = isGstFeature || isGstFileProcessing ? ['.csv', '.xlsx', '.xls'] : ['.pdf'];
+  const isGstFileProcessing = feature?.id === 'gst-file-processing' || feature?.id === 'amazon-gst-process';
+  const isMissingShipment = feature?.id === 'amazon-missing-shipment';
+  const allowedExtensions = isGstFeature || isGstFileProcessing || isMissingShipment ? ['.csv', '.xlsx', '.xls'] : ['.pdf'];
   const acceptString = allowedExtensions.join(',');
 
   const MODE_REQUIREMENTS = {
@@ -44,7 +47,28 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
     },
   };
 
-  const handleFileSelect = (event) => {
+  const loadExcelSheets = async (file) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetch('/api/finance/amazon-missing-shipment/get-sheets', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        return data.sheets || [];
+      }
+      return [];
+    } catch (error) {
+      console.error('Error loading sheets:', error);
+      return [];
+    }
+  };
+
+  const handleFileSelect = async (event) => {
     const files = Array.from(event.target.files);
     const validFiles = files.filter((file) =>
       allowedExtensions.some((ext) => file.name.toLowerCase().endsWith(ext))
@@ -70,6 +94,29 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
         fileInputRef.current.value = '';
       }
       return;
+    }
+
+    // For missing shipment feature, validate file types
+    if (isMissingShipment) {
+      const csvFiles = validFiles.filter(f => f.name.toLowerCase().endsWith('.csv'));
+      const excelFiles = validFiles.filter(f => 
+        f.name.toLowerCase().endsWith('.xlsx') || f.name.toLowerCase().endsWith('.xls')
+      );
+      
+      if (csvFiles.length !== 1 || excelFiles.length !== 1) {
+        alert('Error: Please select exactly 1 CSV file (main_data) and 1 Excel file (country file).');
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+        return;
+      }
+      
+      // Load sheets from Excel file
+      const sheets = await loadExcelSheets(excelFiles[0]);
+      if (sheets.length > 0) {
+        setAvailableSheets(sheets);
+        setSelectedSheet(sheets[0]);
+      }
     }
 
     const initialStatuses = validFiles.map((file) => ({
@@ -112,6 +159,17 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
   const removeFile = (index) => {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
     setFileStatuses(prev => prev.filter((_, i) => i !== index));
+    
+    // Clear sheets if removing Excel file for missing shipment feature
+    if (isMissingShipment) {
+      const removedFile = selectedFiles[index];
+      const isExcel = removedFile?.name?.toLowerCase().endsWith('.xlsx') || 
+                      removedFile?.name?.toLowerCase().endsWith('.xls');
+      if (isExcel) {
+        setAvailableSheets([]);
+        setSelectedSheet('');
+      }
+    }
   };
 
   const handleProcess = async () => {
@@ -130,6 +188,17 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
       }
       if (!requirement.requiredCount && requirement.minFiles && selectedFiles.length < requirement.minFiles) {
         alert(`Please upload at least ${requirement.minFiles} file(s) for ${requirement.label}.`);
+        return;
+      }
+    }
+
+    if (isMissingShipment) {
+      if (selectedFiles.length !== 2) {
+        alert('Please select exactly 2 files: 1 CSV file (main_data) and 1 Excel file (country file).');
+        return;
+      }
+      if (!selectedSheet) {
+        alert('Please select a sheet from the Excel file.');
         return;
       }
     }
@@ -154,9 +223,13 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
       if (isGstFeature) {
         formData.append('mode', mode);
       }
+      if (isMissingShipment && selectedSheet) {
+        formData.append('sheetName', selectedSheet);
+      }
 
       // Update status to processing
-      setProcessingStatus(`Processing ${selectedFiles.length} PDF file(s)...`);
+      const fileTypeText = isGstFileProcessing ? 'Excel' : 'PDF';
+      setProcessingStatus(`Processing ${selectedFiles.length} ${fileTypeText} file(s)...`);
       setFileStatuses(prev => prev.map(status => ({
         ...status,
         status: 'processing',
@@ -186,13 +259,17 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
         })));
         
         const fileList = selectedFiles.map((f, idx) => `${idx + 1}. ${f.name}`).join('\n');
-        alert(`Error: ${errorMessage}\n\nSelected Files:\n${fileList}\n\nPlease check:\n- All files are valid PDF files\n- Files contain Amazon tax invoice data\n- Python and required packages are installed`);
+        const fileTypeCheck = isGstFileProcessing 
+          ? '- All files are valid Excel files (.xlsx, .xls)\n- Files contain GST data'
+          : '- All files are valid PDF files\n- Files contain Amazon tax invoice data';
+        alert(`Error: ${errorMessage}\n\nSelected Files:\n${fileList}\n\nPlease check:\n${fileTypeCheck}\n- Python and required packages are installed`);
         return;
       }
 
       // Simulate incremental progress as files are processed
       setProgress(30);
-      setProcessingStatus('Extracting data from PDFs...');
+      const extractingText = isGstFileProcessing ? 'Extracting data from Excel files...' : 'Extracting data from PDFs...';
+      setProcessingStatus(extractingText);
       
       // Update progress incrementally
       const progressInterval = setInterval(() => {
@@ -347,7 +424,7 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
         </div>
       </div>
 
-      {(isGstFeature || isGstFileProcessing) && (
+      {(isGstFeature || isGstFileProcessing || isMissingShipment) && (
         <div className="space-y-2">
           {isGstFeature ? (
             <>
@@ -366,6 +443,32 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
               </select>
               <p className="text-xs text-neutral-500">
                 {MODE_REQUIREMENTS[mode]?.hint || 'Upload the required files for the selected mode.'}
+              </p>
+            </>
+          ) : isMissingShipment ? (
+            <>
+              {availableSheets.length > 0 && (
+                <>
+                  <label className="text-sm font-semibold text-neutral-700">Select Country Sheet</label>
+                  <select
+                    className="w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    value={selectedSheet}
+                    onChange={(e) => setSelectedSheet(e.target.value)}
+                    disabled={isProcessing}
+                  >
+                    {availableSheets.map((sheet) => (
+                      <option key={sheet} value={sheet}>
+                        {sheet}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-neutral-500">
+                    Select the country worksheet from the Excel file to compare with main_data.
+                  </p>
+                </>
+              )}
+              <p className="text-xs text-neutral-500">
+                Upload 1 CSV file (main_data) and 1 Excel file (country file) to find missing shipments.
               </p>
             </>
           ) : (
@@ -401,7 +504,7 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
             />
           </div>
           <p className="text-xs text-center text-neutral-500">
-            Progress: {progress}% - Please wait while we process your PDF files...
+            Progress: {progress}% - Please wait while we process your {isGstFileProcessing ? 'Excel' : 'PDF'} files...
           </p>
         </div>
       )}
@@ -476,6 +579,8 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
               <li>Select one or more files, or select a folder (supported: {allowedExtensions.join(', ')})</li>
               {isGstFeature ? (
                 <li>Choose the GST process mode and upload the required files.</li>
+              ) : isGstFileProcessing ? (
+                <li>Only Excel files (.xlsx, .xls) will be processed</li>
               ) : (
                 <li>Only PDF files will be processed</li>
               )}

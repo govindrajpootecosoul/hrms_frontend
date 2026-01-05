@@ -1,9 +1,7 @@
-'use client';
-
 import React, { useState, useEffect } from 'react';
-import api from '../lib/api';
+import api from '../utils/api';
 
-export default function UserModal({ user, onClose }) {
+const UserModal = ({ user, onClose }) => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -120,7 +118,7 @@ export default function UserModal({ user, onClose }) {
               value={formData.role}
               onChange={(e) => setFormData({ ...formData, role: e.target.value })}
               required
-              className="w-full border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all"
+              className="w-full border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent transition-all"
             >
               <option value="user">User</option>
               <option value="admin">Admin</option>
@@ -161,5 +159,7 @@ export default function UserModal({ user, onClose }) {
       </div>
     </div>
   );
-}
+};
+
+export default UserModal;
 

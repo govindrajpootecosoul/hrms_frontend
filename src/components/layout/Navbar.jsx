@@ -76,8 +76,12 @@ const Navbar = ({ onMenuToggle, isMenuOpen, menuItems = [] }) => {
                 <Bell className="w-[1.5rem] h-[1.5rem]" />
               </Button>
 
-              {/* Back to Home button (rightmost) */}
-              <Button onClick={() => router.push('/select-portal')} className="p-1.5 text-white hover:text-white hover:bg-[#745e39] rounded-full transition-colors">
+              {/* Back to Select Portal button */}
+              <Button 
+                onClick={() => router.push('/select-portal')} 
+                className="p-1.5 text-white hover:text-white hover:bg-[#745e39] rounded-full transition-colors"
+                title="Back to Select Portal"
+              >
                 <Home className="w-[1.5rem] h-[1.5rem]" />
               </Button>
 

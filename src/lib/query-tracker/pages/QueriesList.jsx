@@ -1,14 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import api from '../lib/api';
-import { useAuth } from '@/lib/context/AuthContext';
+import api from '../utils/api';
+import { useQueryTrackerAuth } from '../hooks/useQueryTrackerAuth';
 import QueryModal from '../components/QueryModal';
 import Icon from '../components/Icon';
 
-export default function QueriesList() {
-  const { user } = useAuth();
-  const isAdmin = () => user?.role === 'admin' || user?.role === 'superadmin';
+const QueriesList = () => {
+  const { user, isAdmin } = useQueryTrackerAuth();
   const [queries, setQueries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
@@ -28,7 +27,7 @@ export default function QueriesList() {
     if (isAdmin()) {
       fetchUsers();
     }
-  }, [activeTab, filters, currentPage, user]);
+  }, [activeTab, filters, currentPage]);
 
   const fetchQueries = async () => {
     try {
@@ -36,7 +35,7 @@ export default function QueriesList() {
       const params = {
         page: currentPage,
         limit: 10,
-        ...(activeTab === 'my' && user?.id ? { createdBy: user.id } : {}),
+        ...(activeTab === 'my' && { createdBy: user?._id || user?.id }),
         ...(filters.status && { status: filters.status }),
         ...(filters.createdBy && { createdBy: filters.createdBy }),
         ...(filters.search && { search: filters.search })
@@ -57,22 +56,20 @@ export default function QueriesList() {
       const response = await api.get('/users');
       setUsers(response.data);
     } catch (error) {
-      // Only log error if it's not a 403 (expected for non-admin users)
-      if (error.response?.status !== 403) {
-        console.error('Error fetching users:', error);
-      }
-      // Silently fail for 403 - user just doesn't have admin access
+      console.error('Error fetching users:', error);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this query?')) return;
+    if (typeof window !== 'undefined' && !window.confirm('Are you sure you want to delete this query?')) return;
     
     try {
       await api.delete(`/queries/${id}`);
       fetchQueries();
     } catch (error) {
-      alert('Error deleting query');
+      if (typeof window !== 'undefined') {
+        alert('Error deleting query');
+      }
     }
   };
 
@@ -95,10 +92,10 @@ export default function QueriesList() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-primary-blue via-accent-purple to-primary-blue-light bg-clip-text text-transparent">Queries List</h1>
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent">Queries List</h1>
         <button
           onClick={handleAdd}
-          className="px-6 py-2 rounded-lg bg-gradient-to-r from-primary-blue to-primary-blue-light text-white font-semibold hover:shadow-lg transition-all transform hover:scale-[1.02] flex items-center space-x-2"
+          className="px-6 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold hover:shadow-lg transition-all transform hover:scale-[1.02] flex items-center space-x-2"
         >
           <Icon name="add" size={20} />
           <span>Add Query</span>
@@ -114,7 +111,7 @@ export default function QueriesList() {
           }}
           className={`px-4 py-2 font-semibold transition-all ${
             activeTab === 'all'
-              ? 'text-primary-blue border-b-2 border-primary-blue'
+              ? 'text-blue-600 border-b-2 border-blue-600'
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
@@ -127,7 +124,7 @@ export default function QueriesList() {
           }}
           className={`px-4 py-2 font-semibold transition-all ${
             activeTab === 'my'
-              ? 'text-primary-blue border-b-2 border-primary-blue'
+              ? 'text-blue-600 border-b-2 border-blue-600'
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
@@ -136,7 +133,7 @@ export default function QueriesList() {
       </div>
 
       {/* Filters */}
-      <div className="glass p-4 rounded-xl grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="bg-white/70 backdrop-blur-lg p-4 rounded-xl grid grid-cols-1 md:grid-cols-3 gap-4 shadow-lg border border-white/50">
         <input
           type="text"
           placeholder="Search by customer name, mobile, or query type..."
@@ -145,7 +142,7 @@ export default function QueriesList() {
             setFilters({ ...filters, search: e.target.value });
             setCurrentPage(1);
           }}
-          className="border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all"
+          className="border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
         />
         <select
           value={filters.status}
@@ -153,7 +150,7 @@ export default function QueriesList() {
             setFilters({ ...filters, status: e.target.value });
             setCurrentPage(1);
           }}
-          className="border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all"
+          className="border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
         >
           <option value="">All Status</option>
           <option value="Open">Open</option>
@@ -167,7 +164,7 @@ export default function QueriesList() {
               setFilters({ ...filters, createdBy: e.target.value });
               setCurrentPage(1);
             }}
-            className="border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all"
+            className="border border-gray-200 bg-white/50 p-2 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
           >
             <option value="">All Users</option>
             {users.map((u) => (
@@ -180,10 +177,10 @@ export default function QueriesList() {
       </div>
 
       {/* Table */}
-      <div className="glass-glow rounded-2xl overflow-hidden">
+      <div className="bg-white/75 backdrop-blur-lg rounded-2xl overflow-hidden shadow-lg border border-white/50">
         {loading ? (
           <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-blue"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
           </div>
         ) : (
           <>
@@ -198,6 +195,7 @@ export default function QueriesList() {
                     <th className="text-left p-4 text-gray-600 text-xs font-semibold uppercase tracking-wide">Company</th>
                     <th className="text-left p-4 text-gray-600 text-xs font-semibold uppercase tracking-wide">Location</th>
                     <th className="text-left p-4 text-gray-600 text-xs font-semibold uppercase tracking-wide">Query</th>
+                    <th className="text-left p-4 text-gray-600 text-xs font-semibold uppercase tracking-wide">How did you hear about us?</th>
                     <th className="text-left p-4 text-gray-600 text-xs font-semibold uppercase tracking-wide">Status</th>
                     <th className="text-left p-4 text-gray-600 text-xs font-semibold uppercase tracking-wide">Received Date</th>
                     <th className="text-left p-4 text-gray-600 text-xs font-semibold uppercase tracking-wide">Actions</th>
@@ -213,6 +211,7 @@ export default function QueriesList() {
                       <td className="p-4 text-gray-600">{query.companyName || 'N/A'}</td>
                       <td className="p-4 text-gray-600">{query.location || 'N/A'}</td>
                       <td className="p-4 text-gray-600 max-w-xs truncate">{query.customerQuery}</td>
+                      <td className="p-4 text-gray-600 max-w-xs truncate">{query.howDidYouHearAboutUs || 'N/A'}</td>
                       <td className="p-4">
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                       query.status === 'Open' ? 'bg-blue-100 text-blue-700' :
@@ -230,7 +229,7 @@ export default function QueriesList() {
                           <button
                             onClick={() => handleEdit(query)}
                             className="text-blue-600 hover:text-blue-700 p-1 rounded hover:bg-blue-50 transition-all"
-                            disabled={!isAdmin() && query.createdBy?._id !== user?.id}
+                            disabled={!isAdmin() && query.createdBy?._id !== user?._id && query.createdBy?._id !== user?.id}
                             title="Edit"
                           >
                             <Icon name="edit" size={18} />
@@ -289,5 +288,7 @@ export default function QueriesList() {
       )}
     </div>
   );
-}
+};
+
+export default QueriesList;
 

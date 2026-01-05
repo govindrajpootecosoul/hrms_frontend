@@ -103,4 +103,4 @@ export const FILE_LIMITS = {
 };
 
 // API Configuration
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://192.168.50.107:5008/api';

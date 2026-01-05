@@ -11,7 +11,8 @@ import {
   Merge,
   FolderOpen,
   File,
-  ArrowLeft
+  ArrowLeft,
+  PackageSearch
 } from 'lucide-react';
 import Card from '@/components/common/Card';
 import Modal from '@/components/common/Modal';
@@ -73,23 +74,23 @@ const FinanceDashboard = () => {
       enabled: true
     },
     {
-      id: 'gst-file-processing',
-      title: 'GST Reconcile',
-      description: 'Clean and process GST B2B Excel files into a single output',
-      icon: <Calculator className="w-8 h-8" />,
-      color: 'from-amber-500 to-amber-600',
-      bgColor: 'bg-amber-50',
-      iconColor: 'text-amber-600',
-      enabled: true
-    },
-    {
       id: 'amazon-gst-process',
-      title: 'Amazon GST Process',
+      title: 'GST File Processing & Merging',
       description: 'Process GST file for B2B, B2BA,B2B-CDNR,IMPG, & B2B-CDNRA and merge into single file',
       icon: <FileText className="w-8 h-8" />,
       color: 'from-teal-500 to-teal-600',
       bgColor: 'bg-teal-50',
       iconColor: 'text-teal-600',
+      enabled: true
+    },
+    {
+      id: 'amazon-missing-shipment',
+      title: 'Amazon Missing Shipment',
+      description: 'Find missing Shipment IDs by comparing main_data CSV with country-specific Excel files',
+      icon: <PackageSearch className="w-8 h-8" />,
+      color: 'from-cyan-500 to-cyan-600',
+      bgColor: 'bg-cyan-50',
+      iconColor: 'text-cyan-600',
       enabled: true
     },
     {
@@ -156,10 +157,10 @@ const FinanceDashboard = () => {
       return '/api/finance/amazon-credit-note/process';
     } else if (featureId === 'gst-reconcile') {
       return '/api/finance/gst-reconcile/process';
-    } else if (featureId === 'gst-file-processing') {
-      return '/api/finance/gst-file-processing/process';
     } else if (featureId === 'amazon-gst-process') {
       return '/api/finance/amazon-gst-process/process';
+    } else if (featureId === 'amazon-missing-shipment') {
+      return '/api/finance/amazon-missing-shipment/process';
     }
     return '/api/finance/amazon-tax-invoice/process'; // default
   };
@@ -179,7 +180,7 @@ const FinanceDashboard = () => {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-neutral-900 mb-2">
-            Finance Portal
+            Tools
           </h1>
           <p className="text-neutral-600">
             Manage your financial operations and processes

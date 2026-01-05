@@ -21,7 +21,7 @@ const ToastProvider = ({ children }) => {
     const id = `toast-${++toastIdCounter.current}`;
     const newToast = {
       id,
-      duration: 5000,
+      duration: 5008,
       ...toast
     };
     
