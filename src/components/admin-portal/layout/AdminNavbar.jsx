@@ -1,11 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { LayoutGrid } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 
 export function AdminNavbar() {
   const [searchQuery, setSearchQuery] = useState('');
   const { user } = useAuth();
+  const router = useRouter();
 
   return (
     <div className="bg-white shadow-sm border-b border-gray-200">
@@ -45,6 +48,15 @@ export function AdminNavbar() {
 
           {/* Right: Notifications and User Profile */}
           <div className="flex items-center space-x-4">
+            {/* Select Portal Icon */}
+            <button
+              onClick={() => router.push('/select-portal')}
+              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
+              title="Go to Select Portal"
+            >
+              <LayoutGrid className="w-6 h-6" />
+            </button>
+
             {/* Notification Bell */}
             <button className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors">
               <svg
@@ -88,6 +100,7 @@ export function AdminNavbar() {
     </div>
   );
 }
+
 
 
 
