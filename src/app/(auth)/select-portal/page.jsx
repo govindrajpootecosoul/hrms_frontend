@@ -1,19 +1,21 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, Package, ArrowRight, DollarSign, ClipboardList, Building2, MessageSquare } from 'lucide-react';
+import { Users, Package, ArrowRight, DollarSign, ClipboardList, Building2, MessageSquare, LogOut } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useCompany } from '@/lib/context/CompanyContext';
 import Button from '@/components/common/Button';
 import Card from '@/components/common/Card';
 import Select from '@/components/common/Select';
+import Modal from '@/components/common/Modal';
 // Background removed for static light theme
 
 const PortalSelectionPage = () => {
   const router = useRouter();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
   const { currentCompany, companies, selectCompany, loadCompanies } = useCompany();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   // Portal mapping - maps select portal identifiers to admin portal names
   const portalIdentifierToName = {
@@ -102,17 +104,55 @@ const PortalSelectionPage = () => {
       {/* Static light overlay */}
       <div className="fixed inset-0 -z-10 bg-white/60" />
       
-      {/* Admin Portal Button - Top Right (visible only for superadmin) */}
-      {user?.role === 'superadmin' && (
-        <div className="fixed top-4 right-4 z-50">
+      {/* Admin Portal Button and Logout Icon - Top Right */}
+      <div className="fixed top-4 right-4 z-50 flex items-center gap-3">
+        {user?.role === 'superadmin' && (
           <Button
             onClick={() => router.push('/admin-portal')}
             className="bg-purple-600 hover:bg-purple-500 text-white shadow-lg hover:shadow-xl transition-all duration-300"
           >
             Admin Portal
           </Button>
-        </div>
-      )}
+        )}
+        {/* Logout Icon */}
+        <button
+          onClick={() => setShowLogoutConfirm(true)}
+          className="p-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors shadow-md hover:shadow-lg"
+          title="Logout"
+        >
+          <LogOut className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Logout Confirmation Modal */}
+      <Modal
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        title="Confirm Logout"
+        footer={
+          <>
+            <Button
+              onClick={() => setShowLogoutConfirm(false)}
+              className="bg-gray-200 hover:bg-gray-300 text-gray-800"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                logout();
+                router.push('/login');
+              }}
+              className="bg-red-600 hover:bg-red-500 text-white"
+            >
+              Logout
+            </Button>
+          </>
+        }
+      >
+        <p className="text-gray-700">
+          Are you sure you want to logout? You will need to login again to access your portals.
+        </p>
+      </Modal>
       
       <div className="w-full max-w-7xl">
         {/* Header */}
@@ -146,7 +186,11 @@ const PortalSelectionPage = () => {
               <Card className="flip-card-front backdrop-blur-md w-full h-full">
                 <div className="text-center h-full flex flex-col">
                   <div className="w-[15rem] h-[15rem] flex items-center justify-center mx-auto mb-6">
-                    <img src={'/hrms_select_portal.jpg'} className="w-[80%] h-[80%] object-contain" />
+                    <img
+                      src={'/log/HRMS%20Portal.png'}
+                      alt="HRMS Portal Logo"
+                      className="w-[80%] h-[80%] object-contain"
+                    />
                   </div>
                   
                   <h2 className="text-2xl font-bold mb-4">
@@ -198,7 +242,11 @@ const PortalSelectionPage = () => {
               <Card className="flip-card-front backdrop-blur-md w-full h-full">
               <div className="text-center h-full flex flex-col">
                   <div className="w-[15rem] h-[15rem] flex items-center justify-center mx-auto mb-6">
-                    <img src={'/asset_select_portal.jpg'} className="w-full h-full object-contain" />
+                    <img
+                      src={'/log/Asset%20Tracker%20Portal.png'}
+                      alt="Asset Tracker Portal Logo"
+                      className="w-full h-full object-contain"
+                    />
                   </div>
                   
                   <h2 className="text-2xl font-bold mb-4">
@@ -249,7 +297,11 @@ const PortalSelectionPage = () => {
               <Card className="flip-card-front backdrop-blur-md w-full h-full">
                 <div className="text-center h-full flex flex-col">
                   <div className="w-[15rem] h-[15rem] flex items-center justify-center mx-auto mb-6">
-                    <Building2 className="w-32 h-32 text-blue-600" />
+                    <img
+                      src={'/log/Organisation%20Tools.png'}
+                      alt="Organisation Tools Logo"
+                      className="w-full h-full object-contain"
+                    />
                   </div>
                   
                   <h2 className="text-2xl font-bold mb-4">
@@ -301,7 +353,11 @@ const PortalSelectionPage = () => {
               <Card className="flip-card-front backdrop-blur-md w-full h-full">
                 <div className="text-center h-full flex flex-col">
                   <div className="w-[15rem] h-[15rem] flex items-center justify-center mx-auto mb-6">
-                    <img src={'/project_tracker_1.png'} className="w-full h-full object-contain" />
+                    <img
+                      src={'/log/Project%20Tracker.png'}
+                      alt="Project Tracker Logo"
+                      className="w-full h-full object-contain"
+                    />
                   </div>
 
                   <h2 className="text-2xl font-bold mb-4">
@@ -402,7 +458,7 @@ const PortalSelectionPage = () => {
               <Card className="flip-card-front backdrop-blur-md w-full h-full">
                 <div className="text-center h-full flex flex-col">
                   <div className="w-[15rem] h-[15rem] flex items-center justify-center mx-auto mb-6">
-                    <MessageSquare className="w-32 h-32 text-cyan-600" />
+                    <img src={'/log/Query Tracker.png'} className="w-full h-full object-contain" />
                   </div>
                   
                   <h2 className="text-2xl font-bold mb-4">
@@ -453,7 +509,11 @@ const PortalSelectionPage = () => {
               <Card className="flip-card-front backdrop-blur-md w-full h-full">
                 <div className="text-center h-full flex flex-col">
                   <div className="w-[15rem] h-[15rem] flex items-center justify-center mx-auto mb-6">
-                    <Building2 className="w-32 h-32 text-blue-600" />
+                    <img
+                      src={'/log/Datahive.png'}
+                      alt="DataHive Logo"
+                      className="w-full h-full object-contain"
+                    />
                   </div>
                   
                   <h2 className="text-2xl font-bold mb-4">
@@ -502,7 +562,11 @@ const PortalSelectionPage = () => {
               <Card className="flip-card-front backdrop-blur-md w-full h-full">
                 <div className="text-center h-full flex flex-col">
                   <div className="w-[15rem] h-[15rem] flex items-center justify-center mx-auto mb-6">
-                    <ClipboardList className="w-32 h-32 text-purple-600" />
+                    <img
+                      src={'/log/Demand%20planner.png'}
+                      alt="Demand / Panel Logo"
+                      className="w-full h-full object-contain"
+                    />
                   </div>
                   
                   <h2 className="text-2xl font-bold mb-4">
