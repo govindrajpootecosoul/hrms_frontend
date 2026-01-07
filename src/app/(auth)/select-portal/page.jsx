@@ -223,19 +223,18 @@ const PortalSelectionPage = () => {
                     Track and manage company assets, monitor assignments, 
                     maintenance schedules, and optimize asset utilization.
                   </p>
-                  {user?.role === 'admin' && (
-                    <Button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handlePortalSelect('asset-tracker');
-                      }}
-                      className="w-full max-w-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg hover:shadow-xl transition-all duration-300 relative z-10"
-                      icon={<ArrowRight className="w-4 h-4" />}
-                      iconPosition="right"
-                      >
-                      Enter Asset Tracker
-                    </Button>
-                  )}
+                  <Button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handlePortalSelect('asset-tracker');
+                    }}
+                    className="w-full max-w-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg hover:shadow-xl transition-all duration-300 relative z-10"
+                    icon={<ArrowRight className="w-4 h-4" />}
+                    iconPosition="right"
+                  >
+                    Enter Asset Tracker
+                  </Button>
                 </div>
               </Card>
             </div>

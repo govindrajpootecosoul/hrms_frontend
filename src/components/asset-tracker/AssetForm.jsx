@@ -1,12 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Package, Settings, Calendar } from 'lucide-react';
-import { ASSET_CATEGORIES, ASSET_STATUS } from '@/lib/utils/constants';
+import { useState, useEffect } from 'react';
+import { Link as LinkIcon, Calendar, ChevronDown } from 'lucide-react';
 import Button from '@/components/common/Button';
 import Input from '@/components/common/Input';
 import Select from '@/components/common/Select';
-import Card from '@/components/common/Card';
 
 const AssetForm = ({ 
   asset = null, 
@@ -19,33 +17,98 @@ const AssetForm = ({
     // Step 1: Basic Info
     category: asset?.category || '',
     subcategory: asset?.subcategory || '',
-    location: asset?.location || '',
     site: asset?.site || '',
+    location: asset?.location || '',
     status: asset?.status || 'available',
     
     // Step 2: Specifications
     brand: asset?.brand || '',
     model: asset?.model || '',
     serialNumber: asset?.serialNumber || '',
-    
-    // Step 3: Additional Details (dynamic based on category)
-    ram: asset?.ram || '',
+    description: asset?.description || '',
     processor: asset?.processor || '',
-    storage: asset?.storage || '',
+    processorGeneration: asset?.processorGeneration || '',
+    totalRAM: asset?.totalRAM || '',
+    ram1Size: asset?.ram1Size || '',
+    ram2Size: asset?.ram2Size || '',
     warrantyStart: asset?.warrantyStart || '',
-    warrantyEnd: asset?.warrantyEnd || '',
-    purchaseDate: asset?.purchaseDate || '',
-    purchasePrice: asset?.purchasePrice || '',
-    notes: asset?.notes || ''
+    warrantyMonths: asset?.warrantyMonths || '',
+    warrantyExpire: asset?.warrantyExpire || '',
   });
 
   const [errors, setErrors] = useState({});
+  const [assetTagId, setAssetTagId] = useState('');
+  const [selectOpen, setSelectOpen] = useState({});
 
-  const steps = [
-    { id: 1, title: 'Basic Info', icon: <Package className="w-5 h-5" /> },
-    { id: 2, title: 'Specifications', icon: <Settings className="w-5 h-5" /> },
-    { id: 3, title: 'Additional Details', icon: <Calendar className="w-5 h-5" /> }
+  // Category and Sub-Category mapping with Tag ID prefixes
+  const categoryMapping = {
+    'Computer Assets': {
+      'Laptop': 'CA-LAP',
+      'Desktop': 'CA-DESK',
+    },
+    'External Equipment': {
+      'Bag': 'EE-BAG',
+      'Charger': 'EE-CHG',
+      'Keyboard': 'EE-KBD',
+      'LCD-Monitors': 'EE-LCD',
+      'Mouse': 'EE-MSE',
+    },
+  };
+
+  const categoryOptions = [
+    { value: '', label: 'Select Category' },
+    { value: 'Computer Assets', label: 'Computer Assets' },
+    { value: 'External Equipment', label: 'External Equipment' },
   ];
+
+  const getSubcategoryOptions = () => {
+    if (!formData.category) return [{ value: '', label: 'Select Sub Category' }];
+    const subcategories = categoryMapping[formData.category];
+    if (!subcategories) return [{ value: '', label: 'Select Sub Category' }];
+    return [
+      { value: '', label: 'Select Sub Category' },
+      ...Object.keys(subcategories).map(sub => ({
+        value: sub,
+        label: sub,
+      })),
+    ];
+  };
+
+  const siteOptions = [
+    { value: '', label: 'Select Site' },
+    { value: 'Head Office', label: 'Head Office' },
+    { value: 'Branch Office', label: 'Branch Office' },
+    { value: 'Warehouse', label: 'Warehouse' },
+  ];
+
+  const locationOptions = [
+    { value: '', label: 'Select Location' },
+    { value: 'India', label: 'India' },
+    { value: 'USA', label: 'USA' },
+  ];
+
+  const statusOptions = [
+    { value: 'available', label: 'Available' },
+    { value: 'assigned', label: 'Assigned' },
+    { value: 'maintenance', label: 'Under Maintenance' },
+    { value: 'broken', label: 'Broken' },
+  ];
+
+  // Generate Asset Tag ID when category and subcategory are selected
+  useEffect(() => {
+    if (formData.category && formData.subcategory) {
+      const prefix = categoryMapping[formData.category]?.[formData.subcategory];
+      if (prefix) {
+        // Generate a random 3-digit number
+        const randomNum = Math.floor(Math.random() * 900) + 100;
+        setAssetTagId(`${prefix}-${randomNum}`);
+      } else {
+        setAssetTagId('');
+      }
+    } else {
+      setAssetTagId('');
+    }
+  }, [formData.category, formData.subcategory]);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({
@@ -60,6 +123,14 @@ const AssetForm = ({
         [field]: ''
       }));
     }
+
+    // Reset subcategory when category changes
+    if (field === 'category') {
+      setFormData(prev => ({
+        ...prev,
+        subcategory: ''
+      }));
+    }
   };
 
   const validateStep = (step) => {
@@ -68,24 +139,14 @@ const AssetForm = ({
     switch (step) {
       case 1:
         if (!formData.category) newErrors.category = 'Category is required';
-        if (!formData.subcategory) newErrors.subcategory = 'Subcategory is required';
-        if (!formData.location) newErrors.location = 'Location is required';
+        if (!formData.subcategory) newErrors.subcategory = 'Sub Category is required';
         if (!formData.site) newErrors.site = 'Site is required';
-        if (!formData.status) newErrors.status = 'Status is required';
+        if (!formData.location) newErrors.location = 'Location is required';
         break;
       case 2:
         if (!formData.brand) newErrors.brand = 'Brand is required';
         if (!formData.model) newErrors.model = 'Model is required';
-        if (!formData.serialNumber) newErrors.serialNumber = 'Serial number is required';
-        break;
-      case 3:
-        // Dynamic validation based on category
-        if (formData.category === 'computer') {
-          if (!formData.ram) newErrors.ram = 'RAM is required for computers';
-          if (!formData.processor) newErrors.processor = 'Processor is required for computers';
-          if (!formData.storage) newErrors.storage = 'Storage is required for computers';
-        }
-        if (!formData.purchaseDate) newErrors.purchaseDate = 'Purchase date is required';
+        if (!formData.serialNumber) newErrors.serialNumber = 'Serial Number is required';
         break;
     }
     
@@ -95,289 +156,384 @@ const AssetForm = ({
 
   const handleNext = () => {
     if (validateStep(currentStep)) {
-      setCurrentStep(prev => Math.min(prev + 1, 3));
+      setCurrentStep(2);
     }
   };
 
   const handlePrevious = () => {
-    setCurrentStep(prev => Math.max(prev - 1, 1));
+    setCurrentStep(1);
   };
 
   const handleSubmit = () => {
     if (validateStep(currentStep)) {
-      // Generate asset tag
-      const categoryPrefix = ASSET_CATEGORIES.find(c => c.id === formData.category)?.prefix || 'AST';
-      const assetTag = `${categoryPrefix}${Date.now().toString().slice(-6)}`;
-      
       onSubmit({
         ...formData,
-        assetTag,
+        assetTag: assetTagId,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
     }
   };
 
-  const getSubcategoryOptions = () => {
-    const category = ASSET_CATEGORIES.find(c => c.id === formData.category);
-    return category?.subcategories?.map(sub => ({ value: sub.id, label: sub.name })) || [];
+  const toggleSelect = (field) => {
+    setSelectOpen(prev => ({
+      ...prev,
+      [field]: !prev[field]
+    }));
   };
 
-  const renderStep1 = () => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Select
-          label="Category"
-          options={ASSET_CATEGORIES.map(cat => ({ value: cat.id, label: cat.name }))}
-          value={formData.category}
-          onChange={(value) => {
-            handleChange('category', value);
-            handleChange('subcategory', ''); // Reset subcategory when category changes
-          }}
-          error={errors.category}
-          required
-        />
-        
-        <Select
-          label="Subcategory"
-          options={getSubcategoryOptions()}
-          value={formData.subcategory}
-          onChange={(value) => handleChange('subcategory', value)}
-          error={errors.subcategory}
-          required
-          disabled={!formData.category}
-        />
-        
-        <Select
-          label="Location"
-          options={[
-            { value: 'office-1', label: 'Office Building 1' },
-            { value: 'office-2', label: 'Office Building 2' },
-            { value: 'warehouse', label: 'Warehouse' },
-            { value: 'remote', label: 'Remote' }
-          ]}
-          value={formData.location}
-          onChange={(value) => handleChange('location', value)}
-          error={errors.location}
-          required
-        />
-        
-        <Select
-          label="Site"
-          options={[
-            { value: 'floor-1', label: 'Floor 1' },
-            { value: 'floor-2', label: 'Floor 2' },
-            { value: 'floor-3', label: 'Floor 3' },
-            { value: 'basement', label: 'Basement' }
-          ]}
-          value={formData.site}
-          onChange={(value) => handleChange('site', value)}
-          error={errors.site}
-          required
-        />
-        
-        <Select
-          label="Status"
-          options={ASSET_STATUS.map(status => ({ value: status.value, label: status.label }))}
-          value={formData.status}
-          onChange={(value) => handleChange('status', value)}
-          error={errors.status}
-          required
-        />
-      </div>
-    </div>
-  );
+  const closeAllSelects = () => {
+    setSelectOpen({});
+  };
 
-  const renderStep2 = () => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Input
-          label="Brand"
-          value={formData.brand}
-          onChange={(e) => handleChange('brand', e.target.value)}
-          error={errors.brand}
-          required
-        />
-        
-        <Input
-          label="Model"
-          value={formData.model}
-          onChange={(e) => handleChange('model', e.target.value)}
-          error={errors.model}
-          required
-        />
-        
-        <div className="md:col-span-2">
-          <Input
-            label="Serial Number"
-            value={formData.serialNumber}
-            onChange={(e) => handleChange('serialNumber', e.target.value)}
-            error={errors.serialNumber}
-            required
-          />
+  const renderStep1 = () => {
+    const getSelectOptions = (field) => {
+      switch (field) {
+        case 'category':
+          return categoryOptions;
+        case 'subcategory':
+          return getSubcategoryOptions();
+        case 'site':
+          return siteOptions;
+        case 'location':
+          return locationOptions;
+        case 'status':
+          return statusOptions;
+        default:
+          return [];
+      }
+    };
+
+    const getSelectValue = (field) => {
+      return formData[field] || '';
+    };
+
+    const renderCompactSelect = (field, label, required = false) => {
+      const options = getSelectOptions(field);
+      const value = getSelectValue(field);
+      const selectedOption = options.find(opt => opt.value === value);
+      const isOpen = selectOpen[field] || false;
+
+      return (
+        <div className="space-y-1 relative">
+          <label className="block text-xs font-medium text-neutral-700">
+            {label} {required && <span className="text-red-500">*</span>}
+          </label>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                closeAllSelects();
+                toggleSelect(field);
+              }}
+              disabled={field === 'subcategory' && !formData.category}
+              className={`w-full px-3 py-1.5 text-sm rounded-lg border border-neutral-300 bg-white text-left flex items-center justify-between ${
+                errors[field] ? 'border-red-500' : ''
+              } ${field === 'subcategory' && !formData.category ? 'bg-gray-100 cursor-not-allowed' : 'cursor-pointer hover:border-neutral-400'}`}
+            >
+              <span className={selectedOption ? 'text-neutral-900' : 'text-neutral-400'}>
+                {selectedOption ? selectedOption.label : options[0]?.label || 'Select...'}
+              </span>
+              <ChevronDown className={`w-3 h-3 text-neutral-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {isOpen && (
+              <>
+                <div className="absolute z-50 w-full mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-48 overflow-auto">
+                  {options.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => {
+                        handleChange(field, option.value);
+                        setSelectOpen(prev => ({ ...prev, [field]: false }));
+                      }}
+                      className={`w-full px-3 py-1.5 text-xs text-left hover:bg-neutral-100 transition-colors ${
+                        option.value === value ? 'bg-blue-50 text-blue-700' : 'text-neutral-900'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setSelectOpen(prev => ({ ...prev, [field]: false }))}
+                />
+              </>
+            )}
+          </div>
+          {errors[field] && <p className="text-xs text-red-600">{errors[field]}</p>}
+        </div>
+      );
+    };
+
+    return (
+      <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {renderCompactSelect('category', 'Category', true)}
+          {renderCompactSelect('subcategory', 'Sub Category', true)}
+          
+          {/* Generated Asset Tag ID */}
+          <div className="md:col-span-2 space-y-1">
+            <label className="block text-xs font-medium text-neutral-700">
+              Generated Asset Tag ID
+            </label>
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg">
+              <LinkIcon className="w-3 h-3 text-blue-600 flex-shrink-0" />
+              <span className="text-xs font-mono text-blue-900">
+                {assetTagId || 'Select Category and Sub Category to generate'}
+              </span>
+            </div>
+          </div>
+          
+          {renderCompactSelect('site', 'Site', true)}
+          {renderCompactSelect('location', 'Location', true)}
+          {renderCompactSelect('status', 'Status', false)}
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
-  const renderStep3 = () => (
-    <div className="space-y-6">
-      {/* Dynamic fields based on category */}
-      {formData.category === 'computer' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Input
-            label="RAM"
-            value={formData.ram}
-            onChange={(e) => handleChange('ram', e.target.value)}
-            error={errors.ram}
-            required
-            placeholder="e.g., 16GB DDR4"
-          />
-          
-          <Input
-            label="Processor"
-            value={formData.processor}
-            onChange={(e) => handleChange('processor', e.target.value)}
-            error={errors.processor}
-            required
-            placeholder="e.g., Intel i7-10700K"
-          />
-          
-          <Input
-            label="Storage"
-            value={formData.storage}
-            onChange={(e) => handleChange('storage', e.target.value)}
-            error={errors.storage}
-            required
-            placeholder="e.g., 512GB SSD"
-          />
+  const renderStep2 = () => {
+    // Only show Computer Asset Details for now
+    const isComputerAsset = formData.category === 'Computer Assets';
+    
+    if (!isComputerAsset) {
+      return (
+        <div className="text-center py-8 text-neutral-500">
+          Detailed specifications for {formData.category} will be available soon.
         </div>
-      )}
-
-      {/* Warranty information */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Input
-          label="Warranty Start Date"
-          type="date"
-          value={formData.warrantyStart}
-          onChange={(e) => handleChange('warrantyStart', e.target.value)}
-        />
-        
-        <Input
-          label="Warranty End Date"
-          type="date"
-          value={formData.warrantyEnd}
-          onChange={(e) => handleChange('warrantyEnd', e.target.value)}
-        />
-      </div>
-
-      {/* Purchase information */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Input
-          label="Purchase Date"
-          type="date"
-          value={formData.purchaseDate}
-          onChange={(e) => handleChange('purchaseDate', e.target.value)}
-          error={errors.purchaseDate}
-          required
-        />
-        
-        <Input
-          label="Purchase Price"
-          type="number"
-          value={formData.purchasePrice}
-          onChange={(e) => handleChange('purchasePrice', e.target.value)}
-          placeholder="0.00"
-        />
-      </div>
-
-      {/* Notes */}
-      <div>
-        <label className="block text-sm font-medium text-neutral-900 mb-2">
-          Notes
-        </label>
-        <textarea
-          value={formData.notes}
-          onChange={(e) => handleChange('notes', e.target.value)}
-          rows={4}
-          className="w-full px-4 py-3 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-primary-200 focus:border-primary-300 transition-all duration-200 bg-white text-neutral-900 placeholder-neutral-400"
-          placeholder="Additional notes about the asset..."
-        />
-      </div>
-    </div>
-  );
-
-  const renderCurrentStep = () => {
-    switch (currentStep) {
-      case 1: return renderStep1();
-      case 2: return renderStep2();
-      case 3: return renderStep3();
-      default: return renderStep1();
+      );
     }
+
+    return (
+      <div className="space-y-3">
+        <h3 className="text-base font-semibold text-neutral-900 mb-2">Computer Asset Details</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-neutral-700">
+              Brand <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={formData.brand}
+              onChange={(e) => handleChange('brand', e.target.value)}
+              placeholder="e.g. Dell, HP, Apple"
+              className="w-full px-3 py-1.5 text-sm rounded-lg border border-neutral-300 focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+            />
+            {errors.brand && <p className="text-xs text-red-600">{errors.brand}</p>}
+          </div>
+          
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-neutral-700">
+              Model <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={formData.model}
+              onChange={(e) => handleChange('model', e.target.value)}
+              placeholder="e.g. Latitude 5520, EliteDesk 800"
+              className="w-full px-3 py-1.5 text-sm rounded-lg border border-neutral-300 focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+            />
+            {errors.model && <p className="text-xs text-red-600">{errors.model}</p>}
+          </div>
+          
+          <div className="md:col-span-2 space-y-1">
+            <label className="block text-xs font-medium text-neutral-700">
+              Serial Number <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={formData.serialNumber}
+              onChange={(e) => handleChange('serialNumber', e.target.value)}
+              className="w-full px-3 py-1.5 text-sm rounded-lg border border-neutral-300 focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+            />
+            {errors.serialNumber && <p className="text-xs text-red-600">{errors.serialNumber}</p>}
+          </div>
+          
+          <div className="md:col-span-2 space-y-1">
+            <label className="block text-xs font-medium text-neutral-700">Description</label>
+            <input
+              type="text"
+              value={formData.description}
+              onChange={(e) => handleChange('description', e.target.value)}
+              placeholder="Additional details"
+              className="w-full px-3 py-1.5 text-sm rounded-lg border border-neutral-300 focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+            />
+          </div>
+          
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-neutral-700">Processor</label>
+            <input
+              type="text"
+              value={formData.processor}
+              onChange={(e) => handleChange('processor', e.target.value)}
+              placeholder="e.g. Intel Core i7"
+              className="w-full px-3 py-1.5 text-sm rounded-lg border border-neutral-300 focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+            />
+          </div>
+          
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-neutral-700">Processor Generation</label>
+            <input
+              type="text"
+              value={formData.processorGeneration}
+              onChange={(e) => handleChange('processorGeneration', e.target.value)}
+              placeholder="e.g. 11th Gen"
+              className="w-full px-3 py-1.5 text-sm rounded-lg border border-neutral-300 focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+            />
+          </div>
+          
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-neutral-700">Total RAM</label>
+            <input
+              type="text"
+              value={formData.totalRAM}
+              onChange={(e) => handleChange('totalRAM', e.target.value)}
+              placeholder="e.g. 16GB"
+              className="w-full px-3 py-1.5 text-sm rounded-lg border border-neutral-300 focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+            />
+          </div>
+          
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-neutral-700">RAM 1 Size</label>
+            <input
+              type="text"
+              value={formData.ram1Size}
+              onChange={(e) => handleChange('ram1Size', e.target.value)}
+              placeholder="e.g. 8GB"
+              className="w-full px-3 py-1.5 text-sm rounded-lg border border-neutral-300 focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+            />
+          </div>
+          
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-neutral-700">RAM 2 Size</label>
+            <input
+              type="text"
+              value={formData.ram2Size}
+              onChange={(e) => handleChange('ram2Size', e.target.value)}
+              placeholder="e.g. 8GB"
+              className="w-full px-3 py-1.5 text-sm rounded-lg border border-neutral-300 focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+            />
+          </div>
+          
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-neutral-700">Warranty Start</label>
+            <div className="relative">
+              <input
+                type="date"
+                value={formData.warrantyStart}
+                onChange={(e) => handleChange('warrantyStart', e.target.value)}
+                placeholder="mm/dd/yyyy"
+                className="w-full px-3 py-1.5 pr-8 text-sm rounded-lg border border-neutral-300 focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+              />
+              <Calendar className="absolute right-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-neutral-400 pointer-events-none" />
+            </div>
+          </div>
+          
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-neutral-700">Warranty Months</label>
+            <input
+              type="text"
+              value={formData.warrantyMonths}
+              onChange={(e) => handleChange('warrantyMonths', e.target.value)}
+              placeholder="e.g. 12"
+              className="w-full px-3 py-1.5 text-sm rounded-lg border border-neutral-300 focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+            />
+          </div>
+          
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-neutral-700">Warranty Expire</label>
+            <div className="relative">
+              <input
+                type="date"
+                value={formData.warrantyExpire}
+                onChange={(e) => handleChange('warrantyExpire', e.target.value)}
+                placeholder="mm/dd/yyyy"
+                className="w-full px-3 py-1.5 pr-8 text-sm rounded-lg border border-neutral-300 focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+              />
+              <Calendar className="absolute right-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-neutral-400 pointer-events-none" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Progress Indicator */}
-      <div className="flex items-center justify-between">
-        {steps.map((step, index) => (
-          <div key={step.id} className="flex items-center">
-            <div className={`
-              flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors
-              ${currentStep >= step.id 
-                ? 'bg-primary-600 text-white border-primary-600' 
-                : 'border-neutral-300 text-neutral-500'
-              }
-            `}>
-              {step.icon}
-            </div>
-            <span className={`
-              ml-2 text-sm font-medium
-              ${currentStep >= step.id ? 'text-neutral-900' : 'text-neutral-600'}
-            `}>
-              {step.title}
-            </span>
-            {index < steps.length - 1 && (
-              <div className={`
-                w-16 h-0.5 mx-4
-                ${currentStep > step.id ? 'bg-primary-600' : 'bg-neutral-300'}
-              `} />
-            )}
-          </div>
-        ))}
+      <div className="flex items-center gap-2">
+        <div className={`flex-1 h-1 rounded-full transition-colors ${
+          currentStep >= 1 ? 'bg-blue-600' : 'bg-neutral-200'
+        }`} />
+        <div className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+          currentStep === 1 
+            ? 'bg-blue-600 text-white' 
+            : currentStep > 1 
+              ? 'bg-blue-50 text-blue-600' 
+              : 'bg-neutral-100 text-neutral-500'
+        }`}>
+          1 Basic Information
+        </div>
+        <div className={`flex-1 h-1 rounded-full transition-colors ${
+          currentStep >= 2 ? 'bg-blue-600' : 'bg-neutral-200'
+        }`} />
+        <div className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+          currentStep === 2 
+            ? 'bg-blue-600 text-white' 
+            : currentStep > 2 
+              ? 'bg-blue-50 text-blue-600' 
+              : 'bg-neutral-100 text-neutral-500'
+        }`}>
+          2 Detailed Specifications
+        </div>
+        <div className={`flex-1 h-1 rounded-full transition-colors ${
+          currentStep >= 2 ? 'bg-blue-600' : 'bg-neutral-200'
+        }`} />
       </div>
 
       {/* Form Content */}
-      <Card>
-        {renderCurrentStep()}
-      </Card>
+      <div className="max-h-[calc(90vh-200px)] overflow-y-auto">
+        {currentStep === 1 ? renderStep1() : renderStep2()}
+      </div>
 
       {/* Navigation Buttons */}
-      <div className="flex justify-between">
+      <div className="flex items-center justify-between pt-4 border-t border-neutral-200">
         <Button
           onClick={currentStep === 1 ? onCancel : handlePrevious}
-          icon={<ChevronLeft className="w-4 h-4" />}
+          className="bg-white text-neutral-700 border border-neutral-300 hover:bg-neutral-50"
         >
           {currentStep === 1 ? 'Cancel' : 'Previous'}
         </Button>
         
-        <div className="flex space-x-3">
-          {currentStep < 3 ? (
+        <div className="flex gap-3">
+          {currentStep === 1 && (
             <Button
               onClick={handleNext}
-              icon={<ChevronRight className="w-4 h-4" />}
-              iconPosition="right"
+              className="bg-blue-600 text-white hover:bg-blue-700"
             >
-              Next
+              Next Step
             </Button>
-          ) : (
-            <Button
-              onClick={handleSubmit}
-              loading={loading}
-              disabled={loading}
-            >
-              {asset ? 'Update Asset' : 'Create Asset'}
-            </Button>
+          )}
+          {currentStep === 2 && (
+            <>
+              <Button
+                onClick={onCancel}
+                className="bg-white text-neutral-700 border border-neutral-300 hover:bg-neutral-50"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                loading={loading}
+                disabled={loading}
+                className="bg-blue-600 text-white hover:bg-blue-700"
+              >
+                Add Asset
+              </Button>
+            </>
           )}
         </div>
       </div>

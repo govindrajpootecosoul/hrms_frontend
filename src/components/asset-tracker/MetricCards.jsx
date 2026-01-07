@@ -1,8 +1,7 @@
 'use client';
 
-import { Package, UserCheck, Wrench, AlertTriangle, CheckCircle } from 'lucide-react';
+import { BarChart3, Percent, CheckCircle, Wrench, TrendingUp, TrendingDown } from 'lucide-react';
 import Card from '@/components/common/Card';
-import Badge from '@/components/common/Badge';
 
 const MetricCards = ({ 
   totalAssets = 0, 
@@ -16,57 +15,66 @@ const MetricCards = ({
     {
       title: 'Total Assets',
       value: totalAssets,
-      icon: <Package className="w-6 h-6" />,
-      color: 'primary',
-      bgColor: 'bg-primary-100',
-      textColor: 'text-primary-600'
+      icon: <BarChart3 className="w-5 h-5" />,
+      color: 'blue',
+      trend: 'up',
+      trendText: '+12 this month'
     },
     {
-      title: 'Assigned',
+      title: 'Assigned Assets',
       value: assigned,
-      icon: <UserCheck className="w-6 h-6" />,
-      color: 'success',
-      bgColor: 'bg-secondary-100',
-      textColor: 'text-secondary-600'
+      icon: <Percent className="w-5 h-5" />,
+      color: 'blue',
+      trend: 'up',
+      trendText: '+8 this week'
     },
     {
-      title: 'Available',
+      title: 'Available Assets',
       value: available,
-      icon: <CheckCircle className="w-6 h-6" />,
-      color: 'info',
-      bgColor: 'bg-primary-100',
-      textColor: 'text-primary-600'
+      icon: <CheckCircle className="w-5 h-5" />,
+      color: 'green',
     },
     {
       title: 'Under Maintenance',
       value: underMaintenance,
-      icon: <Wrench className="w-6 h-6" />,
-      color: 'warning',
-      bgColor: 'bg-accent-100',
-      textColor: 'text-accent-600'
-    },
-    {
-      title: 'Broken',
-      value: broken,
-      icon: <AlertTriangle className="w-6 h-6" />,
-      color: 'danger',
-      bgColor: 'bg-danger-100',
-      textColor: 'text-danger-600'
+      icon: <Wrench className="w-5 h-5" />,
+      color: 'orange',
+      trend: 'down',
+      trendText: '-3 from last week'
     }
   ];
 
+  const colorStyles = {
+    blue: {
+      iconBg: 'bg-blue-500',
+      valueText: 'text-blue-600',
+    },
+    green: {
+      iconBg: 'bg-emerald-500',
+      valueText: 'text-emerald-600',
+    },
+    orange: {
+      iconBg: 'bg-orange-500',
+      valueText: 'text-orange-600',
+    },
+    red: {
+      iconBg: 'bg-rose-500',
+      valueText: 'text-rose-600',
+    },
+  };
+
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-        {Array.from({ length: 5 }).map((_, index) => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {Array.from({ length: 4 }).map((_, index) => (
           <Card key={index} className="p-6">
             <div className="animate-pulse">
-              <div className="flex items-center">
-                <div className="w-12 h-12 bg-neutral-200 rounded-lg mr-4"></div>
+              <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="h-4 bg-neutral-200 rounded w-3/4 mb-2"></div>
-                  <div className="h-6 bg-neutral-200 rounded w-1/2"></div>
+                  <div className="h-8 bg-neutral-200 rounded w-1/2"></div>
                 </div>
+                <div className="w-12 h-12 bg-neutral-200 rounded-lg"></div>
               </div>
             </div>
           </Card>
@@ -76,65 +84,37 @@ const MetricCards = ({
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
       {metrics.map((metric, index) => {
-        const resolveColor = (c) => {
-          if (!c) return '#ffffff';
-          if (typeof c === 'string' && c.startsWith('#')) return c;
-          const map = {
-            primary: '#3b82f6',
-            success: '#10b981',
-            danger: '#ef4444',
-            warning: '#f59e0b',
-            info: '#0ea5e9',
-            secondary: '#8b5cf6',
-            accent: '#22d3ee'
-          };
-          return map[c] || '#ffffff';
-        };
-        const themeColor = resolveColor(metric.color);
+        const styles = colorStyles[metric.color] || colorStyles.blue;
         return (
-        <Card key={index} className="p-6 hover:shadow-lg transition-all duration-300">
-          <div className="flex items-center">
-            <div
-              className={`w-14 h-14 rounded-xl flex items-center justify-center mr-4 shadow-lg`}
-              style={{ backgroundColor: `${themeColor}20`, border: `1px solid ${themeColor}40` }}
-            >
-              <span style={{ color: themeColor }}>
-                {metric.icon}
-              </span>
+          <Card key={index} className="p-6">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="text-sm font-medium text-neutral-500 mb-1">{metric.title}</div>
+                <div className={`text-3xl font-bold tracking-tight ${styles.valueText}`}>
+                  {metric.value.toLocaleString()}
+                </div>
+                {metric.trend && metric.trendText && (
+                  <div className={`mt-2 flex items-center gap-1 text-xs ${
+                    metric.trend === 'up' ? 'text-emerald-600' : metric.trend === 'down' ? 'text-rose-600' : 'text-neutral-500'
+                  }`}>
+                    {metric.trend === 'up' ? (
+                      <TrendingUp className="w-3 h-3" />
+                    ) : metric.trend === 'down' ? (
+                      <TrendingDown className="w-3 h-3" />
+                    ) : null}
+                    <span>{metric.trendText}</span>
+                  </div>
+                )}
+              </div>
+              {metric.icon && (
+                <div className={`h-12 w-12 ${styles.iconBg} text-white rounded-lg flex items-center justify-center shadow-md`}>
+                  {metric.icon}
+                </div>
+              )}
             </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-neutral-600 mb-2">
-                {metric.title}
-              </p>
-              <p className="text-3xl font-bold text-neutral-900">
-                {metric.value.toLocaleString()}
-              </p>
-            </div>
-          </div>
-          
-          {/* Optional percentage indicator */}
-          {metric.title === 'Assigned' && totalAssets > 0 && (
-            <div className="mt-3">
-              <Badge 
-                size="sm"
-              >
-                {Math.round((assigned / totalAssets) * 100)}% assigned
-              </Badge>
-            </div>
-          )}
-          
-          {metric.title === 'Available' && totalAssets > 0 && (
-            <div className="mt-3">
-              <Badge 
-                size="sm"
-              >
-                {Math.round((available / totalAssets) * 100)}% available
-              </Badge>
-            </div>
-          )}
-        </Card>
+          </Card>
         );
       })}
     </div>

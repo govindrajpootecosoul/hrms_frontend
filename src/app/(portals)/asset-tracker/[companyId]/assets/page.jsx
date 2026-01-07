@@ -24,16 +24,17 @@ const AssetsPage = () => {
   const [assets, setAssets] = useState([
     {
       id: '1',
-      assetTag: 'COM123456',
-      category: 'Computer',
+      assetTag: 'CA-LAP-001',
+      category: 'Computer Assets',
       subcategory: 'Laptop',
       status: 'assigned',
       brand: 'Dell',
-      model: 'Latitude 5520',
+      model: 'Dell Latitude 5520',
       serialNumber: 'DL123456789',
-      location: 'Office Building 1',
-      site: 'Floor 2',
-      assignedTo: 'John Doe',
+      location: 'Floor 2',
+      site: 'Head Office',
+      assignedTo: 'John Smith',
+      department: 'IT Department',
       ram: '16GB DDR4',
       processor: 'Intel i7-10700K',
       storage: '512GB SSD',
@@ -45,46 +46,88 @@ const AssetsPage = () => {
     },
     {
       id: '2',
-      assetTag: 'EXT789012',
-      category: 'External Device',
-      subcategory: 'Monitor',
+      assetTag: 'CA-DESK-045',
+      category: 'Computer Assets',
+      subcategory: 'Desktop',
       status: 'available',
-      brand: 'Samsung',
-      model: '27" 4K Monitor',
-      serialNumber: 'SM789012345',
-      location: 'Office Building 1',
-      site: 'Floor 1',
+      brand: 'HP',
+      model: 'HP EliteDesk 800',
+      serialNumber: 'HP789012345',
+      location: 'Floor 1',
+      site: 'Head Office',
       assignedTo: null,
+      department: null,
       warrantyStart: '2023-03-01',
       warrantyEnd: '2026-03-01',
       purchaseDate: '2023-03-01',
-      purchasePrice: '450.00',
-      notes: '4K monitor for design work'
+      purchasePrice: '850.00',
+      notes: 'Desktop computer'
     },
     {
       id: '3',
-      assetTag: 'FUR345678',
-      category: 'Furniture',
-      subcategory: 'Chair',
+      assetTag: 'EE-KBD-023',
+      category: 'External Equipment',
+      subcategory: 'Keyboard',
+      status: 'assigned',
+      brand: 'Logitech',
+      model: 'Logitech MX Keys',
+      serialNumber: 'LG345678901',
+      location: 'Floor 3',
+      site: 'Head Office',
+      assignedTo: 'Sarah Johnson',
+      department: 'HR',
+      warrantyStart: '2023-05-01',
+      warrantyEnd: '2026-05-01',
+      purchaseDate: '2023-05-01',
+      purchasePrice: '120.00',
+      notes: 'Wireless keyboard'
+    },
+    {
+      id: '4',
+      assetTag: 'EE-LCD-078',
+      category: 'External Equipment',
+      subcategory: 'LCD Monitor',
       status: 'maintenance',
-      brand: 'Herman Miller',
-      model: 'Aeron Chair',
-      serialNumber: 'HM345678901',
-      location: 'Office Building 2',
-      site: 'Floor 3',
-      assignedTo: 'Jane Smith',
-      warrantyStart: '2022-06-01',
-      warrantyEnd: '2025-06-01',
-      purchaseDate: '2022-06-01',
-      purchasePrice: '800.00',
-      notes: 'Ergonomic office chair - needs maintenance'
+      brand: 'Dell',
+      model: 'Dell UltraSharp U2720Q',
+      serialNumber: 'DL987654321',
+      location: 'Floor 4',
+      site: 'Branch Office',
+      assignedTo: null,
+      department: null,
+      warrantyStart: '2023-02-01',
+      warrantyEnd: '2026-02-01',
+      purchaseDate: '2023-02-01',
+      purchasePrice: '550.00',
+      notes: '4K monitor - under maintenance'
+    },
+    {
+      id: '5',
+      assetTag: 'CA-LAP-089',
+      category: 'Computer Assets',
+      subcategory: 'Laptop',
+      status: 'assigned',
+      brand: 'Apple',
+      model: 'MacBook Pro 16"',
+      serialNumber: 'AP123456789',
+      location: 'Floor 2',
+      site: 'Head Office',
+      assignedTo: 'Mike Wilson',
+      department: 'Marketing',
+      warrantyStart: '2023-06-01',
+      warrantyEnd: '2026-06-01',
+      purchaseDate: '2023-06-01',
+      purchasePrice: '2500.00',
+      notes: 'MacBook Pro for design team'
     }
   ]);
 
   const employees = [
-    { id: '1', name: 'John Doe' },
-    { id: '2', name: 'Jane Smith' },
-    { id: '3', name: 'Mike Johnson' }
+    { id: '1', name: 'John Smith' },
+    { id: '2', name: 'Sarah Johnson' },
+    { id: '3', name: 'Mike Wilson' },
+    { id: '4', name: 'Emma Davis' },
+    { id: '5', name: 'David Brown' }
   ];
 
   const handleAddAsset = () => {
@@ -150,20 +193,19 @@ const AssetsPage = () => {
 
   return (
     <div className="min-h-screen space-y-6">
-      {/* Page Header */}
-      <PageHeader
-        title="Asset Management"
-        description="Track and manage your company's assets and equipment"
-        actions={[
-          <Button
-            key="add-asset"
-            onClick={handleAddAsset}
-            icon={<Plus className="w-4 h-4" />}
-          >
-            Add Asset
-          </Button>
-        ]}
-      />
+      {/* Header Section */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-4xl font-bold text-neutral-900 mb-2">Asset Management</h1>
+          <p className="text-lg text-neutral-600">Track and manage all your company assets</p>
+        </div>
+        <Button
+          onClick={handleAddAsset}
+          icon={<Plus className="w-4 h-4" />}
+        >
+          + Add New Asset
+        </Button>
+      </div>
 
       {/* Asset Table */}
       <AssetTable
