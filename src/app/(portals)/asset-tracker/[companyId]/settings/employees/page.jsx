@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { Plus, Edit, Trash2, Users } from 'lucide-react';
 import { useCompany } from '@/lib/context/CompanyContext';
@@ -11,6 +11,7 @@ import Button from '@/components/common/Button';
 import Input from '@/components/common/Input';
 import Modal from '@/components/common/Modal';
 import Card from '@/components/common/Card';
+import { API_BASE_URL } from '@/lib/utils/constants';
 
 const EmployeesSettingsPage = () => {
   const params = useParams();
@@ -21,35 +22,8 @@ const EmployeesSettingsPage = () => {
   const [showAddEmployee, setShowAddEmployee] = useState(false);
   const [showEditEmployee, setShowEditEmployee] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
-  const [employees, setEmployees] = useState([
-    {
-      id: '1',
-      name: 'John Doe',
-      email: 'john.doe@company.com',
-      department: 'IT',
-      designation: 'Software Engineer',
-      biometricId: 'EMP001',
-      status: 'active'
-    },
-    {
-      id: '2',
-      name: 'Jane Smith',
-      email: 'jane.smith@company.com',
-      department: 'HR',
-      designation: 'HR Manager',
-      biometricId: 'EMP002',
-      status: 'active'
-    },
-    {
-      id: '3',
-      name: 'Mike Johnson',
-      email: 'mike.johnson@company.com',
-      department: 'Finance',
-      designation: 'Finance Analyst',
-      biometricId: 'EMP003',
-      status: 'active'
-    }
-  ]);
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -58,6 +32,53 @@ const EmployeesSettingsPage = () => {
     designation: '',
     biometricId: ''
   });
+
+  // Fetch employees from API
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        setLoading(true);
+        // Get selected company from sessionStorage
+        const selectedCompany = typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null;
+        
+        // Build API URL with company filter if available
+        let apiUrl = `${API_BASE_URL}/admin-users`;
+        if (selectedCompany) {
+          apiUrl += `?company=${encodeURIComponent(selectedCompany)}`;
+        }
+        
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        
+        if (data.success && data.users) {
+          // Transform users to employee format
+          const employeeList = data.users
+            .filter(user => user.active !== false)
+            .map(user => ({
+              id: user.id || user._id,
+              name: user.name || '',
+              email: user.email || '',
+              department: user.department || '',
+              designation: user.designation || '',
+              biometricId: user.employeeId || '',
+              status: user.active !== false ? 'active' : 'inactive',
+              company: user.company || ''
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+          
+          setEmployees(employeeList);
+          console.log(`[EmployeesSettings] Loaded ${employeeList.length} employees${selectedCompany ? ` for company: ${selectedCompany}` : ''}`);
+        }
+      } catch (error) {
+        console.error('Error fetching employees:', error);
+        toast.error('Failed to load employees');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchEmployees();
+  }, [toast]);
 
   const handleAddEmployee = () => {
     setFormData({
@@ -206,12 +227,18 @@ const EmployeesSettingsPage = () => {
 
       {/* Employee Table */}
       <Card>
-        <Table
-          columns={columns}
-          data={employees}
-          actions={actions}
-          emptyMessage="No employees found. Add employees to assign assets."
-        />
+        {loading ? (
+          <div className="p-8 text-center text-neutral-500">
+            Loading employees...
+          </div>
+        ) : (
+          <Table
+            columns={columns}
+            data={employees}
+            actions={actions}
+            emptyMessage="No employees found. Employees will be shown here based on the selected company."
+          />
+        )}
       </Card>
 
       {/* Add/Edit Employee Modal */}

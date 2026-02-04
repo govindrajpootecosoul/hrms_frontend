@@ -1,46 +1,79 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import PageHeader from '@/components/layout/PageHeader';
 import Button from '@/components/common/Button';
 import { ArrowLeft } from 'lucide-react';
 import AssetDetailView from '@/components/asset-tracker/AssetDetailView';
-
-// Pull assets from the list page mock to keep things consistent
-import { mockEmployees } from '@/lib/utils/hrmsMockData';
-
-const mockAssets = [
-  {
-    id: '1', assetTag: 'COM123456', category: 'Computer', subcategory: 'Laptop', status: 'assigned',
-    brand: 'Dell', model: 'Latitude 5520', serialNumber: 'DL123456789', location: 'Office Building 1', site: 'Floor 2',
-    assignedTo: 'John Doe', ram: '16GB DDR4', processor: 'Intel i7-10700K', storage: '512GB SSD',
-    warrantyStart: '2023-01-15', warrantyEnd: '2026-01-15', purchaseDate: '2023-01-15', purchasePrice: '1200.00',
-    notes: 'High-performance laptop for development work'
-  },
-  {
-    id: '2', assetTag: 'EXT789012', category: 'External Device', subcategory: 'Monitor', status: 'available',
-    brand: 'Samsung', model: '27" 4K Monitor', serialNumber: 'SM789012345', location: 'Office Building 1', site: 'Floor 1',
-    assignedTo: null, warrantyStart: '2023-03-01', warrantyEnd: '2026-03-01', purchaseDate: '2023-03-01', purchasePrice: '450.00',
-    notes: '4K monitor for design work'
-  }
-];
+import { API_BASE_URL } from '@/lib/utils/constants';
 
 const AssetDetailsPage = () => {
   const params = useParams();
   const router = useRouter();
   const { companyId, assetId } = params;
+  const [asset, setAsset] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const asset = useMemo(() => mockAssets.find(a => a.id === String(assetId)), [assetId]);
+  useEffect(() => {
+    const fetchAsset = async () => {
+      try {
+        setLoading(true);
+        // Get company name from sessionStorage for better filtering
+        const selectedCompany = typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null;
+        
+        // Use the new direct asset endpoint
+        let url = `${API_BASE_URL}/asset-tracker/assets/${encodeURIComponent(assetId)}?companyId=${companyId}`;
+        if (selectedCompany) {
+          url += `&company=${encodeURIComponent(selectedCompany)}`;
+        }
+        
+        const res = await fetch(url);
+        const data = await res.json();
+        
+        if (data?.success && data.data) {
+          setAsset(data.data);
+        } else {
+          // Fallback: try fetching all assets and searching
+          let fallbackUrl = `${API_BASE_URL}/asset-tracker/assets?companyId=${companyId}`;
+          if (selectedCompany) {
+            fallbackUrl += `&company=${encodeURIComponent(selectedCompany)}`;
+          }
+          const fallbackRes = await fetch(fallbackUrl);
+          const fallbackData = await fallbackRes.json();
+          if (fallbackData?.success && fallbackData.data) {
+            const found = fallbackData.data.find(a => {
+              const idMatch = a.id === String(assetId) || a._id?.toString() === String(assetId);
+              const tagMatch = a.assetTag && a.assetTag.toLowerCase() === String(assetId).toLowerCase();
+              return idMatch || tagMatch;
+            });
+            if (found) {
+              setAsset(found);
+            } else {
+              setAsset(null);
+            }
+          } else {
+            setAsset(null);
+          }
+        }
+      } catch (e) {
+        console.error('Error fetching asset:', e);
+        setAsset(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (assetId && companyId) fetchAsset();
+  }, [assetId, companyId]);
 
-  const handleBack = () => router.push(`/asset-tracker/${companyId}/assets`);
+  const handleBack = () => router.push(`/asset-tracker/${companyId}/dashboard`);
 
   return (
     <div className="min-h-screen space-y-6">
       <PageHeader
-        title={asset ? asset.assetTag : 'Asset'}
-        description={asset ? `${asset.brand} ${asset.model}` : 'Asset details'}
-        breadcrumbs={[{ label: 'Assets', href: `/asset-tracker/${companyId}/assets` }]}
+        title={asset ? (asset.assetTag || asset.id || 'Asset') : 'Asset'}
+        description={asset ? [asset.brand, asset.model].filter(Boolean).join(' ') || asset.processor || asset.assetTag || 'Asset details' : 'Asset details'}
+        breadcrumbs={[{ label: 'Dashboard', href: `/asset-tracker/${companyId}/dashboard` }]}
         leadingAction={
           <Button
             size="sm"
@@ -53,7 +86,13 @@ const AssetDetailsPage = () => {
       />
 
       <div className="mt-2">
-        {asset && <AssetDetailView asset={asset} />}
+        {loading ? (
+          <div className="py-8 text-center text-neutral-500">Loading asset...</div>
+        ) : asset ? (
+          <AssetDetailView asset={asset} />
+        ) : (
+          <div className="py-8 text-center text-neutral-500">Asset not found</div>
+        )}
       </div>
     </div>
   );

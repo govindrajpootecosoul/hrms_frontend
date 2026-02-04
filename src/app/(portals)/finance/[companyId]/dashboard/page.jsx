@@ -12,7 +12,8 @@ import {
   FolderOpen,
   File,
   ArrowLeft,
-  PackageSearch
+  PackageSearch,
+  Warehouse
 } from 'lucide-react';
 import Card from '@/components/common/Card';
 import Modal from '@/components/common/Modal';
@@ -94,6 +95,16 @@ const FinanceDashboard = () => {
       enabled: true
     },
     {
+      id: 'meir',
+      title: 'MEIR',
+      description: 'Month End Inventory Reconciliation',
+      icon: <Warehouse className="w-8 h-8" />,
+      color: 'from-amber-500 to-amber-600',
+      bgColor: 'bg-amber-50',
+      iconColor: 'text-amber-600',
+      enabled: true
+    },
+    {
       id: 'books-vs-gst-reconciliation',
       title: 'Books vs GST Reconciliation',
       description: 'Compare and reconcile books with GST records',
@@ -161,6 +172,8 @@ const FinanceDashboard = () => {
       return '/api/finance/amazon-gst-process/process';
     } else if (featureId === 'amazon-missing-shipment') {
       return '/api/finance/amazon-missing-shipment/process';
+    } else if (featureId === 'meir') {
+      return '/api/finance/meir/process';
     }
     return '/api/finance/amazon-tax-invoice/process'; // default
   };

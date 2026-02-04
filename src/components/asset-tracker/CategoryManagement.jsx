@@ -1,12 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Trash2, X, ChevronDown, ChevronRight } from 'lucide-react';
 import Button from '@/components/common/Button';
 import Modal from '@/components/common/Modal';
 import Input from '@/components/common/Input';
+import { useParams } from 'next/navigation';
 
 const CategoryManagement = () => {
+  const params = useParams();
+  const companyId = params?.companyId;
+  
   // Expand all categories by default
   const [expandedCategories, setExpandedCategories] = useState({
     '1': true,
@@ -17,44 +21,98 @@ const CategoryManagement = () => {
   const [showAddSubcategory, setShowAddSubcategory] = useState(null);
   const [newCategory, setNewCategory] = useState({ name: '', prefix: '' });
   const [newSubcategory, setNewSubcategory] = useState({ name: '', prefix: '' });
+  const [loading, setLoading] = useState(true);
 
-  // Static data matching the image
-  const [categories, setCategories] = useState([
-    {
-      id: '1',
-      name: 'Computer Assets',
-      prefix: 'CA',
-      subcategories: [
-        { id: '1-1', name: 'Laptop', prefix: 'LAP', tagPrefix: 'CA-LAP', assetCount: 145 },
-        { id: '1-2', name: 'Desktop', prefix: 'DESK', tagPrefix: 'CA-DESK', assetCount: 89 },
-        { id: '1-3', name: 'Server', prefix: 'SRV', tagPrefix: 'CA-SRV', assetCount: 12 },
-      ],
-      totalAssets: 246,
-    },
-    {
-      id: '2',
-      name: 'External Equipment',
-      prefix: 'EE',
-      subcategories: [
-        { id: '2-1', name: 'Keyboard', prefix: 'KBD', tagPrefix: 'EE-KBD', assetCount: 203 },
-        { id: '2-2', name: 'Mouse', prefix: 'MSE', tagPrefix: 'EE-MSE', assetCount: 198 },
-        { id: '2-3', name: 'Charger', prefix: 'CHG', tagPrefix: 'EE-CHG', assetCount: 87 },
-        { id: '2-4', name: 'LCD Monitor', prefix: 'LCD', tagPrefix: 'EE-LCD', assetCount: 156 },
-        { id: '2-5', name: 'Bag', prefix: 'BAG', tagPrefix: 'EE-BAG', assetCount: 45 },
-      ],
-      totalAssets: 689,
-    },
-    {
-      id: '3',
-      name: 'Office Supplies',
-      prefix: 'OS',
-      subcategories: [
-        { id: '3-1', name: 'Printer', prefix: 'PRT', tagPrefix: 'OS-PRT', assetCount: 23 },
-        { id: '3-2', name: 'Scanner', prefix: 'SCN', tagPrefix: 'OS-SCN', assetCount: 15 },
-      ],
-      totalAssets: 38,
-    },
-  ]);
+  const [categories, setCategories] = useState([]);
+
+  const saveCategories = async (nextCategories) => {
+    const payload = { companyId: companyId || 'default', categories: nextCategories };
+    const res = await fetch('/api/asset-tracker/settings/categories', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Failed to save categories');
+    
+    // Dispatch event to notify other components (like AssetForm) to refresh
+    window.dispatchEvent(new CustomEvent('asset-settings-categories-updated', {
+      detail: { categories: nextCategories }
+    }));
+  };
+
+  // Load categories from settings API
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const url = companyId
+          ? `/api/asset-tracker/settings/categories?companyId=${companyId}`
+          : '/api/asset-tracker/settings/categories';
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.success) {
+          const raw = Array.isArray(data.data?.categories) ? data.data.categories : [];
+          // Ensure assetCount fields exist for UI
+          const normalized = raw.map((c) => ({
+            ...c,
+            subcategories: (c.subcategories || []).map((s) => ({ ...s, assetCount: s.assetCount || 0 })),
+            totalAssets: c.totalAssets || 0,
+          }));
+          setCategories(normalized);
+        }
+      } catch (e) {
+        console.error('Failed to load category settings:', e);
+      }
+    };
+    load();
+  }, [companyId]);
+
+  // Fetch real asset counts from database
+  useEffect(() => {
+    const fetchAssetCounts = async () => {
+      try {
+        setLoading(true);
+        const url = companyId 
+          ? `/api/asset-tracker/category-counts?companyId=${companyId}`
+          : '/api/asset-tracker/category-counts';
+        
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (data.success && data.data) {
+          const { subcategoryCounts } = data.data;
+          
+          // Update categories with real counts
+          setCategories(prevCategories => 
+            prevCategories.map(category => {
+              let totalAssets = 0;
+              const updatedSubcategories = category.subcategories.map(subcategory => {
+                const count = subcategoryCounts[subcategory.tagPrefix] || 0;
+                totalAssets += count;
+                return {
+                  ...subcategory,
+                  assetCount: count,
+                };
+              });
+              
+              return {
+                ...category,
+                subcategories: updatedSubcategories,
+                totalAssets,
+              };
+            })
+          );
+        }
+      } catch (error) {
+        console.error('Error fetching asset counts:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Only fetch counts after categories are loaded
+    if (categories.length > 0) fetchAssetCounts();
+  }, [companyId, categories.length]);
 
   const toggleCategory = (categoryId) => {
     setExpandedCategories(prev => ({
@@ -65,13 +123,15 @@ const CategoryManagement = () => {
 
   const handleAddCategory = () => {
     if (newCategory.name && newCategory.prefix) {
-      setCategories(prev => [...prev, {
+      const next = [...categories, {
         id: Date.now().toString(),
         name: newCategory.name,
         prefix: newCategory.prefix.toUpperCase(),
         subcategories: [],
         totalAssets: 0,
-      }]);
+      }];
+      setCategories(next);
+      saveCategories(next).catch((e) => console.error('Failed to save categories:', e));
       setNewCategory({ name: '', prefix: '' });
       setShowAddCategory(false);
     }
@@ -82,7 +142,7 @@ const CategoryManagement = () => {
       const category = categories.find(cat => cat.id === categoryId);
       if (category) {
         const tagPrefix = `${category.prefix}-${newSubcategory.prefix.toUpperCase()}`;
-        setCategories(prev => prev.map(cat => 
+        const next = categories.map(cat => 
           cat.id === categoryId
             ? {
                 ...cat,
@@ -95,7 +155,9 @@ const CategoryManagement = () => {
                 }]
               }
             : cat
-        ));
+        );
+        setCategories(next);
+        saveCategories(next).catch((e) => console.error('Failed to save categories:', e));
         setNewSubcategory({ name: '', prefix: '' });
         setShowAddSubcategory(null);
       }
@@ -104,13 +166,15 @@ const CategoryManagement = () => {
 
   const handleDeleteCategory = (categoryId) => {
     if (confirm('Are you sure you want to delete this category? All subcategories will also be deleted.')) {
-      setCategories(prev => prev.filter(cat => cat.id !== categoryId));
+      const next = categories.filter((cat) => cat.id !== categoryId);
+      setCategories(next);
+      saveCategories(next).catch((e) => console.error('Failed to save categories:', e));
     }
   };
 
   const handleDeleteSubcategory = (categoryId, subcategoryId) => {
     if (confirm('Are you sure you want to delete this subcategory?')) {
-      setCategories(prev => prev.map(cat =>
+      const next = categories.map(cat =>
         cat.id === categoryId
           ? {
               ...cat,
@@ -118,7 +182,9 @@ const CategoryManagement = () => {
               totalAssets: cat.totalAssets - (cat.subcategories.find(sub => sub.id === subcategoryId)?.assetCount || 0),
             }
           : cat
-      ));
+      );
+      setCategories(next);
+      saveCategories(next).catch((e) => console.error('Failed to save categories:', e));
     }
   };
 
@@ -127,8 +193,8 @@ const CategoryManagement = () => {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-neutral-900 mb-1">Category Management</h2>
-          <p className="text-sm text-neutral-600">Manage asset categories, subcategories, and tag prefixes</p>
+          <h2 className="text-xl font-bold text-neutral-900 mb-1">Category Management</h2>
+          <p className="text-xs text-neutral-600">Manage asset categories, subcategories, and tag prefixes</p>
         </div>
         <Button
           onClick={() => setShowAddCategory(true)}

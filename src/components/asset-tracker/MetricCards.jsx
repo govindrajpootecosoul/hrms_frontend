@@ -9,38 +9,37 @@ const MetricCards = ({
   available = 0, 
   underMaintenance = 0,
   broken = 0,
-  loading = false 
+  loading = false,
+  onMetricClick,
 }) => {
   const metrics = [
     {
       title: 'Total Assets',
       value: totalAssets,
-      icon: <BarChart3 className="w-5 h-5" />,
+      icon: <BarChart3 className="w-4 h-4" />,
       color: 'blue',
-      trend: 'up',
-      trendText: '+12 this month'
+      key: 'total',
     },
     {
       title: 'Assigned Assets',
       value: assigned,
-      icon: <Percent className="w-5 h-5" />,
+      icon: <Percent className="w-4 h-4" />,
       color: 'blue',
-      trend: 'up',
-      trendText: '+8 this week'
+      key: 'assigned',
     },
     {
       title: 'Available Assets',
       value: available,
-      icon: <CheckCircle className="w-5 h-5" />,
+      icon: <CheckCircle className="w-4 h-4" />,
       color: 'green',
+      key: 'available',
     },
     {
       title: 'Under Maintenance',
       value: underMaintenance,
-      icon: <Wrench className="w-5 h-5" />,
+      icon: <Wrench className="w-4 h-4" />,
       color: 'orange',
-      trend: 'down',
-      trendText: '-3 from last week'
+      key: 'maintenance',
     }
   ];
 
@@ -65,16 +64,16 @@ const MetricCards = ({
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {Array.from({ length: 4 }).map((_, index) => (
-          <Card key={index} className="p-6">
+          <Card key={index} className="p-3">
             <div className="animate-pulse">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <div className="h-4 bg-neutral-200 rounded w-3/4 mb-2"></div>
-                  <div className="h-8 bg-neutral-200 rounded w-1/2"></div>
+                  <div className="h-3 bg-neutral-200 rounded w-3/4 mb-1"></div>
+                  <div className="h-5 bg-neutral-200 rounded w-1/2"></div>
                 </div>
-                <div className="w-12 h-12 bg-neutral-200 rounded-lg"></div>
+                <div className="w-8 h-8 bg-neutral-200 rounded-lg"></div>
               </div>
             </div>
           </Card>
@@ -84,19 +83,24 @@ const MetricCards = ({
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
       {metrics.map((metric, index) => {
         const styles = colorStyles[metric.color] || colorStyles.blue;
+        const clickable = typeof onMetricClick === 'function';
         return (
-          <Card key={index} className="p-6">
+          <Card
+            key={index}
+            className={`p-3 ${clickable ? 'cursor-pointer hover:opacity-95 transition-opacity' : ''}`}
+            onClick={clickable ? () => onMetricClick(metric.key) : undefined}
+          >
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <div className="text-sm font-medium text-neutral-500 mb-1">{metric.title}</div>
-                <div className={`text-3xl font-bold tracking-tight ${styles.valueText}`}>
+                <div className="text-xs font-medium text-neutral-500 mb-0.5">{metric.title}</div>
+                <div className={`text-lg font-bold tracking-tight ${styles.valueText}`}>
                   {metric.value.toLocaleString()}
                 </div>
                 {metric.trend && metric.trendText && (
-                  <div className={`mt-2 flex items-center gap-1 text-xs ${
+                  <div className={`mt-1 flex items-center gap-1 text-xs ${
                     metric.trend === 'up' ? 'text-emerald-600' : metric.trend === 'down' ? 'text-rose-600' : 'text-neutral-500'
                   }`}>
                     {metric.trend === 'up' ? (
@@ -109,7 +113,7 @@ const MetricCards = ({
                 )}
               </div>
               {metric.icon && (
-                <div className={`h-12 w-12 ${styles.iconBg} text-white rounded-lg flex items-center justify-center shadow-md`}>
+                <div className={`h-8 w-8 ${styles.iconBg} text-white rounded-lg flex items-center justify-center shadow-sm`}>
                   {metric.icon}
                 </div>
               )}

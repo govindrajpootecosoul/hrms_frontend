@@ -93,8 +93,8 @@ const SystemSettings = () => {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-neutral-900 mb-1">System Settings</h2>
-          <p className="text-sm text-neutral-600">Configure general system preferences and security settings</p>
+          <h2 className="text-xl font-bold text-neutral-900 mb-1">System Settings</h2>
+          <p className="text-xs text-neutral-600">Configure general system preferences and security settings</p>
         </div>
         <Button
           onClick={() => setIsEditing(!isEditing)}

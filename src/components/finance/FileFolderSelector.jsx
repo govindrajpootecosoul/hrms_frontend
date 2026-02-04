@@ -21,7 +21,8 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
   const isGstFeature = feature?.id === 'gst-reconcile';
   const isGstFileProcessing = feature?.id === 'gst-file-processing' || feature?.id === 'amazon-gst-process';
   const isMissingShipment = feature?.id === 'amazon-missing-shipment';
-  const allowedExtensions = isGstFeature || isGstFileProcessing || isMissingShipment ? ['.csv', '.xlsx', '.xls'] : ['.pdf'];
+  const isMeir = feature?.id === 'meir';
+  const allowedExtensions = isGstFeature || isGstFileProcessing || isMissingShipment || isMeir ? ['.csv', '.xlsx', '.xls'] : ['.pdf'];
   const acceptString = allowedExtensions.join(',');
 
   const MODE_REQUIREMENTS = {
@@ -203,6 +204,22 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
       }
     }
 
+    if (isMeir) {
+      if (selectedFiles.length !== 7) {
+        alert('Please select exactly 7 Excel files in this order:\n1. India Platform (Flipkart & Easy Ecomm)\n2. USA Platform (Walmart)\n3. 3G Warehouse Database\n4. Shipcube Inventory Database\n5. Updike Warehouse Database\n6. Amazon Inventory Database\n7. Container Data');
+        return;
+      }
+      // Validate all files are Excel files
+      const invalidFiles = selectedFiles.filter(file => {
+        const fileName = file.name?.toLowerCase() || '';
+        return !fileName.endsWith('.xlsx') && !fileName.endsWith('.xls');
+      });
+      if (invalidFiles.length > 0) {
+        alert('All MEIR files must be Excel files (.xlsx or .xls).');
+        return;
+      }
+    }
+
     setIsProcessing(true);
     setProgress(0);
     setProcessingStatus(`Uploading ${selectedFiles.length} file(s)...`);
@@ -228,7 +245,7 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
       }
 
       // Update status to processing
-      const fileTypeText = isGstFileProcessing ? 'Excel' : 'PDF';
+      const fileTypeText = isGstFileProcessing || isMeir ? 'Excel' : 'PDF';
       setProcessingStatus(`Processing ${selectedFiles.length} ${fileTypeText} file(s)...`);
       setFileStatuses(prev => prev.map(status => ({
         ...status,
@@ -259,9 +276,14 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
         })));
         
         const fileList = selectedFiles.map((f, idx) => `${idx + 1}. ${f.name}`).join('\n');
-        const fileTypeCheck = isGstFileProcessing 
-          ? '- All files are valid Excel files (.xlsx, .xls)\n- Files contain GST data'
-          : '- All files are valid PDF files\n- Files contain Amazon tax invoice data';
+        let fileTypeCheck = '';
+        if (isMeir) {
+          fileTypeCheck = '- All 7 files are valid Excel files (.xlsx, .xls)\n- Files are in correct order (India Platform, USA Platform, 3G, Shipcube, Updike, Amazon, Container)';
+        } else if (isGstFileProcessing) {
+          fileTypeCheck = '- All files are valid Excel files (.xlsx, .xls)\n- Files contain GST data';
+        } else {
+          fileTypeCheck = '- All files are valid PDF files\n- Files contain Amazon tax invoice data';
+        }
         alert(`Error: ${errorMessage}\n\nSelected Files:\n${fileList}\n\nPlease check:\n${fileTypeCheck}\n- Python and required packages are installed`);
         return;
       }
@@ -424,7 +446,7 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
         </div>
       </div>
 
-      {(isGstFeature || isGstFileProcessing || isMissingShipment) && (
+      {(isGstFeature || isGstFileProcessing || isMissingShipment || isMeir) && (
         <div className="space-y-2">
           {isGstFeature ? (
             <>
@@ -471,6 +493,22 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
                 Upload 1 CSV file (main_data) and 1 Excel file (country file) to find missing shipments.
               </p>
             </>
+          ) : isMeir ? (
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-neutral-700">MEIR File Requirements</p>
+              <p className="text-xs text-neutral-500">
+                Upload exactly 7 Excel files in this order:
+              </p>
+              <ol className="text-xs text-neutral-500 list-decimal list-inside space-y-1 ml-2">
+                <li>India Platform (with Flipkart & Easy Ecomm sheets)</li>
+                <li>USA Platform (with Walmart_invntory sheet)</li>
+                <li>3G Warehouse Database (with 3G-Inventory sheet)</li>
+                <li>Shipcube Inventory Database (with Inventory_S-D sheet)</li>
+                <li>Updike Warehouse Database (with Updk-Inveto sheet)</li>
+                <li>Amazon Inventory Database (Overall Supply Chain Inventory)</li>
+                <li>Container Data (with Container SKU sheet)</li>
+              </ol>
+            </div>
           ) : (
             <p className="text-xs text-neutral-500">
               Upload one or more GST Excel/CSV files; we will clean and merge them.

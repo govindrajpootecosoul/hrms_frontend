@@ -746,6 +746,119 @@ export const mockData = {
       ],
     },
   },
+  recruitment: {
+    analytics: {
+      kpis: {
+        totalCandidates: 45,
+        sourced: 28,
+        inInterview: 12,
+        hired: 8,
+        rejected: 5,
+      },
+      funnel: [
+        { stage: 'Sourced', count: 28 },
+        { stage: 'Screening', count: 20 },
+        { stage: 'Interview', count: 12 },
+        { stage: 'Offer', count: 10 },
+        { stage: 'Hired', count: 8 },
+      ],
+      sourceBreakdown: [
+        { name: 'LinkedIn', value: 18 },
+        { name: 'Referral', value: 12 },
+        { name: 'Job Portal', value: 10 },
+        { name: 'Campus', value: 5 },
+      ],
+      timeToHire: [
+        { month: 'Aug', days: 12 },
+        { month: 'Sep', days: 14 },
+        { month: 'Oct', days: 11 },
+        { month: 'Nov', days: 10 },
+        { month: 'Dec', days: 9 },
+        { month: 'Jan', days: 8 },
+      ],
+    },
+    sourcingCandidates: [
+      {
+        id: '1',
+        candidateName: 'John Doe',
+        contactNumber: '+91 9876543210',
+        email: 'john.doe@example.com',
+        currentOrganisation: 'Tech Corp',
+        education: 'B.Tech Computer Science',
+        totalExperience: '5 years',
+        assignedTo: 'Sarah Johnson',
+        status: 'Shortlisted',
+        source: 'LinkedIn',
+        appliedDate: '2025-01-10',
+        skills: ['React', 'Node.js', 'TypeScript'],
+      },
+      {
+        id: '2',
+        candidateName: 'Jane Smith',
+        contactNumber: '+91 9876543211',
+        email: 'jane.smith@example.com',
+        currentOrganisation: 'StartupXYZ',
+        education: 'M.Tech Software Engineering',
+        totalExperience: '3 years',
+        assignedTo: 'Mike Davis',
+        status: 'In Interview',
+        source: 'Referral',
+        appliedDate: '2025-01-08',
+        skills: ['Python', 'Django', 'PostgreSQL'],
+      },
+      {
+        id: '3',
+        candidateName: 'Robert Wilson',
+        contactNumber: '+91 9876543212',
+        email: 'robert.wilson@example.com',
+        currentOrganisation: 'BigTech Inc',
+        education: 'B.E Computer Science',
+        totalExperience: '7 years',
+        assignedTo: 'Sarah Johnson',
+        status: 'On Hold',
+        source: 'Job Portal',
+        appliedDate: '2025-01-05',
+        skills: ['Java', 'Spring Boot', 'Microservices'],
+      },
+    ],
+    hiringCandidates: [
+      {
+        id: '1',
+        candidateName: 'John Doe',
+        contactNumber: '+91 9876543210',
+        email: 'john.doe@example.com',
+        position: 'Senior Software Engineer',
+        status: 'Hired',
+        offerDate: '2025-01-15',
+        joiningDate: '2025-02-01',
+      },
+      {
+        id: '2',
+        candidateName: 'Jane Smith',
+        contactNumber: '+91 9876543211',
+        email: 'jane.smith@example.com',
+        position: 'Full Stack Developer',
+        status: 'Rejected',
+        rejectionReason: 'Technical skills mismatch',
+      },
+    ],
+    onboardingCandidates: [
+      {
+        id: '1',
+        candidateName: 'John Doe',
+        position: 'Senior Software Engineer',
+        stages: {
+          offer: { status: 'completed', date: '2025-01-15' },
+          form: { status: 'completed', date: '2025-01-16' },
+          verification: { status: 'in-progress', date: '2025-01-17' },
+          assetAllocation: { status: 'pending', date: null },
+          probation: { status: 'pending', date: null },
+          welcome: { status: 'pending', date: null },
+        },
+        joiningDate: '2025-02-01',
+      },
+    ],
+  },
 };
 
 // Helper function to use mock data when backend is unavailable
@@ -805,6 +918,30 @@ export async function apiCall(endpoint: string, options: any = {}) {
       }
       if (endpoint === '/expenses/reports/summary') {
         return { data: mockData.expensesModule.reports };
+      }
+      if (endpoint === '/recruitment/analytics') {
+        return { data: mockData.recruitment.analytics };
+      }
+      if (endpoint === '/recruitment/sourcing') {
+        return { data: mockData.recruitment.sourcingCandidates };
+      }
+      if (endpoint === '/recruitment/hiring') {
+        return { data: mockData.recruitment.hiringCandidates };
+      }
+      if (endpoint === '/recruitment/onboarding') {
+        return { data: mockData.recruitment.onboardingCandidates };
+      }
+      if (endpoint === '/dashboard/monthly-headcounts') {
+        return { data: mockData.dashboard.monthlyHeadcounts };
+      }
+      if (endpoint === '/dashboard/upcoming-leaves-festivals') {
+        return { data: mockData.dashboard.upcomingLeavesAndFestivals };
+      }
+      if (endpoint === '/dashboard/birthday-calendar') {
+        return { data: mockData.dashboard.birthdayCalendar };
+      }
+      if (endpoint === '/dashboard/work-anniversary-calendar') {
+        return { data: mockData.dashboard.workAnniversaryCalendar };
       }
       
       // Return empty array for list endpoints

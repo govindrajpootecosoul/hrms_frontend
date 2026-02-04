@@ -7,6 +7,7 @@ import Button from '@/components/common/Button';
 import Badge from '@/components/common/Badge';
 import { Progress } from '@/components/common/Skeleton';
 import { API_BASE_URL } from '@/lib/utils/constants';
+import { getCompanyFromEmail } from '@/lib/config/database.config';
 import {
   Clock,
   Play,
@@ -20,7 +21,7 @@ import {
   HeartPulse,
   PartyPopper,
 } from 'lucide-react';
-import { mockOrgChart, mockEmployees } from '@/lib/utils/hrmsMockData';
+// Removed mock data - using live data from backend
 
 const WORKDAY_TARGET_MINUTES = 8 * 60;
 
@@ -58,6 +59,20 @@ const EmployeePortalHome = () => {
   const [loadingData, setLoadingData] = useState(false);
   const [timeState, setTimeState] = useState(() => loadInitialState());
   const [now, setNow] = useState(new Date());
+  const [selectedCompany, setSelectedCompany] = useState(null);
+
+  // Auto-detect company from user email
+  useEffect(() => {
+    if (user?.email) {
+      const company = getCompanyFromEmail(user.email);
+      if (company) {
+        setSelectedCompany(company);
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('selectedCompany', company);
+        }
+      }
+    }
+  }, [user]);
 
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 1000);
@@ -89,14 +104,20 @@ const EmployeePortalHome = () => {
       if (!user?.employeeId) return;
       try {
         const token = localStorage.getItem('auth_token');
-        const res = await fetch(
-          `${API_BASE_URL}/employee-portal/checkin/status?employeeId=${encodeURIComponent(user.employeeId)}`,
-          {
-            headers: {
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
-          }
-        );
+        // Get company from state or sessionStorage
+        const company = selectedCompany || (typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null);
+        
+        // Build API URL with company parameter
+        let apiUrl = `${API_BASE_URL}/employee-portal/checkin/status?employeeId=${encodeURIComponent(user.employeeId)}`;
+        if (company) {
+          apiUrl += `&company=${encodeURIComponent(company)}`;
+        }
+        
+        const res = await fetch(apiUrl, {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
         if (res.ok) {
           const json = await res.json();
           if (json?.success && json?.data) {
@@ -121,7 +142,7 @@ const EmployeePortalHome = () => {
     // Refresh check-in status every 30 seconds to keep it in sync
     const interval = setInterval(fetchCheckInStatus, 30000);
     return () => clearInterval(interval);
-  }, [user?.employeeId]); // Only re-run when employeeId changes
+  }, [user?.employeeId, selectedCompany]); // Re-run when employeeId or company changes
 
   // Fetch dashboard data from backend (fallback to static if unavailable)
   useEffect(() => {
@@ -130,14 +151,20 @@ const EmployeePortalHome = () => {
       try {
         setLoadingData(true);
         const token = localStorage.getItem('auth_token');
-        const res = await fetch(
-          `${API_BASE_URL}/employee-portal/dashboard?employeeId=${encodeURIComponent(user.employeeId || 'default')}`,
-          {
-            headers: {
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
-          }
-        );
+        // Get company from state or sessionStorage
+        const company = selectedCompany || (typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null);
+        
+        // Build API URL with company parameter
+        let apiUrl = `${API_BASE_URL}/employee-portal/dashboard?employeeId=${encodeURIComponent(user.employeeId || 'default')}`;
+        if (company) {
+          apiUrl += `&company=${encodeURIComponent(company)}`;
+        }
+        
+        const res = await fetch(apiUrl, {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
         if (res.ok) {
           const json = await res.json();
           if (json?.success && json?.data) {
@@ -153,7 +180,7 @@ const EmployeePortalHome = () => {
       }
     };
     fetchDashboard();
-  }, [user]);
+  }, [user, selectedCompany]);
 
   const greeting = useMemo(() => {
     const hours = now.getHours();
@@ -162,9 +189,15 @@ const EmployeePortalHome = () => {
     return 'Good evening';
   }, [now]);
 
+  // Use live user data instead of mock data
   const employeeProfile = useMemo(() => {
-    if (!user?.id) return null;
-    return mockEmployees.find((emp) => emp.email === user.email) || null;
+    if (!user) return null;
+    return {
+      designation: user.department || 'Team Member',
+      department: user.department || '',
+      name: user.name || '',
+      email: user.email || '',
+    };
   }, [user]);
 
   const handleToggleCheck = async () => {
@@ -181,14 +214,20 @@ const EmployeePortalHome = () => {
       const fetchCheckInStatus = async () => {
         try {
           const token = localStorage.getItem('auth_token');
-          const res = await fetch(
-            `${API_BASE_URL}/employee-portal/checkin/status?employeeId=${encodeURIComponent(user.employeeId)}`,
-            {
-              headers: {
-                ...(token ? { Authorization: `Bearer ${token}` } : {}),
-              },
-            }
-          );
+          // Get company from state or sessionStorage
+          const company = selectedCompany || (typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null);
+          
+          // Build API URL with company parameter
+          let apiUrl = `${API_BASE_URL}/employee-portal/checkin/status?employeeId=${encodeURIComponent(user.employeeId)}`;
+          if (company) {
+            apiUrl += `&company=${encodeURIComponent(company)}`;
+          }
+          
+          const res = await fetch(apiUrl, {
+            headers: {
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+          });
           if (res.ok) {
             const json = await res.json();
             if (json?.success && json?.data) {
@@ -213,10 +252,20 @@ const EmployeePortalHome = () => {
 
     const token = localStorage.getItem('auth_token');
     const isCheckingIn = timeState.status === 'checked-out';
+    
+    // Get company from state or sessionStorage
+    const company = selectedCompany || (typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null);
 
     try {
       const endpoint = isCheckingIn ? '/checkin' : '/checkout';
-      const res = await fetch(`${API_BASE_URL}/employee-portal${endpoint}`, {
+      
+      // Build API URL with company parameter
+      let apiUrl = `${API_BASE_URL}/employee-portal${endpoint}`;
+      if (company) {
+        apiUrl += `?company=${encodeURIComponent(company)}`;
+      }
+      
+      const res = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -228,31 +277,58 @@ const EmployeePortalHome = () => {
       if (res.ok) {
         const json = await res.json();
         if (json?.success) {
-          const timestamp = new Date().toISOString();
-          if (isCheckingIn) {
-            setTimeState((prev) => ({
-              date: getTodayKey(),
-              status: 'checked-in',
-              checkInTime: json.data.checkInTime || timestamp,
-              totalMinutes: 0, // Reset for new check-in
-              history: [{ action: 'Checked in', time: timestamp }, ...(prev.history || [])].slice(0, 6),
-              employeeId: user.employeeId, // Ensure employeeId is set
-            }));
-          } else {
-            const totalMinutes = json.data.totalMinutes || 0;
-            const sessionHours = totalMinutes / 60;
-            setTimeState((prev) => ({
-              ...prev,
-              status: 'checked-out',
-              checkInTime: null,
-              totalMinutes: totalMinutes,
-              history: [
-                { action: 'Checked out', time: timestamp, meta: `${sessionHours.toFixed(1)} hrs logged` },
-                ...(prev.history || []),
-              ].slice(0, 6),
-              employeeId: user.employeeId, // Ensure employeeId is set
-            }));
-          }
+          // Refresh status from backend to ensure consistency
+          const refreshStatus = async () => {
+            try {
+              let statusUrl = `${API_BASE_URL}/employee-portal/checkin/status?employeeId=${encodeURIComponent(user.employeeId)}`;
+              if (company) {
+                statusUrl += `&company=${encodeURIComponent(company)}`;
+              }
+              
+              const statusRes = await fetch(statusUrl, {
+                headers: {
+                  ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+              });
+              
+              if (statusRes.ok) {
+                const statusJson = await statusRes.json();
+                if (statusJson?.success && statusJson?.data) {
+                  const { status, checkInTime, totalMinutes } = statusJson.data;
+                  const timestamp = new Date().toISOString();
+                  
+                  if (isCheckingIn) {
+                    setTimeState({
+                      date: getTodayKey(),
+                      status: 'checked-in',
+                      checkInTime: checkInTime || timestamp,
+                      totalMinutes: 0,
+                      history: [{ action: 'Checked in', time: timestamp }],
+                      employeeId: user.employeeId,
+                    });
+                  } else {
+                    const sessionHours = totalMinutes / 60;
+                    setTimeState({
+                      date: getTodayKey(),
+                      status: 'checked-out',
+                      checkInTime: null,
+                      totalMinutes: totalMinutes,
+                      history: [
+                        { action: 'Checked out', time: timestamp, meta: `${sessionHours.toFixed(1)} hrs logged` },
+                      ],
+                      employeeId: user.employeeId,
+                    });
+                  }
+                }
+              }
+            } catch (refreshErr) {
+              console.error('Failed to refresh status after check-in/out:', refreshErr);
+            }
+          };
+          
+          await refreshStatus();
+        } else {
+          alert(json.error || `Failed to ${isCheckingIn ? 'check in' : 'check out'}`);
         }
       } else {
         const errorData = await res.json().catch(() => ({}));
@@ -264,59 +340,20 @@ const EmployeePortalHome = () => {
     }
   };
 
-  const fallbackData = {
-    announcements: [
-      { id: 'ann1', title: 'FY25 Kickoff Townhall', date: '2025-01-21', type: 'event', audience: 'All employees' },
-      { id: 'ann2', title: 'Cybersecurity Refresher Due Friday', date: '2025-01-17', type: 'reminder', audience: 'Product & Tech' },
-      { id: 'ann3', title: 'People Pulse Survey Results', date: '2025-01-15', type: 'update', audience: 'Company-wide' },
-    ],
-    attendanceTrend: [
-      { day: 'Mon', status: 'Present', hours: 8.2 },
-      { day: 'Tue', status: 'Present', hours: 7.9 },
-      { day: 'Wed', status: 'WFH', hours: 8.5 },
-      { day: 'Thu', status: 'Present', hours: 8.1 },
-      { day: 'Fri', status: 'Present', hours: 6.4 },
-      { day: 'Sat', status: 'Weekend', hours: 0 },
-      { day: 'Sun', status: 'Weekend', hours: 0 },
-    ],
-    quickStats: {
-      leaveBalance: 12,
-      upcomingShift: '09:30 AM Tomorrow',
-      pendingRequests: 1,
-      lastPayout: 'Jan 5, 2025',
-    },
-    requestHistory: [
-      { id: 'REQ-2831', type: 'Leave', status: 'Approved', submitted: 'Jan 12', details: '2 days - Personal errand' },
-      { id: 'REQ-2842', type: 'WFH', status: 'Pending', submitted: 'Jan 15', details: 'Client calls from home' },
-      { id: 'EXP-9921', type: 'Expense', status: 'Paid', submitted: 'Jan 08', details: 'Client dinner - ₹2,150' },
-    ],
-    assets: [
-      { name: 'MacBook Pro 14"', tag: 'IT-45821', status: 'In Use' },
-      { name: 'Access Card HQ-12F', tag: 'SEC-1893', status: 'In Use' },
-    ],
-    learningJourneys: [
-      { id: 'lj1', title: 'AI for HR Leaders', progress: 68, due: 'Feb 28', badge: 'In progress' },
-      { id: 'lj2', title: 'Advanced Presentation Storytelling', progress: 42, due: 'Mar 12', badge: 'New' },
-      { id: 'lj3', title: 'Wellbeing Micro-habits', progress: 90, due: 'Feb 05', badge: 'Almost done' },
-    ],
-    kudos: [
-      { id: 'k1', from: 'Priya S.', message: 'Thanks for stepping in on the West Coast client review!', date: 'Jan 17' },
-      { id: 'k2', from: 'Rohit P.', message: 'Your demo deck helped us close the enterprise pilot.', date: 'Jan 14' },
-    ],
-    communityHighlights: [
-      { id: 'ch1', title: 'Wellness Wednesday: Breathwork workshop', time: 'Jan 24 • 4:00 PM', location: 'Townhall' },
-      { id: 'ch2', title: 'Product Jam: Ideas that shipped in Q4', time: 'Jan 27 • 11:30 AM', location: 'Zoom' },
-    ],
+  // Use live data from backend, show empty arrays if data not loaded yet
+  const announcements = dashboardData?.announcements || [];
+  const attendanceTrend = dashboardData?.attendanceTrend || [];
+  const quickStats = dashboardData?.quickStats || {
+    leaveBalance: 0,
+    upcomingShift: 'Not scheduled',
+    pendingRequests: 0,
+    lastPayout: 'N/A',
   };
-
-  const announcements = dashboardData?.announcements || fallbackData.announcements;
-  const attendanceTrend = dashboardData?.attendanceTrend || fallbackData.attendanceTrend;
-  const quickStats = dashboardData?.quickStats || fallbackData.quickStats;
-  const requestHistory = dashboardData?.requestHistory || fallbackData.requestHistory;
-  const assets = dashboardData?.assets || fallbackData.assets;
-  const learningJourneys = dashboardData?.learningJourneys || fallbackData.learningJourneys;
-  const kudos = dashboardData?.kudos || fallbackData.kudos;
-  const communityHighlights = dashboardData?.communityHighlights || fallbackData.communityHighlights;
+  const requestHistory = dashboardData?.requestHistory || [];
+  const assets = dashboardData?.assets || [];
+  const learningJourneys = dashboardData?.learningJourneys || [];
+  const kudos = dashboardData?.kudos || [];
+  const communityHighlights = dashboardData?.communityHighlights || [];
 
   return (
     <div className="space-y-6">

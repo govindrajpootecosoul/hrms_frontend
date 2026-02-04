@@ -2,7 +2,7 @@
 
 import Card from '@/components/common/Card';
 
-const StatusOverviewCard = ({ status, count, color, icon }) => {
+const StatusOverviewCard = ({ status, count, color, icon, onClick }) => {
   const colorStyles = {
     blue: {
       bg: 'bg-blue-50',
@@ -33,15 +33,23 @@ const StatusOverviewCard = ({ status, count, color, icon }) => {
   const styles = colorStyles[color] || colorStyles.blue;
 
   return (
-    <div className={`rounded-lg ${styles.bg} border ${styles.border} p-4 flex items-center gap-3`}>
-      <div className={`h-10 w-10 ${styles.iconBg} text-white rounded-lg flex items-center justify-center flex-shrink-0`}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full text-left rounded-lg ${styles.bg} border ${styles.border} p-2 flex items-center gap-2 ${
+        onClick ? 'cursor-pointer hover:opacity-95 transition-opacity' : 'cursor-default'
+      }`}
+      aria-label={onClick ? `View ${status} assets` : undefined}
+      disabled={!onClick}
+    >
+      <div className={`h-6 w-6 ${styles.iconBg} text-white rounded-lg flex items-center justify-center flex-shrink-0`}>
         {icon}
       </div>
       <div className="flex-1">
-        <div className={`text-2xl font-bold ${styles.text}`}>{count}</div>
-        <div className="text-sm text-neutral-600">{status}</div>
+        <div className={`text-base font-bold ${styles.text}`}>{count}</div>
+        <div className="text-xs text-neutral-600">{status}</div>
       </div>
-    </div>
+    </button>
   );
 };
 

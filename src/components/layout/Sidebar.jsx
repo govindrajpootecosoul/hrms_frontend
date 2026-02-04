@@ -20,6 +20,10 @@ import {
   Wallet,
   CheckSquare,
   FileCheck,
+  Briefcase,
+  CreditCard,
+  ClipboardList,
+  ListChecks,
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, onClose, menuItems = [] }) => {
@@ -202,64 +206,74 @@ export const HRMS_MENU_ITEMS = [
     icon: <Users className="w-5 h-5" />
   },
   {
-    id: 'attendance',
-    label: 'Attendance',
-    path: '/hrms/attendance',
-    icon: <Clock className="w-5 h-5" />
-  },
-  {
-    id: 'leaves',
-    label: 'Leaves',
-    path: '/hrms/leaves',
-    icon: <Package className="w-5 h-5" />
-  },
-  {
     id: 'organisation-chart',
     label: 'Organisation Chart',
     path: '/hrms/organisation-chart',
     icon: <Network className="w-5 h-5" />
   },
   {
+    id: 'attendance',
+    label: 'Attendance & Leave',
+    path: '/hrms/attendance',
+    icon: <Clock className="w-5 h-5" />,
+    children: [
+      {
+        id: 'attendance-overview',
+        label: 'Attendance Overview',
+        path: '/hrms/attendance/overview',
+        icon: <Clock className="w-4 h-4" />
+      },
+      {
+        id: 'attendance-leave',
+        label: 'Leave Management',
+        path: '/hrms/attendance/leave',
+        icon: <FileCheck className="w-4 h-4" />
+      }
+    ]
+  },
+  {
     id: 'recruitment',
     label: 'Recruitment',
     path: '/hrms/recruitment',
-    icon: <Users className="w-5 h-5" />
-  },
-  {
-    id: 'expenses',
-    label: 'Expenses and Reimbursement',
-    path: '/hrms/expenses',
-    icon: <Receipt className="w-5 h-5" />,
+    icon: <Briefcase className="w-5 h-5" />,
     children: [
       {
-        id: 'expenses-overview',
-        label: 'Overview',
-        path: '/hrms/expenses',
+        id: 'recruitment-analytics',
+        label: 'HR Analytics',
+        path: '/hrms/recruitment/analytics',
         icon: <BarChart3 className="w-4 h-4" />
       },
       {
-        id: 'expenses-expenses',
-        label: 'Expenses',
-        path: '/hrms/expenses/expenses',
-        icon: <Receipt className="w-4 h-4" />
+        id: 'recruitment-recruitment',
+        label: 'Recruitment',
+        path: '/hrms/recruitment/recruitment',
+        icon: <Users className="w-4 h-4" />
+      }
+    ]
+  },
+  {
+    id: 'expenses',
+    label: 'Expense & Reimbursement',
+    path: '/hrms/expenses',
+    icon: <CreditCard className="w-5 h-5" />,
+    children: [
+      {
+        id: 'expenses-overview',
+        label: 'Overview Dashboard',
+        path: '/hrms/expenses/overview',
+        icon: <BarChart3 className="w-4 h-4" />
       },
       {
-        id: 'expenses-advances',
-        label: 'Advances',
-        path: '/hrms/expenses/advances',
-        icon: <Wallet className="w-4 h-4" />
+        id: 'expenses-expenses-advances',
+        label: 'Expenses & Advances',
+        path: '/hrms/expenses/expenses-advances',
+        icon: <ClipboardList className="w-4 h-4" />
       },
       {
-        id: 'expenses-approvals',
-        label: 'Approvals',
-        path: '/hrms/expenses/approvals',
-        icon: <CheckSquare className="w-4 h-4" />
-      },
-      {
-        id: 'expenses-claims-policies',
-        label: 'Claims and Policies',
-        path: '/hrms/expenses/claims-policies',
-        icon: <FileCheck className="w-4 h-4" />
+        id: 'expenses-management',
+        label: 'Management',
+        path: '/hrms/expenses/management',
+        icon: <ListChecks className="w-4 h-4" />
       }
     ]
   },

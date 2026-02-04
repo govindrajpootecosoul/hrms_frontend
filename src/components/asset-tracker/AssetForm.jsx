@@ -1,17 +1,24 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useParams } from 'next/navigation';
 import { Link as LinkIcon, Calendar, ChevronDown } from 'lucide-react';
 import Button from '@/components/common/Button';
 import Input from '@/components/common/Input';
 import Select from '@/components/common/Select';
+import EmployeeSelect from '@/components/common/EmployeeSelect';
+import { API_BASE_URL } from '@/lib/utils/constants';
 
 const AssetForm = ({ 
   asset = null, 
   onSubmit, 
   onCancel, 
-  loading = false 
+  loading = false,
+  onOpen,
+  companyId: propCompanyId = null
 }) => {
+  const params = useParams();
+  const companyId = propCompanyId || params?.companyId || 'default';
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     // Step 1: Basic Info
@@ -20,6 +27,8 @@ const AssetForm = ({
     site: asset?.site || '',
     location: asset?.location || '',
     status: asset?.status || 'available',
+    assignedTo: asset?.assignedTo || '',
+    department: asset?.department || '',
     
     // Step 2: Specifications
     brand: asset?.brand || '',
@@ -34,32 +43,131 @@ const AssetForm = ({
     warrantyStart: asset?.warrantyStart || '',
     warrantyMonths: asset?.warrantyMonths || '',
     warrantyExpire: asset?.warrantyExpire || '',
+    purchaseDate: asset?.purchaseDate || '',
+    purchasePrice: asset?.purchasePrice || '',
+    notes: asset?.notes || '',
   });
 
   const [errors, setErrors] = useState({});
-  const [assetTagId, setAssetTagId] = useState('');
+  const [assetTagId, setAssetTagId] = useState(asset?.assetTag || '');
   const [selectOpen, setSelectOpen] = useState({});
+  const [usersData, setUsersData] = useState([]);
+  const [settingsCategories, setSettingsCategories] = useState([]);
+  const [settingsLocations, setSettingsLocations] = useState([]);
+  const isEditMode = !!asset;
 
-  // Category and Sub-Category mapping with Tag ID prefixes
-  const categoryMapping = {
-    'Computer Assets': {
-      'Laptop': 'CA-LAP',
-      'Desktop': 'CA-DESK',
-    },
-    'External Equipment': {
-      'Bag': 'EE-BAG',
-      'Charger': 'EE-CHG',
-      'Keyboard': 'EE-KBD',
-      'LCD-Monitors': 'EE-LCD',
-      'Mouse': 'EE-MSE',
-    },
+  // Fetch users data for auto-filling department
+  useEffect(() => {
+    const fetchUsersData = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/admin-users`);
+        const data = await response.json();
+        if (data.success && data.users) {
+          // Store users data for auto-fill department
+          setUsersData(data.users.filter(user => user.active !== false));
+        }
+      } catch (error) {
+        console.error('Error fetching users data:', error);
+      }
+    };
+    fetchUsersData();
+  }, []);
+
+  // Function to load categories
+  const loadCategories = async () => {
+    try {
+      const url = companyId 
+        ? `/api/asset-tracker/settings/categories?companyId=${companyId}`
+        : '/api/asset-tracker/settings/categories';
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        const categories = Array.isArray(data.data?.categories) ? data.data.categories : [];
+        console.log('[AssetForm] Loaded categories:', categories.length, 'for companyId:', companyId);
+        setSettingsCategories(categories);
+      } else {
+        console.error('[AssetForm] Failed to load categories:', data.error);
+      }
+    } catch (e) {
+      console.error('[AssetForm] Error loading categories settings:', e);
+    }
   };
 
-  const categoryOptions = [
-    { value: '', label: 'Select Category' },
-    { value: 'Computer Assets', label: 'Computer Assets' },
-    { value: 'External Equipment', label: 'External Equipment' },
-  ];
+  // Function to load locations
+  const loadLocations = async () => {
+    try {
+      const url = companyId 
+        ? `/api/asset-tracker/settings/locations?companyId=${companyId}`
+        : '/api/asset-tracker/settings/locations';
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        const locations = Array.isArray(data.data?.locations) ? data.data.locations : [];
+        console.log('[AssetForm] Loaded locations:', locations.length, 'for companyId:', companyId);
+        setSettingsLocations(locations);
+      } else {
+        console.error('[AssetForm] Failed to load locations:', data.error);
+      }
+    } catch (e) {
+      console.error('[AssetForm] Error loading locations settings:', e);
+    }
+  };
+
+  // Load settings-driven categories and locations on mount and when companyId changes
+  useEffect(() => {
+    loadCategories();
+    loadLocations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyId]);
+
+  // Refresh when asset prop changes (form opened for editing or new asset)
+  useEffect(() => {
+    // Refresh data when form opens to get latest categories/locations
+    loadCategories();
+    loadLocations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [asset]);
+
+  // Listen for settings updates (real-time refresh)
+  useEffect(() => {
+    const handleCategoriesUpdate = () => {
+      console.log('[AssetForm] Categories updated, refreshing...');
+      loadCategories();
+    };
+
+    const handleLocationsUpdate = () => {
+      console.log('[AssetForm] Locations updated, refreshing...');
+      loadLocations();
+    };
+
+    // Listen for custom events when settings are saved
+    window.addEventListener('asset-settings-categories-updated', handleCategoriesUpdate);
+    window.addEventListener('asset-settings-locations-updated', handleLocationsUpdate);
+
+    return () => {
+      window.removeEventListener('asset-settings-categories-updated', handleCategoriesUpdate);
+      window.removeEventListener('asset-settings-locations-updated', handleLocationsUpdate);
+    };
+  }, []);
+
+  const categoryMapping = useMemo(() => {
+    // { [categoryName]: { [subcategoryName]: tagPrefix } }
+    const mapping = {};
+    settingsCategories.forEach((cat) => {
+      mapping[cat.name] = {};
+      (cat.subcategories || []).forEach((sub) => {
+        mapping[cat.name][sub.name] = sub.tagPrefix;
+      });
+    });
+    return mapping;
+  }, [settingsCategories]);
+
+  const categoryOptions = useMemo(() => {
+    return [
+      { value: '', label: 'Select Category' },
+      ...settingsCategories.map((c) => ({ value: c.name, label: c.name })),
+    ];
+  }, [settingsCategories]);
 
   const getSubcategoryOptions = () => {
     if (!formData.category) return [{ value: '', label: 'Select Sub Category' }];
@@ -74,18 +182,15 @@ const AssetForm = ({
     ];
   };
 
-  const siteOptions = [
-    { value: '', label: 'Select Site' },
-    { value: 'Head Office', label: 'Head Office' },
-    { value: 'Branch Office', label: 'Branch Office' },
-    { value: 'Warehouse', label: 'Warehouse' },
-  ];
+  const siteOptions = useMemo(() => {
+    const sites = settingsLocations.filter((l) => l.type === 'Site');
+    return [{ value: '', label: 'Select Site' }, ...sites.map((s) => ({ value: s.name, label: s.name }))];
+  }, [settingsLocations]);
 
-  const locationOptions = [
-    { value: '', label: 'Select Location' },
-    { value: 'India', label: 'India' },
-    { value: 'USA', label: 'USA' },
-  ];
+  const locationOptions = useMemo(() => {
+    const locs = settingsLocations.filter((l) => l.type === 'Location');
+    return [{ value: '', label: 'Select Location' }, ...locs.map((l) => ({ value: l.name, label: l.name }))];
+  }, [settingsLocations]);
 
   const statusOptions = [
     { value: 'available', label: 'Available' },
@@ -94,9 +199,9 @@ const AssetForm = ({
     { value: 'broken', label: 'Broken' },
   ];
 
-  // Generate Asset Tag ID when category and subcategory are selected
+  // Generate Asset Tag ID when category and subcategory are selected (only for new assets)
   useEffect(() => {
-    if (formData.category && formData.subcategory) {
+    if (!isEditMode && formData.category && formData.subcategory) {
       const prefix = categoryMapping[formData.category]?.[formData.subcategory];
       if (prefix) {
         // Generate a random 3-digit number
@@ -105,10 +210,8 @@ const AssetForm = ({
       } else {
         setAssetTagId('');
       }
-    } else {
-      setAssetTagId('');
     }
-  }, [formData.category, formData.subcategory]);
+  }, [formData.category, formData.subcategory, isEditMode]);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({
@@ -168,9 +271,11 @@ const AssetForm = ({
     if (validateStep(currentStep)) {
       onSubmit({
         ...formData,
-        assetTag: assetTagId,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        assetTag: isEditMode ? (asset?.assetTag || assetTagId) : assetTagId,
+        ...(isEditMode ? { updatedAt: new Date().toISOString() } : { 
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        })
       });
     }
   };
@@ -276,12 +381,12 @@ const AssetForm = ({
           {/* Generated Asset Tag ID */}
           <div className="md:col-span-2 space-y-1">
             <label className="block text-xs font-medium text-neutral-700">
-              Generated Asset Tag ID
+              Asset Tag ID
             </label>
             <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg">
               <LinkIcon className="w-3 h-3 text-blue-600 flex-shrink-0" />
               <span className="text-xs font-mono text-blue-900">
-                {assetTagId || 'Select Category and Sub Category to generate'}
+                {isEditMode ? (asset?.assetTag || assetTagId) : (assetTagId || 'Select Category and Sub Category to generate')}
               </span>
             </div>
           </div>
@@ -289,26 +394,44 @@ const AssetForm = ({
           {renderCompactSelect('site', 'Site', true)}
           {renderCompactSelect('location', 'Location', true)}
           {renderCompactSelect('status', 'Status', false)}
+          
+          {/* Assigned To - Department auto-fetches in background */}
+          <EmployeeSelect
+            value={formData.assignedTo}
+            onChange={(value) => {
+              handleChange('assignedTo', value);
+              // Auto-fill department when employee is selected (hidden field)
+              if (value && usersData.length > 0) {
+                const user = usersData.find(u => u.name === value);
+                if (user && user.department) {
+                  handleChange('department', user.department);
+                  console.log(`[AssetForm] Auto-filled department: ${user.department} for employee: ${value}`);
+                } else {
+                  handleChange('department', '');
+                }
+              } else if (!value) {
+                // Clear department when unassigning
+                handleChange('department', '');
+              }
+            }}
+            placeholder="Select Employee"
+            showUnassigned={true}
+            error={errors.assignedTo}
+          />
         </div>
       </div>
     );
   };
 
   const renderStep2 = () => {
-    // Only show Computer Asset Details for now
     const isComputerAsset = formData.category === 'Computer Assets';
-    
-    if (!isComputerAsset) {
-      return (
-        <div className="text-center py-8 text-neutral-500">
-          Detailed specifications for {formData.category} will be available soon.
-        </div>
-      );
-    }
+    const isExternalEquipment = formData.category === 'External Equipment';
 
     return (
       <div className="space-y-3">
-        <h3 className="text-base font-semibold text-neutral-900 mb-2">Computer Asset Details</h3>
+        <h3 className="text-base font-semibold text-neutral-900 mb-2">
+          {formData.category} Details
+        </h3>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="space-y-1">
@@ -363,61 +486,67 @@ const AssetForm = ({
             />
           </div>
           
-          <div className="space-y-1">
-            <label className="block text-xs font-medium text-neutral-700">Processor</label>
-            <input
-              type="text"
-              value={formData.processor}
-              onChange={(e) => handleChange('processor', e.target.value)}
-              placeholder="e.g. Intel Core i7"
-              className="w-full px-3 py-1.5 text-sm rounded-lg border border-neutral-300 focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
-            />
-          </div>
+          {/* Computer Asset Specific Fields - Only show for Computer Assets */}
+          {isComputerAsset && (
+            <>
+              <div className="space-y-1">
+                <label className="block text-xs font-medium text-neutral-700">Processor</label>
+                <input
+                  type="text"
+                  value={formData.processor}
+                  onChange={(e) => handleChange('processor', e.target.value)}
+                  placeholder="e.g. Intel Core i7"
+                  className="w-full px-3 py-1.5 text-sm rounded-lg border border-neutral-300 focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+                />
+              </div>
+              
+              <div className="space-y-1">
+                <label className="block text-xs font-medium text-neutral-700">Processor Generation</label>
+                <input
+                  type="text"
+                  value={formData.processorGeneration}
+                  onChange={(e) => handleChange('processorGeneration', e.target.value)}
+                  placeholder="e.g. 11th Gen"
+                  className="w-full px-3 py-1.5 text-sm rounded-lg border border-neutral-300 focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+                />
+              </div>
+              
+              <div className="space-y-1">
+                <label className="block text-xs font-medium text-neutral-700">Total RAM</label>
+                <input
+                  type="text"
+                  value={formData.totalRAM}
+                  onChange={(e) => handleChange('totalRAM', e.target.value)}
+                  placeholder="e.g. 16GB"
+                  className="w-full px-3 py-1.5 text-sm rounded-lg border border-neutral-300 focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+                />
+              </div>
+              
+              <div className="space-y-1">
+                <label className="block text-xs font-medium text-neutral-700">RAM 1 Size</label>
+                <input
+                  type="text"
+                  value={formData.ram1Size}
+                  onChange={(e) => handleChange('ram1Size', e.target.value)}
+                  placeholder="e.g. 8GB"
+                  className="w-full px-3 py-1.5 text-sm rounded-lg border border-neutral-300 focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+                />
+              </div>
+              
+              <div className="space-y-1">
+                <label className="block text-xs font-medium text-neutral-700">RAM 2 Size</label>
+                <input
+                  type="text"
+                  value={formData.ram2Size}
+                  onChange={(e) => handleChange('ram2Size', e.target.value)}
+                  placeholder="e.g. 8GB"
+                  className="w-full px-3 py-1.5 text-sm rounded-lg border border-neutral-300 focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+                />
+              </div>
+            </>
+          )}
           
-          <div className="space-y-1">
-            <label className="block text-xs font-medium text-neutral-700">Processor Generation</label>
-            <input
-              type="text"
-              value={formData.processorGeneration}
-              onChange={(e) => handleChange('processorGeneration', e.target.value)}
-              placeholder="e.g. 11th Gen"
-              className="w-full px-3 py-1.5 text-sm rounded-lg border border-neutral-300 focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
-            />
-          </div>
-          
-          <div className="space-y-1">
-            <label className="block text-xs font-medium text-neutral-700">Total RAM</label>
-            <input
-              type="text"
-              value={formData.totalRAM}
-              onChange={(e) => handleChange('totalRAM', e.target.value)}
-              placeholder="e.g. 16GB"
-              className="w-full px-3 py-1.5 text-sm rounded-lg border border-neutral-300 focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
-            />
-          </div>
-          
-          <div className="space-y-1">
-            <label className="block text-xs font-medium text-neutral-700">RAM 1 Size</label>
-            <input
-              type="text"
-              value={formData.ram1Size}
-              onChange={(e) => handleChange('ram1Size', e.target.value)}
-              placeholder="e.g. 8GB"
-              className="w-full px-3 py-1.5 text-sm rounded-lg border border-neutral-300 focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
-            />
-          </div>
-          
-          <div className="space-y-1">
-            <label className="block text-xs font-medium text-neutral-700">RAM 2 Size</label>
-            <input
-              type="text"
-              value={formData.ram2Size}
-              onChange={(e) => handleChange('ram2Size', e.target.value)}
-              placeholder="e.g. 8GB"
-              className="w-full px-3 py-1.5 text-sm rounded-lg border border-neutral-300 focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
-            />
-          </div>
-          
+          {/* Warranty Fields - Available for all categories */}
           <div className="space-y-1">
             <label className="block text-xs font-medium text-neutral-700">Warranty Start</label>
             <div className="relative">
@@ -455,6 +584,44 @@ const AssetForm = ({
               />
               <Calendar className="absolute right-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-neutral-400 pointer-events-none" />
             </div>
+          </div>
+          
+          {/* Purchase Information - Available for all categories */}
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-neutral-700">Purchase Date</label>
+            <div className="relative">
+              <input
+                type="date"
+                value={formData.purchaseDate}
+                onChange={(e) => handleChange('purchaseDate', e.target.value)}
+                placeholder="mm/dd/yyyy"
+                className="w-full px-3 py-1.5 pr-8 text-sm rounded-lg border border-neutral-300 focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+              />
+              <Calendar className="absolute right-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-neutral-400 pointer-events-none" />
+            </div>
+          </div>
+          
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-neutral-700">Purchase Price</label>
+            <input
+              type="text"
+              value={formData.purchasePrice}
+              onChange={(e) => handleChange('purchasePrice', e.target.value)}
+              placeholder="e.g. 1200.00"
+              className="w-full px-3 py-1.5 text-sm rounded-lg border border-neutral-300 focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+            />
+          </div>
+          
+          {/* Notes - Available for all categories */}
+          <div className="md:col-span-2 space-y-1">
+            <label className="block text-xs font-medium text-neutral-700">Notes</label>
+            <textarea
+              value={formData.notes}
+              onChange={(e) => handleChange('notes', e.target.value)}
+              placeholder="Additional notes or comments"
+              rows={3}
+              className="w-full px-3 py-1.5 text-sm rounded-lg border border-neutral-300 focus:ring-2 focus:ring-blue-200 focus:border-blue-300 resize-none"
+            />
           </div>
         </div>
       </div>
@@ -531,7 +698,7 @@ const AssetForm = ({
                 disabled={loading}
                 className="bg-blue-600 text-white hover:bg-blue-700"
               >
-                Add Asset
+                {isEditMode ? 'Update Asset' : 'Add Asset'}
               </Button>
             </>
           )}

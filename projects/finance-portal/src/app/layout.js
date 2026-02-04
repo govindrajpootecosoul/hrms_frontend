@@ -8,7 +8,7 @@ import ErrorBoundary from "@/components/common/ErrorBoundary";
 const jakartaSans = Plus_Jakarta_Sans({
   variable: "--font-geist-sans",
   subsets: ["latin"],
-});
+}); 
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",

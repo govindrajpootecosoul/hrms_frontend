@@ -2,12 +2,15 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { LayoutGrid } from 'lucide-react';
+import { LayoutGrid, Building2, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
+import { useAdminPortal } from '@/lib/context/AdminPortalContext';
 
 export function AdminNavbar() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
   const { user } = useAuth();
+  const { selectedCompany, setCompany } = useAdminPortal();
   const router = useRouter();
 
   return (
@@ -46,8 +49,59 @@ export function AdminNavbar() {
             </div>
           </div>
 
-          {/* Right: Notifications and User Profile */}
+          {/* Right: Company Selector, Notifications and User Profile */}
           <div className="flex items-center space-x-4">
+            {/* Company Selector */}
+            <div className="relative">
+              <button
+                onClick={() => setShowCompanyDropdown(!showCompanyDropdown)}
+                className="flex items-center space-x-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg transition-colors border border-emerald-200"
+                title="Select Company"
+              >
+                <Building2 className="w-4 h-4" />
+                <span className="text-sm font-medium">
+                  {selectedCompany || 'Select Company'}
+                </span>
+                <ChevronDown className="w-4 h-4" />
+              </button>
+              
+              {/* Company Dropdown */}
+              {showCompanyDropdown && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-10" 
+                    onClick={() => setShowCompanyDropdown(false)}
+                  />
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
+                    <div className="py-1">
+                      <button
+                        onClick={() => {
+                          setCompany('Ecosoul Home');
+                          setShowCompanyDropdown(false);
+                        }}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors ${
+                          selectedCompany === 'Ecosoul Home' ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-gray-700'
+                        }`}
+                      >
+                        Ecosoul Home
+                      </button>
+                      <button
+                        onClick={() => {
+                          setCompany('Thrive');
+                          setShowCompanyDropdown(false);
+                        }}
+                        className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors ${
+                          selectedCompany === 'Thrive' ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-gray-700'
+                        }`}
+                      >
+                        Thrive
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
             {/* Select Portal Icon */}
             <button
               onClick={() => router.push('/select-portal')}

@@ -1,32 +1,51 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Search, Eye, Edit, MoreHorizontal, UserPlus, CheckCircle, Wrench, X } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Search, Eye, Edit, MoreHorizontal, UserPlus, CheckCircle, Wrench, X, ArrowLeft } from 'lucide-react';
 import Input from '@/components/common/Input';
 import Select from '@/components/common/Select';
 import Badge from '@/components/common/Badge';
 import Modal from '@/components/common/Modal';
 import Button from '@/components/common/Button';
+import EmployeeSelect from '@/components/common/EmployeeSelect';
+import { API_BASE_URL } from '@/lib/utils/constants';
 
 const AssetTable = ({
   assets = [],
   employees = [],
   loading = false,
+  initialStatusFilter = '',
   onView,
   onEdit,
   onDelete,
+  onBulkDelete,
   onAdd,
   onAssign,
+  onUnassign,
   onExport,
+  onFilteredAssetsChange,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState(initialStatusFilter);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [assignedToFilter, setAssignedToFilter] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [selectedAssets, setSelectedAssets] = useState([]);
   const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showBulkAssignModal, setShowBulkAssignModal] = useState(false);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState(null);
+  const [allEmployees, setAllEmployees] = useState([]);
+  const [selectedEmployeeName, setSelectedEmployeeName] = useState('');
+  const [selectedEmployeeDepartment, setSelectedEmployeeDepartment] = useState('');
+  const [bulkSelectedEmployee, setBulkSelectedEmployee] = useState('');
+  const prevFilteredAssetsRef = useRef([]);
+
+  // Keep status filter in sync when arriving via deep-link (?status=assigned)
+  useEffect(() => {
+    setStatusFilter(initialStatusFilter || '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialStatusFilter]);
 
   // Filter assets based on search and filters
   const filteredAssets = assets.filter(asset => {
@@ -46,6 +65,19 @@ const AssetTable = ({
     return matchesSearch && matchesStatus && matchesCategory && matchesAssignedTo && matchesDepartment;
   });
 
+  // Notify parent component of filtered assets changes
+  useEffect(() => {
+    // Only update if the filtered assets actually changed (compare by IDs)
+    const currentIds = filteredAssets.map(a => a.id || a._id?.toString()).sort().join(',');
+    const prevIds = prevFilteredAssetsRef.current.map(a => a.id || a._id?.toString()).sort().join(',');
+    
+    if (currentIds !== prevIds && onFilteredAssetsChange) {
+      prevFilteredAssetsRef.current = filteredAssets;
+      onFilteredAssetsChange(filteredAssets);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredAssets]);
+
   const statusOptions = [
     { value: '', label: 'Status' },
     { value: 'assigned', label: 'Assigned' },
@@ -62,18 +94,93 @@ const AssetTable = ({
     { value: 'Furniture', label: 'Furniture' },
   ];
 
+  // Fetch employees from API on mount
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        // Get selected company from sessionStorage
+        const selectedCompany = typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null;
+        
+        // Build API URL with company filter if available
+        let apiUrl = `${API_BASE_URL}/admin-users`;
+        if (selectedCompany) {
+          apiUrl += `?company=${encodeURIComponent(selectedCompany)}`;
+        }
+        
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        if (data.success && data.users) {
+          const employeeList = data.users
+            .filter(user => user.active !== false)
+            .map(user => ({
+              id: user.id || user._id,
+              name: user.name || '',
+              email: user.email || '',
+              employeeId: user.employeeId || '',
+              department: user.department || ''
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+          setAllEmployees(employeeList);
+          console.log(`[AssetTable] Loaded ${employeeList.length} employees${selectedCompany ? ` for company: ${selectedCompany}` : ''}`);
+        }
+      } catch (error) {
+        console.error('Error fetching employees:', error);
+        // Fallback to prop employees if API fails
+        if (employees && employees.length > 0) {
+          setAllEmployees(employees);
+        }
+      }
+    };
+    fetchEmployees();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
+
   const assignedToOptions = [
     { value: '', label: 'Assigned To' },
-    ...employees.map(emp => ({ value: emp.name, label: emp.name })),
+    ...allEmployees.map(emp => ({ value: emp.name, label: emp.name })),
     { value: 'unassigned', label: 'Unassigned' },
   ];
 
+  const [departments, setDepartments] = useState([]);
+
+  // Fetch unique departments from users
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        // Get selected company from sessionStorage
+        const selectedCompany = typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null;
+        
+        // Build API URL with company filter if available
+        let apiUrl = `${API_BASE_URL}/admin-users`;
+        if (selectedCompany) {
+          apiUrl += `?company=${encodeURIComponent(selectedCompany)}`;
+        }
+        
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        if (data.success && data.users) {
+          // Get unique departments from users
+          const uniqueDepartments = [...new Set(
+            data.users
+              .filter(user => user.active !== false && user.department)
+              .map(user => user.department)
+              .filter(Boolean)
+          )].sort();
+          
+          setDepartments(uniqueDepartments);
+        }
+      } catch (error) {
+        console.error('Error fetching departments:', error);
+        // Fallback to default departments
+        setDepartments(['IT Department', 'HR', 'Finance', 'Marketing']);
+      }
+    };
+    fetchDepartments();
+  }, []);
+
   const departmentOptions = [
     { value: '', label: 'Department' },
-    { value: 'IT Department', label: 'IT Department' },
-    { value: 'HR', label: 'HR' },
-    { value: 'Finance', label: 'Finance' },
-    { value: 'Marketing', label: 'Marketing' },
+    ...departments.map(dept => ({ value: dept, label: dept })),
   ];
 
   const handleSelectAll = (e) => {
@@ -92,17 +199,122 @@ const AssetTable = ({
     );
   };
 
+  const handleBulkDelete = () => {
+    if (selectedAssets.length === 0) return;
+    console.log('[AssetTable] Opening bulk delete modal for', selectedAssets.length, 'assets');
+    setShowBulkDeleteModal(true);
+  };
+
+  const handleConfirmBulkDelete = async () => {
+    if (selectedAssets.length === 0) {
+      setShowBulkDeleteModal(false);
+      return;
+    }
+
+    try {
+      // Use dedicated bulk delete handler if available, otherwise fall back to individual deletes
+      if (onBulkDelete) {
+        // Get the asset objects for bulk delete
+        const assetsToDelete = filteredAssets.filter(asset => selectedAssets.includes(asset.id));
+        await onBulkDelete(assetsToDelete);
+      } else if (onDelete) {
+        // Fallback: Delete each selected asset (permission taken once via the dialog)
+        const deletePromises = selectedAssets.map((assetId) => {
+          const asset = filteredAssets.find((a) => a.id === assetId);
+          if (asset) return onDelete(asset);
+          return Promise.resolve();
+        });
+        await Promise.all(deletePromises);
+      }
+      setSelectedAssets([]);
+    } catch (error) {
+      console.error('Error bulk deleting assets:', error);
+    } finally {
+      setShowBulkDeleteModal(false);
+    }
+  };
+
+  const handleBulkAssign = async () => {
+    if (!bulkSelectedEmployee || selectedAssets.length === 0) return;
+    
+    try {
+      // Assign each selected asset
+      const assignPromises = selectedAssets.map(assetId => {
+        if (onAssign) {
+          return onAssign(assetId, bulkSelectedEmployee);
+        }
+        return Promise.resolve();
+      });
+
+      await Promise.all(assignPromises);
+      
+      setShowBulkAssignModal(false);
+      setBulkSelectedEmployee('');
+      setSelectedAssets([]);
+    } catch (error) {
+      console.error('Error bulk assigning assets:', error);
+    }
+  };
+
+  const handleBulkEmployeeSelect = (employeeName) => {
+    setBulkSelectedEmployee(employeeName);
+    
+    // Auto-fetch department when employee is selected
+    if (employeeName && allEmployees.length > 0) {
+      const employee = allEmployees.find(emp => emp.name === employeeName);
+      if (employee && employee.department) {
+        setSelectedEmployeeDepartment(employee.department);
+      } else {
+        setSelectedEmployeeDepartment('');
+      }
+    } else {
+      setSelectedEmployeeDepartment('');
+    }
+  };
+
   const handleAssign = (asset) => {
     setSelectedAsset(asset);
+    setSelectedEmployeeName(asset.assignedTo || '');
+    setSelectedEmployeeDepartment('');
     setShowAssignModal(true);
   };
 
-  const handleAssignSubmit = (employeeId) => {
+  const handleEmployeeSelect = (employeeName) => {
+    setSelectedEmployeeName(employeeName);
+    
+    // Auto-fetch department when employee is selected
+    if (employeeName && allEmployees.length > 0) {
+      const employee = allEmployees.find(emp => emp.name === employeeName);
+      if (employee && employee.department) {
+        setSelectedEmployeeDepartment(employee.department);
+        console.log(`[Assign Modal] Selected employee: ${employeeName}, Department: ${employee.department}`);
+      } else {
+        setSelectedEmployeeDepartment('');
+      }
+    } else {
+      setSelectedEmployeeDepartment('');
+    }
+  };
+
+  const handleAssignSubmit = () => {
     if (onAssign && selectedAsset) {
-      onAssign(selectedAsset.id, employeeId);
+      onAssign(selectedAsset.id, selectedEmployeeName);
     }
     setShowAssignModal(false);
     setSelectedAsset(null);
+    setSelectedEmployeeName('');
+    setSelectedEmployeeDepartment('');
+  };
+
+  const handleUnassign = (asset) => {
+    if (confirm(`Are you sure you want to collect back this asset from ${asset.assignedTo}?`)) {
+      if (onUnassign) {
+        onUnassign(asset.id);
+      } else if (onAssign) {
+        // Fallback to onAssign with null/empty name
+        onAssign(asset.id, '');
+      }
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -195,6 +407,39 @@ const AssetTable = ({
         </div>
       </div>
 
+      {/* Bulk Actions Bar */}
+      {selectedAssets.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-blue-900">
+              {selectedAssets.length} asset{selectedAssets.length !== 1 ? 's' : ''} selected
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setShowBulkAssignModal(true)}
+              icon={<UserPlus className="w-4 h-4" />}
+              className="bg-blue-600 text-white hover:bg-blue-700"
+            >
+              Assign To
+            </Button>
+            <Button
+              onClick={handleBulkDelete}
+              icon={<X className="w-4 h-4" />}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              Delete
+            </Button>
+            <Button
+              onClick={() => setSelectedAssets([])}
+              className="bg-white text-neutral-700 border border-neutral-300 hover:bg-neutral-50"
+            >
+              Clear Selection
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Table */}
       <div className="rounded-xl border border-neutral-200 bg-white shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
@@ -208,6 +453,12 @@ const AssetTable = ({
                     onChange={handleSelectAll}
                     className="w-4 h-4 text-primary-600 border-neutral-300 rounded focus:ring-primary-500"
                   />
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">
+                  ASSIGNED TO
+                </th>
+                <th className="px-3 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider w-40">
+                  DEPARTMENT
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">
                   STATUS
@@ -230,13 +481,7 @@ const AssetTable = ({
                 <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">
                   SITE
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">
-                  ASSIGNED TO
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">
-                  DEPARTMENT
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-neutral-500 uppercase tracking-wider">
+                <th className="px-2 py-3 text-right text-xs font-semibold text-neutral-500 uppercase tracking-wider w-32">
                   ACTIONS
                 </th>
               </tr>
@@ -271,6 +516,12 @@ const AssetTable = ({
                         className="w-4 h-4 text-primary-600 border-neutral-300 rounded focus:ring-primary-500"
                       />
                     </td>
+                    <td className="px-4 py-4 text-sm text-neutral-700">
+                      {asset.assignedTo || 'Unassigned'}
+                    </td>
+                    <td className="px-3 py-4 text-sm text-neutral-700">
+                      {asset.department || '—'}
+                    </td>
                     <td className="px-4 py-4">
                       {getStatusBadge(asset.status)}
                     </td>
@@ -297,25 +548,20 @@ const AssetTable = ({
                     <td className="px-4 py-4 text-sm text-neutral-700">
                       {asset.site}
                     </td>
-                    <td className="px-4 py-4 text-sm text-neutral-700">
-                      {asset.assignedTo || 'Unassigned'}
-                    </td>
-                    <td className="px-4 py-4 text-sm text-neutral-700">
-                      {asset.department || '—'}
-                    </td>
-                    <td className="px-4 py-4">
+                    <td className="px-2 py-4">
                       <div className="flex items-center justify-end gap-2">
-                        {asset.status === 'available' && (
+                        {/* Show Collect Back button if asset has assignedTo */}
+                        {asset.assignedTo && (
                           <>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleAssign(asset);
+                                handleUnassign(asset);
                               }}
-                              className="w-8 h-8 rounded-full bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center transition-colors"
-                              title="Assign Asset"
+                              className="w-8 h-8 rounded-full bg-orange-500 hover:bg-orange-600 text-white flex items-center justify-center transition-colors"
+                              title="Collect Back Asset"
                             >
-                              <UserPlus className="w-4 h-4" />
+                              <ArrowLeft className="w-4 h-4" />
                             </button>
                             <button
                               onClick={(e) => {
@@ -329,8 +575,19 @@ const AssetTable = ({
                             </button>
                           </>
                         )}
-                        {(asset.status === 'assigned') && (
+                        {/* Show Assign button if asset is not assigned */}
+                        {!asset.assignedTo && (
                           <>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAssign(asset);
+                              }}
+                              className="w-8 h-8 rounded-full bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center transition-colors"
+                              title="Assign Asset"
+                            >
+                              <UserPlus className="w-4 h-4" />
+                            </button>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -380,19 +637,187 @@ const AssetTable = ({
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-2">
-              Select Employee
-            </label>
-            <Select
-              options={employees.map(emp => ({ value: emp.id, label: emp.name }))}
-              placeholder="Choose an employee"
-              onChange={handleAssignSubmit}
+            <EmployeeSelect
+              value={selectedEmployeeName}
+              onChange={handleEmployeeSelect}
+              placeholder="Select Employee to Assign"
+              showUnassigned={true}
             />
           </div>
           
+          {/* Show selected employee's department */}
+          {selectedEmployeeName && selectedEmployeeDepartment && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="text-sm text-blue-900">
+                <strong>Department:</strong> <span className="font-medium">{selectedEmployeeDepartment}</span>
+                <p className="text-xs text-blue-700 mt-1">This department will be automatically assigned to the asset.</p>
+              </div>
+            </div>
+          )}
+          
+          {selectedEmployeeName && !selectedEmployeeDepartment && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <div className="text-sm text-yellow-900">
+                <strong>Note:</strong> Selected employee does not have a department assigned. The asset will be assigned without a department.
+              </div>
+            </div>
+          )}
+          
           <div className="flex justify-end space-x-3 pt-4">
-            <Button onClick={() => setShowAssignModal(false)}>
+            <Button 
+              onClick={() => {
+                setShowAssignModal(false);
+                setSelectedAsset(null);
+                setSelectedEmployeeName('');
+                setSelectedEmployeeDepartment('');
+              }}
+              className="bg-white text-neutral-700 border border-neutral-300 hover:bg-neutral-50"
+            >
               Cancel
+            </Button>
+            <Button 
+              onClick={handleAssignSubmit}
+              className="bg-blue-600 text-white hover:bg-blue-700"
+            >
+              Assign Asset
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Bulk Assign Modal */}
+      <Modal
+        isOpen={showBulkAssignModal}
+        onClose={() => {
+          setShowBulkAssignModal(false);
+          setBulkSelectedEmployee('');
+          setSelectedEmployeeDepartment('');
+        }}
+        title={`Bulk Assign ${selectedAssets.length} Asset${selectedAssets.length !== 1 ? 's' : ''}`}
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="bg-neutral-50 p-4 rounded-lg">
+            <h4 className="font-medium text-neutral-900 mb-2">Selected Assets</h4>
+            <div className="text-sm text-neutral-600">
+              <p>{selectedAssets.length} asset{selectedAssets.length !== 1 ? 's' : ''} will be assigned</p>
+              <div className="mt-2 max-h-32 overflow-y-auto">
+                <ul className="list-disc list-inside space-y-1">
+                  {filteredAssets
+                    .filter(asset => selectedAssets.includes(asset.id))
+                    .slice(0, 10)
+                    .map(asset => (
+                      <li key={asset.id} className="text-xs">
+                        {asset.assetTag || asset.id}
+                      </li>
+                    ))}
+                  {selectedAssets.length > 10 && (
+                    <li className="text-xs text-neutral-500">... and {selectedAssets.length - 10} more</li>
+                  )}
+                </ul>
+              </div>
+            </div>
+          </div>
+          
+          <div>
+            <EmployeeSelect
+              value={bulkSelectedEmployee}
+              onChange={handleBulkEmployeeSelect}
+              placeholder="Select Employee to Assign"
+              showUnassigned={true}
+            />
+          </div>
+          
+          {/* Show selected employee's department */}
+          {bulkSelectedEmployee && selectedEmployeeDepartment && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="text-sm text-blue-900">
+                <strong>Department:</strong> <span className="font-medium">{selectedEmployeeDepartment}</span>
+                <p className="text-xs text-blue-700 mt-1">This department will be automatically assigned to all selected assets.</p>
+              </div>
+            </div>
+          )}
+          
+          {bulkSelectedEmployee && !selectedEmployeeDepartment && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <div className="text-sm text-yellow-900">
+                <strong>Note:</strong> Selected employee does not have a department assigned. Assets will be assigned without a department.
+              </div>
+            </div>
+          )}
+          
+          <div className="flex justify-end space-x-3 pt-4">
+            <Button 
+              onClick={() => {
+                setShowBulkAssignModal(false);
+                setBulkSelectedEmployee('');
+                setSelectedEmployeeDepartment('');
+              }}
+              className="bg-white text-neutral-700 border border-neutral-300 hover:bg-neutral-50"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleBulkAssign}
+              disabled={!bulkSelectedEmployee}
+              className="bg-blue-600 text-white hover:bg-blue-700 disabled:bg-neutral-300 disabled:cursor-not-allowed"
+            >
+              Assign {selectedAssets.length} Asset{selectedAssets.length !== 1 ? 's' : ''}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <Modal
+        isOpen={showBulkDeleteModal}
+        onClose={() => setShowBulkDeleteModal(false)}
+        title={`Delete ${selectedAssets.length} Asset${selectedAssets.length !== 1 ? 's' : ''}?`}
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="bg-rose-50 border border-rose-200 rounded-lg p-4">
+            <p className="text-sm text-rose-900 font-medium">
+              This action cannot be undone.
+            </p>
+            <p className="text-sm text-rose-800 mt-1">
+              You are about to permanently delete {selectedAssets.length} asset{selectedAssets.length !== 1 ? 's' : ''}.
+            </p>
+          </div>
+
+          <div className="bg-neutral-50 p-4 rounded-lg">
+            <h4 className="font-medium text-neutral-900 mb-2">Selected Assets</h4>
+            <div className="text-sm text-neutral-600">
+              <div className="mt-2 max-h-32 overflow-y-auto">
+                <ul className="list-disc list-inside space-y-1">
+                  {filteredAssets
+                    .filter((asset) => selectedAssets.includes(asset.id))
+                    .slice(0, 10)
+                    .map((asset) => (
+                      <li key={asset.id} className="text-xs">
+                        {asset.assetTag || asset.id}
+                      </li>
+                    ))}
+                  {selectedAssets.length > 10 && (
+                    <li className="text-xs text-neutral-500">... and {selectedAssets.length - 10} more</li>
+                  )}
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-3 pt-2">
+            <Button
+              onClick={() => setShowBulkDeleteModal(false)}
+              className="bg-white text-neutral-700 border border-neutral-300 hover:bg-neutral-50"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmBulkDelete}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              Delete {selectedAssets.length} Asset{selectedAssets.length !== 1 ? 's' : ''}
             </Button>
           </div>
         </div>

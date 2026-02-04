@@ -32,7 +32,7 @@ export default function HRMSLayout({ children }) {
   );
 
   return (
-    <div className="min-h-screen bg-neutral-50">
+    <div className="min-h-screen bg-slate-50">
       <Navbar
         onMenuToggle={toggleMenu}
         isMenuOpen={isMenuOpen}
@@ -40,7 +40,7 @@ export default function HRMSLayout({ children }) {
       />
 
       <main className="w-full">
-        <div className="w-full px-4 sm:px-6 lg:px-8 py-6 lg:py-8 space-y-6">
+        <div className="max-w-[1600px] mx-auto w-full px-4 py-6 space-y-6">
           {children}
         </div>
       </main>

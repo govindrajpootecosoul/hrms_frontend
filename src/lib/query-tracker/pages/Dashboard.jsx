@@ -123,12 +123,13 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
+      {/* Header */}
       <div>
-        <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-clip-text text-transparent">
-          Dashboard
-        </h1>
-        <p className="text-gray-500 text-sm">Welcome to your query management center</p>
+        <h2 className="text-neutral-900 text-xl font-bold mb-1">Dashboard</h2>
+        <p className="text-neutral-600 text-xs mb-3">
+          Welcome back! Here's what's happening with your queries today.
+        </p>
       </div>
 
       {error && (
@@ -208,13 +209,10 @@ const Dashboard = () => {
       </div>
 
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {/* Query Source Chart */}
-        <div className="bg-white/75 backdrop-blur-lg p-6 rounded-2xl shadow-lg border border-white/50">
-          <h2 className="text-lg font-semibold text-gray-800 mb-6 flex items-center">
-            <span className="w-1 h-6 bg-gradient-to-b from-blue-600 to-purple-600 rounded-full mr-3"></span>
-            Query Sources
-          </h2>
+        <div className="bg-white rounded-lg p-4 shadow-sm border border-neutral-200">
+          <h2 className="text-base font-semibold text-neutral-900 mb-4">Query Sources</h2>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
@@ -245,11 +243,8 @@ const Dashboard = () => {
 
         {/* Monthly Stats Chart (Admin only) */}
         {isAdmin() && (
-          <div className="bg-white/75 backdrop-blur-lg p-6 rounded-2xl shadow-lg border border-white/50">
-            <h2 className="text-lg font-semibold text-gray-800 mb-6 flex items-center">
-              <span className="w-1 h-6 bg-gradient-to-b from-purple-600 to-pink-600 rounded-full mr-3"></span>
-              This Month's Queries
-            </h2>
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-neutral-200">
+            <h2 className="text-base font-semibold text-neutral-900 mb-4">This Month's Queries</h2>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={[{ name: 'Open', value: stats.monthlyStats.open }, { name: 'Closed', value: stats.monthlyStats.closed }]}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -271,11 +266,8 @@ const Dashboard = () => {
 
         {/* User Stats Chart (Admin only) */}
         {isAdmin() && stats.userStats.length > 0 && (
-          <div className="bg-white/75 backdrop-blur-lg p-6 rounded-2xl shadow-lg border border-white/50 lg:col-span-2">
-            <h2 className="text-lg font-semibold text-gray-800 mb-6 flex items-center">
-              <span className="w-1 h-6 bg-gradient-to-b from-orange-500 to-red-500 rounded-full mr-3"></span>
-              Queries by User
-            </h2>
+          <div className="bg-white rounded-lg p-4 shadow-sm border border-neutral-200 lg:col-span-2">
+            <h2 className="text-base font-semibold text-neutral-900 mb-4">Queries by User</h2>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={stats.userStats}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -297,11 +289,8 @@ const Dashboard = () => {
       </div>
 
       {/* Recent Queries Table */}
-      <div className="bg-white/75 backdrop-blur-lg p-6 rounded-2xl shadow-lg border border-white/50">
-        <h2 className="text-lg font-semibold text-gray-800 mb-6 flex items-center">
-          <span className="w-1 h-6 bg-gradient-to-b from-pink-500 to-rose-500 rounded-full mr-3"></span>
-          Recent Queries
-        </h2>
+      <div className="bg-white rounded-lg p-4 shadow-sm border border-neutral-200">
+        <h2 className="text-base font-semibold text-neutral-900 mb-4">Recent Queries</h2>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>

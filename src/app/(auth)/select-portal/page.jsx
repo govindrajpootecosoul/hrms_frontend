@@ -29,6 +29,20 @@ const PortalSelectionPage = () => {
     'demand-panel': 'Demand / Panel'
   };
 
+  // Get company name from email domain
+  const getCompanyName = (email) => {
+    if (!email) return null;
+    const emailLower = email.toLowerCase();
+    if (emailLower.endsWith('@thrivebrands.ai')) {
+      return 'Thrive';
+    } else if (emailLower.endsWith('@ecosoulhome.com')) {
+      return 'Ecosoul Home';
+    }
+    return null;
+  };
+
+  const companyName = user?.email ? getCompanyName(user.email) : null;
+
   // Check if user has access to a portal
   const hasPortalAccess = (portalIdentifier) => {
     if (!user) return false;
@@ -72,7 +86,9 @@ const PortalSelectionPage = () => {
       if (portal === 'hrms') {
         router.push(`/hrms/${companyId}/dashboard`);
       } else if (portal === 'asset-tracker') {
+        // Navigate to Asset Tracker - company selection will happen on the dashboard page
         router.push(`/asset-tracker/${companyId}/dashboard`);
+        return;
       } else if (portal === 'finance') {
         router.push(`/finance/${companyId}/dashboard`);
       } else if (portal === 'demand-panel') {
@@ -101,8 +117,8 @@ const PortalSelectionPage = () => {
 
   return (
     <div className="min-h-screen relative flex items-center justify-center p-4">
-      {/* Static light overlay */}
-      <div className="fixed inset-0 -z-10 bg-white/60" />
+      {/* Background with gradient */}
+      <div className="fixed inset-0 -z-10 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50" />
       
       {/* Admin Portal Button and Logout Icon - Top Right */}
       <div className="fixed top-4 right-4 z-50 flex items-center gap-3">
@@ -153,7 +169,7 @@ const PortalSelectionPage = () => {
           Are you sure you want to logout? You will need to login again to access your portals.
         </p>
       </Modal>
-      
+
       <div className="w-full max-w-7xl">
         {/* Header */}
         <div className="text-center mb-20">
@@ -164,6 +180,14 @@ const PortalSelectionPage = () => {
           <p className="text-lg text-neutral-700">
             Choose the portal you want to access for {user?.name || 'your account'}
           </p>
+          {companyName && (
+            <div className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-full">
+              <Building2 className="w-4 h-4 text-blue-600" />
+              <span className="text-sm font-medium text-blue-700">
+                Logged in as: <span className="font-semibold">{companyName}</span>
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Portal Cards */}
@@ -185,19 +209,15 @@ const PortalSelectionPage = () => {
               {/* Front Face */}
               <Card className="flip-card-front backdrop-blur-md w-full h-full">
                 <div className="text-center h-full flex flex-col">
-                  <div className="w-[15rem] h-[15rem] flex items-center justify-center mx-auto mb-6">
+                  <div className="w-[15rem] h-[15rem] rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 p-6 flex items-center justify-center mx-auto mb-6 shadow-lg overflow-hidden">
                     <img
                       src={'/log/HRMS%20Portal.png'}
                       alt="HRMS Portal Logo"
-                      className="w-[80%] h-[80%] object-contain"
+                      className="w-full h-full object-cover rounded-full"
                     />
                   </div>
                   
-                  <h2 className="text-2xl font-bold mb-4">
-                    HRMS Portal
-                  </h2>
-                  
-                  <p className="text-neutral-700 mb-6 leading-relaxed">
+                  <p className="text-neutral-700 mb-6 leading-relaxed text-sm">
                     Manage your human resources, employee data, attendance tracking, 
                     and workforce analytics in one comprehensive platform.
                   </p>
@@ -207,11 +227,7 @@ const PortalSelectionPage = () => {
               {/* Back Face */}
               <Card className="flip-card-back backdrop-blur-md w-full h-full !p-0">
                 <div className="flex flex-col items-center justify-center flip-card-back-content">
-                  <h2 className="text-2xl font-bold mb-4">
-                    HRMS Portal
-                  </h2>
-                  
-                  <p className="text-neutral-700 mb-6 leading-relaxed">
+                  <p className="text-neutral-700 mb-6 leading-relaxed text-sm">
                     Manage your human resources, employee data, attendance tracking, 
                     and workforce analytics in one comprehensive platform.
                   </p>
@@ -241,19 +257,15 @@ const PortalSelectionPage = () => {
               {/* Front Face */}
               <Card className="flip-card-front backdrop-blur-md w-full h-full">
               <div className="text-center h-full flex flex-col">
-                  <div className="w-[15rem] h-[15rem] flex items-center justify-center mx-auto mb-6">
+                  <div className="w-[15rem] h-[15rem] rounded-full bg-gradient-to-br from-emerald-100 to-teal-100 p-6 flex items-center justify-center mx-auto mb-6 shadow-lg overflow-hidden">
                     <img
                       src={'/log/Asset%20Tracker%20Portal.png'}
                       alt="Asset Tracker Portal Logo"
-                      className="w-full h-full object-contain"
+                      className="w-full h-full object-cover rounded-full"
                     />
                   </div>
                   
-                  <h2 className="text-2xl font-bold mb-4">
-                    Asset Tracker Portal
-                  </h2>
-                  
-                  <p className="text-neutral-700 mb-6 leading-relaxed">
+                  <p className="text-neutral-700 mb-6 leading-relaxed text-sm">
                     Track and manage company assets, monitor assignments, 
                     maintenance schedules, and optimize asset utilization.
                   </p>
@@ -263,11 +275,7 @@ const PortalSelectionPage = () => {
               {/* Back Face */}
               <Card className="flip-card-back backdrop-blur-md w-full h-full !p-0">
                 <div className="flex flex-col items-center justify-center flip-card-back-content">
-                  <h2 className="text-2xl font-bold mb-4">
-                    Asset Tracker Portal
-                  </h2>
-                  
-                  <p className="text-neutral-700 mb-6 leading-relaxed">
+                  <p className="text-neutral-700 mb-6 leading-relaxed text-sm">
                     Track and manage company assets, monitor assignments, 
                     maintenance schedules, and optimize asset utilization.
                   </p>
@@ -296,19 +304,15 @@ const PortalSelectionPage = () => {
               {/* Front Face */}
               <Card className="flip-card-front backdrop-blur-md w-full h-full">
                 <div className="text-center h-full flex flex-col">
-                  <div className="w-[15rem] h-[15rem] flex items-center justify-center mx-auto mb-6">
+                  <div className="w-[15rem] h-[15rem] rounded-full bg-gradient-to-br from-blue-100 to-cyan-100 p-6 flex items-center justify-center mx-auto mb-6 shadow-lg overflow-hidden">
                     <img
                       src={'/log/Organisation%20Tools.png'}
                       alt="Organisation Tools Logo"
-                      className="w-full h-full object-contain"
+                      className="w-full h-full object-cover rounded-full"
                     />
                   </div>
                   
-                  <h2 className="text-2xl font-bold mb-4">
-                    Organisation Tools
-                  </h2>
-                  
-                  <p className="text-neutral-700 mb-6 leading-relaxed">
+                  <p className="text-neutral-700 mb-6 leading-relaxed text-sm">
                     Access comprehensive organisational tools, financial operations, 
                     and business management utilities in one integrated platform.
                   </p>
@@ -318,11 +322,7 @@ const PortalSelectionPage = () => {
               {/* Back Face */}
               <Card className="flip-card-back backdrop-blur-md w-full h-full !p-0">
                 <div className="flex flex-col items-center justify-center flip-card-back-content">
-                  <h2 className="text-2xl font-bold mb-4">
-                    Organisation Tools
-                  </h2>
-                  
-                  <p className="text-neutral-700 mb-6 leading-relaxed">
+                  <p className="text-neutral-700 mb-6 leading-relaxed text-sm">
                     Access comprehensive organisational tools, financial operations, 
                     and business management utilities in one integrated platform.
                   </p>
@@ -352,19 +352,15 @@ const PortalSelectionPage = () => {
               {/* Front Face */}
               <Card className="flip-card-front backdrop-blur-md w-full h-full">
                 <div className="text-center h-full flex flex-col">
-                  <div className="w-[15rem] h-[15rem] flex items-center justify-center mx-auto mb-6">
+                  <div className="w-[15rem] h-[15rem] rounded-full bg-gradient-to-br from-orange-100 to-amber-100 p-6 flex items-center justify-center mx-auto mb-6 shadow-lg overflow-hidden">
                     <img
                       src={'/log/Project%20Tracker.png'}
                       alt="Project Tracker Logo"
-                      className="w-full h-full object-contain"
+                      className="w-full h-full object-cover rounded-full"
                     />
                   </div>
 
-                  <h2 className="text-2xl font-bold mb-4">
-                    Project Tracker
-                  </h2>
-
-                  <p className="text-neutral-700 mb-6 leading-relaxed">
+                  <p className="text-neutral-700 mb-6 leading-relaxed text-sm">
                     Track projects, tasks, and deadlines in your project tracker workspace.
                   </p>
                 </div>
@@ -376,11 +372,7 @@ const PortalSelectionPage = () => {
                   {/* <div className="w-[15rem] h-[15rem] flex items-center justify-center mx-auto mb-6">
                     <img src={'/project_tracker_2.png'} className="w-full h-full object-contain" />
                   </div> */}
-                  <h2 className="text-2xl font-bold mb-4">
-                    Project Tracker
-                  </h2>
-
-                  <p className="text-neutral-700 mb-6 leading-relaxed text-center">
+                  <p className="text-neutral-700 mb-6 leading-relaxed text-center text-sm">
                     Open the dedicated project tracker to monitor progress and collaborate.
                   </p>
                   <Button
@@ -407,15 +399,11 @@ const PortalSelectionPage = () => {
               {/* Front Face */}
               <Card className="flip-card-front backdrop-blur-md w-full h-full">
                 <div className="text-center h-full flex flex-col">
-                  <div className="w-[15rem] h-[15rem] flex items-center justify-center mx-auto mb-6">
-                    <img src={'/employee_select_portal.png'} className="w-[80%] h-[80%] object-contain" />
+                  <div className="w-[15rem] h-[15rem] rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 p-6 flex items-center justify-center mx-auto mb-6 shadow-lg overflow-hidden">
+                    <img src={'/log/Employee Portal.png'} className="w-full h-full object-cover rounded-full" />
                   </div>
 
-                  <h2 className="text-2xl font-bold mb-4">
-                    Employee Portal
-                  </h2>
-
-                  <p className="text-neutral-700 mb-6 leading-relaxed">
+                  <p className="text-neutral-700 mb-6 leading-relaxed text-sm">
                     Access HR information that is specific to you as an employee,
                     without needing to switch companies.
                   </p>
@@ -425,11 +413,7 @@ const PortalSelectionPage = () => {
               {/* Back Face */}
               <Card className="flip-card-back backdrop-blur-md w-full h-full !p-0">
                 <div className="flex flex-col items-center justify-center flip-card-back-content">
-                  <h2 className="text-2xl font-bold mb-4">
-                    Employee Portal
-                  </h2>
-
-                  <p className="text-neutral-700 mb-6 leading-relaxed">
+                  <p className="text-neutral-700 mb-6 leading-relaxed text-sm">
                     Access HR information that is specific to you as an employee,
                     without needing to switch companies.
                   </p>
@@ -457,15 +441,11 @@ const PortalSelectionPage = () => {
               {/* Front Face */}
               <Card className="flip-card-front backdrop-blur-md w-full h-full">
                 <div className="text-center h-full flex flex-col">
-                  <div className="w-[15rem] h-[15rem] flex items-center justify-center mx-auto mb-6">
-                    <img src={'/log/Query Tracker.png'} className="w-full h-full object-contain" />
+                  <div className="w-[15rem] h-[15rem] rounded-full bg-gradient-to-br from-cyan-100 to-blue-100 p-6 flex items-center justify-center mx-auto mb-6 shadow-lg overflow-hidden">
+                    <img src={'/log/Query Tracker.png'} className="w-full h-full object-cover rounded-full" />
                   </div>
                   
-                  <h2 className="text-2xl font-bold mb-4">
-                    Query Tracker
-                  </h2>
-                  
-                  <p className="text-neutral-700 mb-6 leading-relaxed">
+                  <p className="text-neutral-700 mb-6 leading-relaxed text-sm">
                     Track and manage customer queries, support tickets, and customer 
                     interactions across multiple platforms in one centralized system.
                   </p>
@@ -475,11 +455,7 @@ const PortalSelectionPage = () => {
               {/* Back Face */}
               <Card className="flip-card-back backdrop-blur-md w-full h-full !p-0">
                 <div className="flex flex-col items-center justify-center flip-card-back-content">
-                  <h2 className="text-2xl font-bold mb-4">
-                    Query Tracker
-                  </h2>
-                  
-                  <p className="text-neutral-700 mb-6 leading-relaxed">
+                  <p className="text-neutral-700 mb-6 leading-relaxed text-sm">
                     Track and manage customer queries, support tickets, and customer 
                     interactions across multiple platforms in one centralized system.
                   </p>
@@ -508,19 +484,15 @@ const PortalSelectionPage = () => {
               {/* Front Face */}
               <Card className="flip-card-front backdrop-blur-md w-full h-full">
                 <div className="text-center h-full flex flex-col">
-                  <div className="w-[15rem] h-[15rem] flex items-center justify-center mx-auto mb-6">
+                  <div className="w-[15rem] h-[15rem] rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 p-6 flex items-center justify-center mx-auto mb-6 shadow-lg overflow-hidden">
                     <img
                       src={'/log/Datahive.png'}
                       alt="DataHive Logo"
-                      className="w-full h-full object-contain"
+                      className="w-full h-full object-cover rounded-full"
                     />
                   </div>
                   
-                  <h2 className="text-2xl font-bold mb-4">
-                    DataHive
-                  </h2>
-                  
-                  <p className="text-neutral-700 mb-6 leading-relaxed">
+                  <p className="text-neutral-700 mb-6 leading-relaxed text-sm">
                     Access and manage your data sources, analytics, and reports in one centralized platform.
                   </p>
                 </div>
@@ -529,11 +501,7 @@ const PortalSelectionPage = () => {
               {/* Back Face */}
               <Card className="flip-card-back backdrop-blur-md w-full h-full !p-0">
                 <div className="flex flex-col items-center justify-center flip-card-back-content">
-                  <h2 className="text-2xl font-bold mb-4">
-                    DataHive
-                  </h2>
-                  
-                  <p className="text-neutral-700 mb-6 leading-relaxed">
+                  <p className="text-neutral-700 mb-6 leading-relaxed text-sm">
                     Access and manage your data sources, analytics, and reports in one centralized platform.
                   </p>
                   <Button
@@ -561,19 +529,15 @@ const PortalSelectionPage = () => {
               {/* Front Face */}
               <Card className="flip-card-front backdrop-blur-md w-full h-full">
                 <div className="text-center h-full flex flex-col">
-                  <div className="w-[15rem] h-[15rem] flex items-center justify-center mx-auto mb-6">
+                  <div className="w-[15rem] h-[15rem] rounded-full bg-gradient-to-br from-purple-100 to-pink-100 p-6 flex items-center justify-center mx-auto mb-6 shadow-lg overflow-hidden">
                     <img
                       src={'/log/Demand%20planner.png'}
                       alt="Demand / Panel Logo"
-                      className="w-full h-full object-contain"
+                      className="w-full h-full object-cover rounded-full"
                     />
                   </div>
                   
-                  <h2 className="text-2xl font-bold mb-4">
-                    Demand / Panel
-                  </h2>
-                  
-                  <p className="text-neutral-700 mb-6 leading-relaxed">
+                  <p className="text-neutral-700 mb-6 leading-relaxed text-sm">
                     Manage demand planning, panel management, and resource allocation 
                     in one comprehensive platform.
                   </p>
@@ -583,11 +547,7 @@ const PortalSelectionPage = () => {
               {/* Back Face */}
               <Card className="flip-card-back backdrop-blur-md w-full h-full !p-0">
                 <div className="flex flex-col items-center justify-center flip-card-back-content">
-                  <h2 className="text-2xl font-bold mb-4">
-                    Demand / Panel
-                  </h2>
-                  
-                  <p className="text-neutral-700 mb-6 leading-relaxed">
+                  <p className="text-neutral-700 mb-6 leading-relaxed text-sm">
                     Manage demand planning, panel management, and resource allocation 
                     in one comprehensive platform.
                   </p>

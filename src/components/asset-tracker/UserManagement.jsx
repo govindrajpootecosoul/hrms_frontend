@@ -1,48 +1,78 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { UserPlus, User, Edit, Lock, Pause, Play, Trash2, CheckCircle, X } from 'lucide-react';
 import Button from '@/components/common/Button';
+import Modal from '@/components/common/Modal';
+import Input from '@/components/common/Input';
+import Select from '@/components/common/Select';
+import { API_BASE_URL } from '@/lib/utils/constants';
 
 const UserManagement = () => {
-  const [users, setUsers] = useState([
-    {
-      id: '1',
-      name: 'John Smith',
-      email: 'john.smith@company.com',
-      role: 'Admin',
-      department: 'IT Department',
-      status: 'Active',
-      lastLogin: '2024-01-15 09:30 AM',
-    },
-    {
-      id: '2',
-      name: 'Sarah Johnson',
-      email: 'sarah.johnson@company.com',
-      role: 'Manager',
-      department: 'Finance',
-      status: 'Active',
-      lastLogin: '2024-01-14 02:15 PM',
-    },
-    {
-      id: '3',
-      name: 'Mike Wilson',
-      email: 'mike.wilson@company.com',
-      role: 'User',
-      department: 'Marketing',
-      status: 'Active',
-      lastLogin: '2024-01-12 11:45 AM',
-    },
-    {
-      id: '4',
-      name: 'Emma Davis',
-      email: 'emma.davis@company.com',
-      role: 'Manager',
-      department: 'HR',
-      status: 'Inactive',
-      lastLogin: '2023-12-20 04:30 PM',
-    },
-  ]);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    role: 'User',
+    department: '',
+  });
+
+  const [users, setUsers] = useState([]);
+
+  // Fetch users from API
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      console.log('[UserManagement] Fetching users from:', `${API_BASE_URL}/admin-users`);
+      
+      const response = await fetch(`${API_BASE_URL}/admin-users`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('[UserManagement] API Response:', {
+        success: data.success,
+        userCount: data.users?.length || 0,
+        total: data.total,
+        database: data.database
+      });
+      
+      if (data.success && data.users) {
+        // Transform API users to component format
+        const transformedUsers = data.users.map(user => ({
+          id: user.id || user._id,
+          name: user.name || '',
+          email: user.email || '',
+          role: user.role === 'admin' ? 'Admin' : user.role === 'user' ? 'User' : user.role || 'User',
+          department: user.department || '',
+          status: user.active !== false ? 'Active' : 'Inactive',
+          lastLogin: user.updatedAt ? new Date(user.updatedAt).toLocaleString() : 'Never',
+        }));
+        
+        console.log(`[UserManagement] Setting ${transformedUsers.length} users`);
+        setUsers(transformedUsers);
+      } else {
+        throw new Error(data.error || 'Failed to fetch users');
+      }
+    } catch (err) {
+      console.error('[UserManagement] Error fetching users:', err);
+      setError(err.message || 'Failed to fetch users');
+      setUsers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getRoleBadge = (role) => {
     const roleStyles = {
@@ -77,7 +107,62 @@ const UserManagement = () => {
   };
 
   const handleEdit = (userId) => {
-    console.log('Edit user:', userId);
+    const user = users.find(u => u.id === userId);
+    if (user) {
+      setEditingUser(user);
+      setFormData({
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        department: user.department,
+      });
+      setShowEditModal(true);
+    }
+  };
+
+  const handleAdd = () => {
+    setFormData({
+      name: '',
+      email: '',
+      role: 'User',
+      department: '',
+    });
+    setShowAddModal(true);
+  };
+
+  const handleSave = () => {
+    if (!formData.name || !formData.email) {
+      alert('Name and Email are required');
+      return;
+    }
+
+    if (editingUser) {
+      // Update existing user
+      setUsers(prev => prev.map(user =>
+        user.id === editingUser.id
+          ? { ...user, ...formData, lastLogin: user.lastLogin }
+          : user
+      ));
+      setShowEditModal(false);
+    } else {
+      // Add new user
+      const newUser = {
+        id: Date.now().toString(),
+        ...formData,
+        status: 'Active',
+        lastLogin: 'Never',
+      };
+      setUsers(prev => [...prev, newUser]);
+      setShowAddModal(false);
+    }
+
+    setFormData({
+      name: '',
+      email: '',
+      role: 'User',
+      department: '',
+    });
+    setEditingUser(null);
   };
 
   const handleLock = (userId) => {
@@ -98,21 +183,58 @@ const UserManagement = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-neutral-500">Loading users...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="text-red-800">Error: {error}</div>
+          <Button
+            onClick={fetchUsers}
+            className="mt-2 bg-red-600 text-white hover:bg-red-700 text-xs"
+          >
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-neutral-900 mb-1">User Management</h2>
-          <p className="text-sm text-neutral-600">Add, edit, and manage user access to the asset portal</p>
+          <h2 className="text-xl font-bold text-neutral-900 mb-1">User Management</h2>
+          <p className="text-xs text-neutral-600">Add, edit, and manage user access to the asset portal</p>
+          {users.length > 0 && (
+            <p className="text-xs text-neutral-500 mt-1">Showing {users.length} user{users.length !== 1 ? 's' : ''}</p>
+          )}
         </div>
-        <Button
-          onClick={() => console.log('Add user')}
-          icon={<UserPlus className="w-4 h-4" />}
-          className="bg-blue-600 text-white hover:bg-blue-700"
-        >
-          Add User
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={fetchUsers}
+            className="bg-gray-600 text-white hover:bg-gray-700 text-xs"
+          >
+            Refresh
+          </Button>
+          <Button
+            onClick={handleAdd}
+            icon={<UserPlus className="w-3.5 h-3.5" />}
+            className="bg-blue-600 text-white hover:bg-blue-700 text-xs"
+          >
+            Add User
+          </Button>
+        </div>
       </div>
 
       {/* Users Table */}
@@ -142,7 +264,14 @@ const UserManagement = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-neutral-200">
-              {users.map((user) => (
+              {users.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-neutral-500">
+                    No users found. Users will be loaded from the Ecosoul_All_Employee database.
+                  </td>
+                </tr>
+              ) : (
+                users.map((user) => (
                 <tr key={user.id} className="hover:bg-neutral-50 transition-colors duration-150">
                   <td className="px-4 py-4">
                     <div className="flex items-center gap-3">
@@ -204,11 +333,92 @@ const UserManagement = () => {
                     </div>
                   </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Add/Edit User Modal */}
+      <Modal
+        isOpen={showAddModal || showEditModal}
+        onClose={() => {
+          setShowAddModal(false);
+          setShowEditModal(false);
+          setEditingUser(null);
+          setFormData({
+            name: '',
+            email: '',
+            role: 'User',
+            department: '',
+          });
+        }}
+        title={editingUser ? 'Edit User' : 'Add New User'}
+        size="md"
+      >
+        <div className="space-y-3">
+          <Input
+            label="Full Name *"
+            value={formData.name}
+            onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+            placeholder="e.g. John Smith"
+            required
+          />
+          <Input
+            label="Email Address *"
+            type="email"
+            value={formData.email}
+            onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+            placeholder="e.g. john.smith@company.com"
+            required
+          />
+          <div>
+            <label className="block text-xs font-medium text-neutral-700 mb-1">
+              Role *
+            </label>
+            <Select
+              options={[
+                { value: 'Admin', label: 'Admin' },
+                { value: 'Manager', label: 'Manager' },
+                { value: 'User', label: 'User' },
+              ]}
+              value={formData.role}
+              onChange={(value) => setFormData(prev => ({ ...prev, role: value }))}
+              placeholder="Select role"
+            />
+          </div>
+          <Input
+            label="Department"
+            value={formData.department}
+            onChange={(e) => setFormData(prev => ({ ...prev, department: e.target.value }))}
+            placeholder="e.g. IT Department"
+          />
+          <div className="flex justify-end gap-2 pt-3">
+            <Button
+              onClick={() => {
+                setShowAddModal(false);
+                setShowEditModal(false);
+                setEditingUser(null);
+                setFormData({
+                  name: '',
+                  email: '',
+                  role: 'User',
+                  department: '',
+                });
+              }}
+              className="bg-white text-neutral-700 border border-neutral-300 hover:bg-neutral-50 text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              className="bg-blue-600 text-white hover:bg-blue-700 text-xs"
+            >
+              {editingUser ? 'Update' : 'Add'} User
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

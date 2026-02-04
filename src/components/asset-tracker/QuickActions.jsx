@@ -32,18 +32,18 @@ const QuickActions = ({ onAddAsset, onAudit, onExport, onSettings }) => {
   ];
 
   return (
-    <Card title="Quick Actions">
-      <div className="grid grid-cols-2 gap-3">
+    <Card title="Quick Actions" className="p-3">
+      <div className="grid grid-cols-2 gap-2">
         {actions.map((action, index) => {
           const Icon = action.icon;
           return (
             <button
               key={index}
               onClick={action.onClick}
-              className={`flex flex-col items-center justify-center gap-2 p-4 border-2 border-dashed rounded-lg transition-colors ${action.color}`}
+              className={`flex flex-col items-center justify-center gap-1 p-2 border-2 border-dashed rounded-lg transition-colors ${action.color}`}
             >
-              <Icon className="w-5 h-5" />
-              <span className="text-sm font-medium">{action.label}</span>
+              <Icon className="w-3.5 h-3.5" />
+              <span className="text-xs font-medium">{action.label}</span>
             </button>
           );
         })}

@@ -21,13 +21,19 @@ const QueriesList = () => {
   const [editingQuery, setEditingQuery] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [editingStatusId, setEditingStatusId] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState({ show: false, queryId: null, queryName: '' });
+
+  // Get stable user ID for dependency array
+  const userId = user?._id || user?.id || null;
 
   useEffect(() => {
     fetchQueries();
     if (isAdmin()) {
       fetchUsers();
     }
-  }, [activeTab, filters, currentPage]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, filters, currentPage, userId]);
 
   const fetchQueries = async () => {
     try {
@@ -35,11 +41,14 @@ const QueriesList = () => {
       const params = {
         page: currentPage,
         limit: 10,
-        ...(activeTab === 'my' && { createdBy: user?._id || user?.id }),
+        ...(activeTab === 'my' && user?._id && { createdBy: user._id }),
         ...(filters.status && { status: filters.status }),
         ...(filters.createdBy && { createdBy: filters.createdBy }),
         ...(filters.search && { search: filters.search })
       };
+
+      console.log('[QueriesList] Fetching queries with params:', params);
+      console.log('[QueriesList] Current user:', { _id: user?._id, id: user?.id, email: user?.email });
 
       const response = await api.get('/queries', { params });
       setQueries(response.data.queries);
@@ -60,16 +69,45 @@ const QueriesList = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (typeof window !== 'undefined' && !window.confirm('Are you sure you want to delete this query?')) return;
+  const handleDeleteClick = (query) => {
+    setDeleteConfirm({
+      show: true,
+      queryId: query._id,
+      queryName: query.customerName || 'this query'
+    });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirm.queryId) return;
     
     try {
-      await api.delete(`/queries/${id}`);
+      await api.delete(`/queries/${deleteConfirm.queryId}`);
+      setDeleteConfirm({ show: false, queryId: null, queryName: '' });
       fetchQueries();
     } catch (error) {
+      console.error('Error deleting query:', error);
       if (typeof window !== 'undefined') {
-        alert('Error deleting query');
+        alert(error.response?.data?.message || 'Error deleting query');
       }
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteConfirm({ show: false, queryId: null, queryName: '' });
+  };
+
+  const handleStatusUpdate = async (queryId, newStatus) => {
+    try {
+      setEditingStatusId(null); // Close dropdown immediately for better UX
+      await api.put(`/queries/${queryId}`, { status: newStatus });
+      fetchQueries();
+    } catch (error) {
+      console.error('Error updating status:', error);
+      if (typeof window !== 'undefined') {
+        alert(error.response?.data?.message || 'Error updating status');
+      }
+      // Re-fetch to restore previous state on error
+      fetchQueries();
     }
   };
 
@@ -213,13 +251,39 @@ const QueriesList = () => {
                       <td className="p-4 text-gray-600 max-w-xs truncate">{query.customerQuery}</td>
                       <td className="p-4 text-gray-600 max-w-xs truncate">{query.howDidYouHearAboutUs || 'N/A'}</td>
                       <td className="p-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      query.status === 'Open' ? 'bg-blue-100 text-blue-700' :
-                      query.status === 'Closed' ? 'bg-green-100 text-green-700' :
-                      'bg-purple-100 text-purple-700'
-                        }`}>
-                          {query.status}
-                        </span>
+                        <div className="relative">
+                          {editingStatusId === query._id ? (
+                            <select
+                              value={query.status}
+                              onChange={(e) => {
+                                handleStatusUpdate(query._id, e.target.value);
+                              }}
+                              onBlur={() => setEditingStatusId(null)}
+                              autoFocus
+                              className={`px-3 py-1 rounded-full text-xs font-medium border-2 border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer ${
+                                query.status === 'Open' ? 'bg-blue-100 text-blue-700' :
+                                query.status === 'Closed' ? 'bg-green-100 text-green-700' :
+                                'bg-purple-100 text-purple-700'
+                              }`}
+                            >
+                              <option value="Open">Open</option>
+                              <option value="In-Progress">In-Progress</option>
+                              <option value="Closed">Closed</option>
+                            </select>
+                          ) : (
+                            <button
+                              onClick={() => setEditingStatusId(query._id)}
+                              className={`px-3 py-1 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity ${
+                                query.status === 'Open' ? 'bg-blue-100 text-blue-700' :
+                                query.status === 'Closed' ? 'bg-green-100 text-green-700' :
+                                'bg-purple-100 text-purple-700'
+                              }`}
+                              title="Click to change status"
+                            >
+                              {query.status}
+                            </button>
+                          )}
+                        </div>
                       </td>
                       <td className="p-4 text-gray-500 text-sm">
                         {new Date(query.queryReceivedDate).toLocaleDateString()}
@@ -234,9 +298,9 @@ const QueriesList = () => {
                           >
                             <Icon name="edit" size={18} />
                           </button>
-                          {isAdmin() && (
+                          {(isAdmin() || query.createdBy?._id === user?._id || query.createdBy?._id === user?.id) && (
                             <button
-                              onClick={() => handleDelete(query._id)}
+                              onClick={() => handleDeleteClick(query)}
                               className="text-red-600 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-all"
                               title="Delete"
                             >
@@ -285,6 +349,39 @@ const QueriesList = () => {
           users={users}
           onClose={handleModalClose}
         />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {deleteConfirm.show && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full border border-neutral-200">
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mr-4">
+                  <Icon name="delete_forever" size={24} className="text-red-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-neutral-900">Delete Query</h3>
+              </div>
+              <p className="text-neutral-600 mb-6">
+                Are you sure you want to delete the query for <span className="font-semibold text-neutral-900">{deleteConfirm.queryName}</span>? This action cannot be undone.
+              </p>
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={handleDeleteCancel}
+                  className="px-4 py-2 rounded-lg text-neutral-700 text-sm font-medium hover:bg-neutral-100 transition-all border border-neutral-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteConfirm}
+                  className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-all"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

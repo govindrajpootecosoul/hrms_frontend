@@ -11,7 +11,10 @@ const Card = forwardRef(({
   headerAction,
   ...props
 }, ref) => {
-  const base = 'rounded-xl transition-all duration-300 p-6 bg-white border border-neutral-200 shadow-sm hover:shadow-md';
+  // Check if className already has padding, if not use default p-3
+  const hasPadding = className.includes('p-');
+  const basePadding = hasPadding ? '' : 'p-3';
+  const base = `rounded-lg transition-all duration-300 ${basePadding} bg-white border border-neutral-200 shadow-sm hover:shadow-md`;
   const cardClasses = `${base} ${className}`.trim();
   return (
       <div
@@ -21,28 +24,28 @@ const Card = forwardRef(({
       >
       {/* Removed Silk background overlay for light theme */}
       {(title || subtitle || headerAction) && (
-        <div className="flex items-start justify-between mb-4">
+        <div className="flex items-start justify-between mb-2">
           <div className="flex-1">
             {title && (
-              <h3 className="text-lg font-semibold mb-1">
+              <h3 className="text-sm font-semibold mb-0.5">
                 {title}
               </h3>
             )}
             {subtitle && (
-              <p className="text-sm text-neutral-600">
+              <p className="text-xs text-neutral-600">
                 {subtitle}
               </p>
             )}
           </div>
           {headerAction && (
-            <div className="ml-4">
+            <div className="ml-3">
               {headerAction}
             </div>
           )}
         </div>
       )}
       
-      <div className="relative space-y-4">
+      <div className="relative space-y-2">
         {children}
       </div>
     </div>

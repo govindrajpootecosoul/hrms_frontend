@@ -4,13 +4,13 @@ import Card from '@/components/common/Card';
 
 const Row = ({ label, count, percent, colorClass = 'bg-neutral-400' }) => {
   return (
-    <div className="flex items-start justify-between py-3">
-      <div className="flex items-center gap-3">
-        <span className={`h-3 w-3 ${colorClass} rounded-full`} />
-        <span className="text-neutral-700">{label}</span>
+    <div className="flex items-start justify-between py-1.5">
+      <div className="flex items-center gap-2">
+        <span className={`h-2 w-2 ${colorClass} rounded-full`} />
+        <span className="text-xs text-neutral-700">{label}</span>
       </div>
       <div className="text-right">
-        <div className="text-neutral-800 font-semibold">{count}</div>
+        <div className="text-xs text-neutral-800 font-semibold">{count}</div>
         {typeof percent === 'number' && (
           <div className="text-xs text-neutral-400">{percent}%</div>
         )}
@@ -50,8 +50,8 @@ const AssetCategoryCountTable = ({ title = 'Asset Categories', staticData = null
   }));
 
   return (
-    <Card title={title}>
-      <div className="mt-2">
+    <Card title={title} className="p-3">
+      <div className="mt-1">
         {dataWithPercentages.map((item) => (
           <Row
             key={item.label}
@@ -63,11 +63,11 @@ const AssetCategoryCountTable = ({ title = 'Asset Categories', staticData = null
         ))}
       </div>
 
-      <div className="my-2 h-px bg-neutral-200" />
+      <div className="my-1.5 h-px bg-neutral-200" />
 
-      <div className="flex items-center justify-between pt-1">
-        <span className="text-neutral-600">Total Assets</span>
-        <span className="text-neutral-900 font-semibold">{total}</span>
+      <div className="flex items-center justify-between pt-0.5">
+        <span className="text-xs text-neutral-600">Total Assets</span>
+        <span className="text-xs text-neutral-900 font-semibold">{total}</span>
       </div>
     </Card>
   );

@@ -51,28 +51,67 @@ export const AdminPortalProvider = ({ children }) => {
   const [portalFeatures, setPortalFeatures] = useState(initialPortalFeatures);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedCompany, setSelectedCompany] = useState(null);
 
-  // Fetch users from API on mount
+  // Get selected company from sessionStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const company = sessionStorage.getItem('adminSelectedCompany');
+      setSelectedCompany(company);
+    }
+  }, []);
+
+  // Fetch users from API on mount and when company changes
   useEffect(() => {
     fetchUsers();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCompany]);
 
   const fetchUsers = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch(`${API_BASE_URL}/admin-users`);
+      
+      // Build API URL with company filter if available
+      let apiUrl = `${API_BASE_URL}/admin-users`;
+      if (selectedCompany) {
+        apiUrl += `?company=${encodeURIComponent(selectedCompany)}`;
+      }
+      
+      console.log('[AdminPortal] Fetching users from:', apiUrl);
+      
+      const response = await fetch(apiUrl);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
+      console.log('[AdminPortal] API Response:', {
+        success: data.success,
+        userCount: data.users?.length || 0,
+        total: data.total,
+        database: data.database,
+        message: data.message
+      });
       
       if (data.success) {
-        setUsers(data.users || []);
+        const usersList = data.users || [];
+        console.log(`[AdminPortal] Setting ${usersList.length} users in state`);
+        setUsers(usersList);
+        
+        if (usersList.length === 0) {
+          console.warn('[AdminPortal] No users returned from API. Check database connection and data.');
+        }
       } else {
         setError(data.error || 'Failed to fetch users');
-        console.error('Failed to fetch users:', data.error);
+        console.error('[AdminPortal] API returned error:', data.error);
       }
     } catch (err) {
-      console.error('Error fetching users:', err);
+      console.error('[AdminPortal] Error fetching users:', err);
       setError(err.message || 'Failed to fetch users');
+      // Set empty array on error to prevent showing stale data
+      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -80,7 +119,13 @@ export const AdminPortalProvider = ({ children }) => {
 
   const addUser = async (userData) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin-users`, {
+      // Build API URL with company filter if available
+      let apiUrl = `${API_BASE_URL}/admin-users`;
+      if (selectedCompany) {
+        apiUrl += `?company=${encodeURIComponent(selectedCompany)}`;
+      }
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -105,7 +150,13 @@ export const AdminPortalProvider = ({ children }) => {
 
   const updateUser = async (id, userData) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin-users/${id}`, {
+      // Build API URL with company filter if available
+      let apiUrl = `${API_BASE_URL}/admin-users/${id}`;
+      if (selectedCompany) {
+        apiUrl += `?company=${encodeURIComponent(selectedCompany)}`;
+      }
+      
+      const response = await fetch(apiUrl, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -130,7 +181,13 @@ export const AdminPortalProvider = ({ children }) => {
 
   const deleteUser = async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin-users/${id}`, {
+      // Build API URL with company filter if available
+      let apiUrl = `${API_BASE_URL}/admin-users/${id}`;
+      if (selectedCompany) {
+        apiUrl += `?company=${encodeURIComponent(selectedCompany)}`;
+      }
+      
+      const response = await fetch(apiUrl, {
         method: 'DELETE',
       });
       
@@ -150,7 +207,13 @@ export const AdminPortalProvider = ({ children }) => {
 
   const toggleUserActive = async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin-users/${id}/toggle-active`, {
+      // Build API URL with company filter if available
+      let apiUrl = `${API_BASE_URL}/admin-users/${id}/toggle-active`;
+      if (selectedCompany) {
+        apiUrl += `?company=${encodeURIComponent(selectedCompany)}`;
+      }
+      
+      const response = await fetch(apiUrl, {
         method: 'PATCH',
       });
       
@@ -222,11 +285,22 @@ export const AdminPortalProvider = ({ children }) => {
     ));
   };
 
+  const setCompany = (company) => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('adminSelectedCompany', company);
+      setSelectedCompany(company);
+      // Refresh users for the new company
+      fetchUsers();
+    }
+  };
+
   const value = {
     users,
     portalFeatures,
     loading,
     error,
+    selectedCompany,
+    setCompany,
     addUser,
     updateUser,
     deleteUser,
