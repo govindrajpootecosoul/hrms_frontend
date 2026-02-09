@@ -200,16 +200,30 @@ export const HRMS_MENU_ITEMS = [
     icon: <LayoutDashboard className="w-5 h-5" />
   },
   {
+    id: 'recruitment',
+    label: 'Recruitment',
+    path: '/hrms/recruitment/analytics', // Default to analytics when clicking main button
+    icon: <Briefcase className="w-5 h-5" />,
+    children: [
+      {
+        id: 'recruitment-analytics',
+        label: 'HR Analytics',
+        path: '/hrms/recruitment/analytics',
+        icon: <BarChart3 className="w-4 h-4" />
+      },
+      {
+        id: 'recruitment-recruitment',
+        label: 'Recruitment',
+        path: '/hrms/recruitment',
+        icon: <Users className="w-4 h-4" />
+      }
+    ]
+  },
+  {
     id: 'employees',
     label: 'Employees',
     path: '/hrms/employees',
     icon: <Users className="w-5 h-5" />
-  },
-  {
-    id: 'organisation-chart',
-    label: 'Organisation Chart',
-    path: '/hrms/organisation-chart',
-    icon: <Network className="w-5 h-5" />
   },
   {
     id: 'attendance',
@@ -228,26 +242,6 @@ export const HRMS_MENU_ITEMS = [
         label: 'Leave Management',
         path: '/hrms/attendance/leave',
         icon: <FileCheck className="w-4 h-4" />
-      }
-    ]
-  },
-  {
-    id: 'recruitment',
-    label: 'Recruitment',
-    path: '/hrms/recruitment',
-    icon: <Briefcase className="w-5 h-5" />,
-    children: [
-      {
-        id: 'recruitment-analytics',
-        label: 'HR Analytics',
-        path: '/hrms/recruitment/analytics',
-        icon: <BarChart3 className="w-4 h-4" />
-      },
-      {
-        id: 'recruitment-recruitment',
-        label: 'Recruitment',
-        path: '/hrms/recruitment/recruitment',
-        icon: <Users className="w-4 h-4" />
       }
     ]
   },
@@ -271,11 +265,17 @@ export const HRMS_MENU_ITEMS = [
       },
       {
         id: 'expenses-management',
-        label: 'Management',
+        label: 'Approval Management',
         path: '/hrms/expenses/management',
         icon: <ListChecks className="w-4 h-4" />
       }
     ]
+  },
+  {
+    id: 'organisation-chart',
+    label: 'Organisation Chart',
+    path: '/hrms/organisation-chart',
+    icon: <Network className="w-5 h-5" />
   },
   {
     id: 'reports',

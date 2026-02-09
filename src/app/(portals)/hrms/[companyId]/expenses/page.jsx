@@ -1,14 +1,14 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { Receipt } from 'lucide-react';
+import { Receipt, RefreshCw, FileText, Clock, CheckCircle, XCircle, AlertCircle, Wallet, TrendingUp } from 'lucide-react';
 import { useCompany } from '@/lib/context/CompanyContext';
-import StatisticsCards from '@/components/hrms/StatisticsCards';
 import PieChart from '@/components/charts/PieChart';
 import LineChart from '@/components/charts/LineChart';
 import BarGraph from '@/components/charts/BarGraph';
 import Table from '@/components/common/Table';
 import Badge from '@/components/common/Badge';
+import Button from '@/components/common/Button';
 
 const ExpensesPage = () => {
   const params = useParams();
@@ -27,62 +27,48 @@ const ExpensesPage = () => {
     avgReimbursementTime: 4.2
   };
 
-  const statCards = [
+  const kpiCards = [
     {
-      key: 'total-claims-submitted',
       title: 'TOTAL CLAIMS SUBMITTED',
       value: expenseStats.totalClaimsSubmitted,
-      icon: <Receipt className="w-6 h-6" />,
-      color: '',
-      backgroundColor: 'linear-gradient(135deg, #1d4ed8, #3b82f6)', // blue gradient
+      icon: FileText,
+      gradient: 'from-blue-600 via-blue-500 to-blue-700',
     },
     {
-      key: 'pending-approvals',
       title: 'PENDING APPROVALS',
       value: expenseStats.pendingApprovals,
-      icon: <Receipt className="w-6 h-6" />,
-      color: '',
-      backgroundColor: 'linear-gradient(135deg, #f59e0b, #f97316)', // orange gradient
+      icon: AlertCircle,
+      gradient: 'from-orange-500 via-orange-400 to-orange-600',
     },
     {
-      key: 'approved-claims-mtd',
       title: 'APPROVED CLAIMS (MTD)',
       value: expenseStats.approvedClaimsMTD,
-      icon: <Receipt className="w-6 h-6" />,
-      color: '',
-      backgroundColor: 'linear-gradient(135deg, #059669, #10b981)', // green gradient
+      icon: CheckCircle,
+      gradient: 'from-green-600 via-green-500 to-green-700',
     },
     {
-      key: 'rejected-claims',
       title: 'REJECTED CLAIMS',
       value: expenseStats.rejectedClaims,
-      icon: <Receipt className="w-6 h-6" />,
-      color: '',
-      backgroundColor: 'linear-gradient(135deg, #ec4899, #f472b6)', // pink/magenta gradient
+      icon: XCircle,
+      gradient: 'from-pink-500 via-pink-400 to-pink-600',
     },
     {
-      key: 'total-outstanding-advances',
       title: 'TOTAL OUTSTANDING ADVANCES',
       value: `₹${expenseStats.totalOutstandingAdvances.toLocaleString()}`,
-      icon: <Receipt className="w-6 h-6" />,
-      color: '',
-      backgroundColor: 'linear-gradient(135deg, #6366f1, #8b5cf6)', // blue-purple gradient
+      icon: Wallet,
+      gradient: 'from-cyan-500 via-cyan-400 to-cyan-600',
     },
     {
-      key: 'total-settled-amount',
       title: 'TOTAL SETTLED AMOUNT',
       value: `₹${expenseStats.totalSettledAmount.toLocaleString()}`,
-      icon: <Receipt className="w-6 h-6" />,
-      color: '',
-      backgroundColor: 'linear-gradient(135deg, #7c3aed, #a855f7)', // purple gradient
+      icon: TrendingUp,
+      gradient: 'from-purple-600 via-purple-500 to-purple-700',
     },
     {
-      key: 'avg-reimbursement-time',
       title: 'AVG REIMBURSEMENT TIME (DAYS)',
       value: expenseStats.avgReimbursementTime,
-      icon: <Receipt className="w-6 h-6" />,
-      color: '',
-      backgroundColor: 'linear-gradient(135deg, #4b5563, #6b7280)', // dark grey gradient
+      icon: Clock,
+      gradient: 'from-slate-700 via-slate-600 to-slate-800',
     }
   ];
 
@@ -191,14 +177,18 @@ const ExpensesPage = () => {
       title: 'Status',
       render: (value) => {
         const statusConfig = {
-          'Approved': { variant: 'success', label: 'Approved' },
-          'Rejected': { variant: 'danger', label: 'Rejected' },
-          'Pending Finance': { variant: 'info', label: 'Pending Finance' },
-          'Pending HR': { variant: 'info', label: 'Pending HR' },
-          'Pending Manager': { variant: 'info', label: 'Pending Manager' }
+          'Approved': { className: 'text-green-600', label: 'Approved' },
+          'Rejected': { className: 'text-red-600', label: 'Rejected' },
+          'Pending Finance': { className: 'text-blue-600', label: 'Pending Finance' },
+          'Pending HR': { className: 'text-blue-600', label: 'Pending HR' },
+          'Pending Manager': { className: 'text-blue-600', label: 'Pending Manager' }
         };
-        const config = statusConfig[value] || { variant: 'info', label: value };
-        return <Badge size="sm">{config.label}</Badge>;
+        const config = statusConfig[value] || { className: 'text-slate-600', label: value };
+        return (
+          <span className={`text-sm font-medium ${config.className}`}>
+            {config.label}
+          </span>
+        );
       }
     },
     {
@@ -213,19 +203,46 @@ const ExpensesPage = () => {
   ];
 
   return (
-    <div className="min-h-screen space-y-8">
+    <div className="space-y-8">
       {/* Page Header */}
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold text-neutral-900">
-          Overview
-        </h1>
-        <p className="text-lg text-neutral-600">
-          Monitor claims, advances, and settlements across the organisation.
-        </p>
+      <div className="flex items-start justify-between">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold text-slate-900">
+            Expense & Reimbursement Overview
+          </h1>
+          <p className="text-sm text-slate-600">
+            Monitor claims, advances, and settlements across the organisation.
+          </p>
+        </div>
+        <Button
+          className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50"
+          icon={<RefreshCw className="w-4 h-4" />}
+          iconPosition="left"
+        >
+          Refresh Data
+        </Button>
       </div>
 
-      {/* Statistics Cards */}
-      <StatisticsCards cards={statCards} />
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+        {kpiCards.map((card, index) => {
+          const Icon = card.icon;
+          return (
+            <div
+              key={index}
+              className={`bg-gradient-to-br ${card.gradient} rounded-xl p-5 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]`}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                  <Icon className="w-5 h-5 text-white" />
+                </div>
+              </div>
+              <div className="text-3xl font-bold mb-1">{card.value}</div>
+              <div className="text-xs text-white/90 uppercase tracking-wide">{card.title}</div>
+            </div>
+          );
+        })}
+      </div>
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -283,18 +300,42 @@ const ExpensesPage = () => {
       </div>
 
       {/* Recent Claims Table */}
-      <div className="space-y-4">
-        <div className="space-y-1">
-          <h2 className="text-xl font-semibold text-neutral-900">Recent Claims</h2>
-          <p className="text-sm text-neutral-600">Last 10 claims awaiting action.</p>
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-200">
+          <div className="space-y-1">
+            <h2 className="text-xl font-semibold text-slate-900">Recent Claims</h2>
+            <p className="text-sm text-slate-600">Last 10 claims awaiting action</p>
+          </div>
         </div>
-        <Table
-          columns={recentClaimsColumns}
-          data={recentClaims}
-          loading={false}
-          pagination={false}
-          emptyMessage="No recent claims found."
-        />
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-slate-50 border-b border-slate-200">
+              <tr>
+                {recentClaimsColumns.map((column, index) => (
+                  <th
+                    key={index}
+                    className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider"
+                  >
+                    {column.title}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-slate-200">
+              {recentClaims.map((claim) => (
+                <tr key={claim.id} className="hover:bg-slate-50 transition-colors">
+                  {recentClaimsColumns.map((column, colIndex) => (
+                    <td key={colIndex} className="px-6 py-4 whitespace-nowrap">
+                      {column.render
+                        ? column.render(claim[column.key], claim)
+                        : claim[column.key]}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

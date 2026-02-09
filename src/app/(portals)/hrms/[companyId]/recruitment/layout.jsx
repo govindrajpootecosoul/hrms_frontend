@@ -2,7 +2,6 @@
 
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { Users, Briefcase, Sparkles } from 'lucide-react';
-import Tabs from '@/components/common/Tabs';
 
 export default function RecruitmentLayout({ children }) {
   const params = useParams();
@@ -14,17 +13,14 @@ export default function RecruitmentLayout({ children }) {
     {
       id: 'sourcing-screening',
       label: 'Sourcing & Screening',
-      icon: <Users className="w-4 h-4" />,
     },
     {
       id: 'recruitment-hiring',
       label: 'Recruitment & Hiring',
-      icon: <Briefcase className="w-4 h-4" />,
     },
     {
       id: 'onboarding',
       label: 'Onboarding',
-      icon: <Sparkles className="w-4 h-4" />,
     },
   ];
 
@@ -46,9 +42,52 @@ export default function RecruitmentLayout({ children }) {
     }
   };
 
+  // Don't show tabs on analytics page
+  const isAnalyticsPage = pathname?.includes('/analytics');
+
   return (
-    <div className="min-h-screen space-y-8">
-      <Tabs tabs={tabs} activeTab={activeTab} onTabChange={handleTabChange} />
+    <div className="space-y-6">
+      {!isAnalyticsPage && (
+        <>
+          {/* Page Title */}
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">Recruitment</h1>
+            <p className="text-sm text-slate-600 mt-1">Manage hiring pipeline and candidate lifecycle</p>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex gap-2">
+            {tabs.map((tab) => {
+              let activeBgColor = '';
+              if (activeTab === tab.id) {
+                if (tab.id === 'sourcing-screening') {
+                  activeBgColor = 'bg-yellow-400 text-slate-900';
+                } else if (tab.id === 'recruitment-hiring') {
+                  activeBgColor = 'bg-blue-600 text-white';
+                } else if (tab.id === 'onboarding') {
+                  activeBgColor = 'bg-green-500 text-white';
+                }
+              }
+              
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => handleTabChange(tab.id)}
+                  className={`px-4 py-2.5 text-sm font-medium transition-colors rounded-lg ${
+                    activeTab === tab.id
+                      ? `${activeBgColor} shadow-sm`
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* Content */}
       {children}
     </div>
   );
