@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, Eye, Edit, MoreHorizontal, UserPlus, CheckCircle, Wrench, X, ArrowLeft } from 'lucide-react';
+import { Search, Eye, Edit, MoreHorizontal, UserPlus, CheckCircle, Wrench, X, ArrowLeft, ChevronDown, Plus, Upload, FileText, History } from 'lucide-react';
 import Input from '@/components/common/Input';
 import Select from '@/components/common/Select';
 import Badge from '@/components/common/Badge';
@@ -23,6 +23,7 @@ const AssetTable = ({
   onAssign,
   onUnassign,
   onExport,
+  onUpload,
   onFilteredAssetsChange,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -34,12 +35,22 @@ const AssetTable = ({
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showBulkAssignModal, setShowBulkAssignModal] = useState(false);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [showOptionsMenu, setShowOptionsMenu] = useState(null); // Track which asset's menu is open
   const [selectedAsset, setSelectedAsset] = useState(null);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [assetHistory, setAssetHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const [allEmployees, setAllEmployees] = useState([]);
   const [selectedEmployeeName, setSelectedEmployeeName] = useState('');
   const [selectedEmployeeDepartment, setSelectedEmployeeDepartment] = useState('');
   const [bulkSelectedEmployee, setBulkSelectedEmployee] = useState('');
+  const [assignedToSearchQuery, setAssignedToSearchQuery] = useState('');
+  const [isAssignedToOpen, setIsAssignedToOpen] = useState(false);
   const prevFilteredAssetsRef = useRef([]);
+  const optionsMenuRef = useRef(null);
+  const assignedToDropdownRef = useRef(null);
+  const menuButtonClickedRef = useRef(false);
 
   // Keep status filter in sync when arriving via deep-link (?status=assigned)
   useEffect(() => {
@@ -49,12 +60,28 @@ const AssetTable = ({
 
   // Filter assets based on search and filters
   const filteredAssets = assets.filter(asset => {
-    const matchesSearch = !searchTerm || 
-      asset.assetTag?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      asset.model?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      asset.brand?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      asset.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      asset.subcategory?.toLowerCase().includes(searchTerm.toLowerCase());
+    // Enhanced search - search across all relevant fields
+    const searchLower = searchTerm?.toLowerCase().trim() || '';
+    const matchesSearch = !searchLower || 
+      // Asset identification
+      asset.assetTag?.toLowerCase().includes(searchLower) ||
+      asset.serialNumber?.toLowerCase().includes(searchLower) ||
+      // Product details
+      asset.model?.toLowerCase().includes(searchLower) ||
+      asset.brand?.toLowerCase().includes(searchLower) ||
+      // Categories
+      asset.category?.toLowerCase().includes(searchLower) ||
+      asset.subcategory?.toLowerCase().includes(searchLower) ||
+      // Assignment details
+      asset.assignedTo?.toLowerCase().includes(searchLower) ||
+      asset.department?.toLowerCase().includes(searchLower) ||
+      // Location details
+      asset.location?.toLowerCase().includes(searchLower) ||
+      asset.site?.toLowerCase().includes(searchLower) ||
+      // Status
+      asset.status?.toLowerCase().includes(searchLower) ||
+      // Notes/description (if available)
+      asset.notes?.toLowerCase().includes(searchLower);
     
     const matchesStatus = !statusFilter || asset.status === statusFilter;
     const matchesCategory = !categoryFilter || asset.category === categoryFilter;
@@ -135,11 +162,41 @@ const AssetTable = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount
 
+  // Filter employees based on search query for assigned to dropdown
+  const filteredAssignedToOptions = allEmployees.filter(emp => {
+    if (!assignedToSearchQuery.trim()) return true;
+    const query = assignedToSearchQuery.toLowerCase();
+    return (
+      emp.name?.toLowerCase().includes(query) ||
+      emp.email?.toLowerCase().includes(query) ||
+      emp.employeeId?.toLowerCase().includes(query) ||
+      emp.department?.toLowerCase().includes(query)
+    );
+  });
+
   const assignedToOptions = [
     { value: '', label: 'Assigned To' },
-    ...allEmployees.map(emp => ({ value: emp.name, label: emp.name })),
+    ...filteredAssignedToOptions.map(emp => ({ value: emp.name, label: emp.name })),
     { value: 'unassigned', label: 'Unassigned' },
   ];
+
+  // Close assigned to dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (assignedToDropdownRef.current && !assignedToDropdownRef.current.contains(event.target)) {
+        setIsAssignedToOpen(false);
+        setAssignedToSearchQuery('');
+      }
+    };
+
+    if (isAssignedToOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isAssignedToOpen]);
 
   const [departments, setDepartments] = useState([]);
 
@@ -317,6 +374,256 @@ const AssetTable = ({
     }
   };
 
+  const handleViewAsset = (asset) => {
+    setSelectedAsset(asset);
+    setShowViewModal(true);
+    setShowOptionsMenu(null); // Close any open menu
+  };
+
+  const handleEditAsset = (asset) => {
+    console.log('[AssetTable] Edit asset clicked:', asset);
+    setShowOptionsMenu(null); // Close menu
+    if (onEdit) {
+      onEdit(asset);
+    } else {
+      console.warn('[AssetTable] onEdit callback not provided');
+    }
+  };
+
+  const handleDeleteAsset = (asset) => {
+    console.log('[AssetTable] Delete asset clicked:', asset);
+    setShowOptionsMenu(null); // Close menu
+    if (window.confirm(`Are you sure you want to delete asset ${asset.assetTag || asset.id}? This action cannot be undone.`)) {
+      if (onDelete) {
+        onDelete(asset);
+      } else {
+        console.warn('[AssetTable] onDelete callback not provided');
+      }
+    }
+  };
+
+  const handleViewHistory = async (asset) => {
+    console.log('[AssetTable] View history clicked for asset:', asset);
+    setShowOptionsMenu(null); // Close menu
+    setSelectedAsset(asset);
+    setShowHistoryModal(true);
+    await fetchAssetHistory(asset);
+  };
+
+  const fetchAssetHistory = async (asset) => {
+    if (!asset) return;
+
+    try {
+      setLoadingHistory(true);
+      const params = new URLSearchParams();
+      
+      // Get company from sessionStorage
+      const selectedCompany = typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null;
+      if (selectedCompany) params.set('company', selectedCompany);
+      
+      // Get companyId from props or context if available
+      // For now, we'll use asset's companyId if available
+      
+      const assetId = asset.id || asset._id?.toString();
+      const assetTag = asset.assetTag;
+      
+      if (assetId) params.set('assetId', assetId);
+      if (assetTag) params.set('assetTag', assetTag);
+      
+      params.set('limit', '200');
+
+      const url = `/api/asset-tracker/history?${params.toString()}`;
+      console.log('[AssetTable] Fetching asset history:', url);
+
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (data?.success && data.data) {
+        // Sort by createdAt descending (newest first)
+        const sortedHistory = [...data.data].sort((a, b) => {
+          const dateA = new Date(a.createdAt || 0).getTime();
+          const dateB = new Date(b.createdAt || 0).getTime();
+          return dateB - dateA;
+        });
+        setAssetHistory(sortedHistory);
+      } else {
+        setAssetHistory([]);
+      }
+    } catch (e) {
+      console.error('[AssetTable] Error fetching asset history:', e);
+      setAssetHistory([]);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const formatDateTimeWithAMPM = (iso) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    const hh = d.getHours();
+    const min = String(d.getMinutes()).padStart(2, '0');
+    const ampm = hh >= 12 ? 'PM' : 'AM';
+    const hh12 = String(hh % 12 || 12).padStart(2, '0');
+    return `${dd}/${mm}/${yyyy} ${hh12}:${min} ${ampm}`;
+  };
+
+  const getHistoryEventLabel = (type) => {
+    const labels = {
+      checkout: 'Check out',
+      checkin: 'Check in',
+      maintenance: 'Under Repair',
+      broken: 'Broken',
+      created: 'Asset created',
+      updated: 'Asset edit',
+      deleted: 'Asset deleted',
+      warranty: 'Warranty',
+      linking: 'Asset Linking',
+    };
+    return labels[type] || type || '—';
+  };
+
+  const parseHistoryEntry = (entry) => {
+    let field = 'Status';
+    let changedFrom = '—';
+    let changedTo = '—';
+
+    const type = entry.type || '';
+    const action = entry.action || '';
+
+    if (type === 'checkout') {
+      if (entry.assignedFrom && entry.assignedTo && entry.assignedFrom !== entry.assignedTo) {
+        field = 'Assignment';
+        changedFrom = entry.assignedFrom;
+        changedTo = entry.assignedTo;
+      } else if (entry.assignedTo) {
+        field = 'Status';
+        changedFrom = 'Available';
+        changedTo = 'Checked out';
+      } else {
+        field = 'Status';
+        changedFrom = 'Available';
+        changedTo = 'Checked out';
+      }
+      
+      if (entry.department) {
+        field = 'Department';
+        changedTo = entry.department;
+      }
+    } else if (type === 'checkin') {
+      if (entry.assignedFrom) {
+        field = 'Status';
+        changedFrom = 'Checked out';
+        changedTo = 'Available';
+      } else {
+        field = 'Status';
+        changedFrom = 'Checked out';
+        changedTo = 'Available';
+      }
+    } else if (type === 'updated') {
+      const actionLower = action.toLowerCase();
+      if (actionLower.includes('ram 1')) {
+        field = 'RAM 1 Size';
+      } else if (actionLower.includes('ram 2')) {
+        field = 'RAM 2 Size';
+      } else if (actionLower.includes('ram')) {
+        field = 'Total RAM';
+      } else if (actionLower.includes('serial')) {
+        field = 'Serial No';
+      } else if (actionLower.includes('brand')) {
+        field = 'Brand';
+      } else if (actionLower.includes('model')) {
+        field = 'Model';
+      } else if (actionLower.includes('device id')) {
+        field = 'Device ID';
+      } else if (actionLower.includes('sub category')) {
+        field = 'Sub Category';
+      } else if (actionLower.includes('category')) {
+        field = 'Category';
+      } else if (actionLower.includes('warranty')) {
+        field = 'Warranty';
+      } else if (actionLower.includes('linking') || actionLower.includes('child')) {
+        field = 'Child Asset';
+      } else if (actionLower.includes('re-assigned')) {
+        field = 'Assignment';
+        changedFrom = entry.assignedFrom || '—';
+        changedTo = entry.assignedTo || '—';
+      } else {
+        field = 'Asset edit';
+      }
+      
+      if (entry.description && field !== 'Asset edit') {
+        changedTo = entry.description;
+      }
+    } else if (type === 'created') {
+      field = 'Asset created';
+      if (entry.description) {
+        changedTo = entry.description;
+      }
+    } else if (type === 'warranty') {
+      field = 'Warranty';
+    } else if (type === 'linking') {
+      field = 'Child Asset';
+      if (entry.description) {
+        changedTo = entry.description;
+      }
+    } else if (type === 'broken') {
+      field = 'Status';
+      changedFrom = entry.status || 'Available';
+      changedTo = 'Broken';
+    } else if (type === 'maintenance') {
+      field = 'Status';
+      changedFrom = entry.status || 'Available';
+      changedTo = 'Under Repair';
+    } else if (type === 'deleted') {
+      field = 'Asset deleted';
+    }
+
+    return { field, changedFrom, changedTo };
+  };
+
+  // Close options menu when clicking outside
+  useEffect(() => {
+    if (!showOptionsMenu) {
+      menuButtonClickedRef.current = false;
+      return;
+    }
+
+    const handleClickOutside = (event) => {
+      // Ignore if menu button was just clicked
+      if (menuButtonClickedRef.current) {
+        menuButtonClickedRef.current = false;
+        return;
+      }
+      
+      // Check if click is outside the menu
+      if (optionsMenuRef.current && !optionsMenuRef.current.contains(event.target)) {
+        setShowOptionsMenu(null);
+      }
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setShowOptionsMenu(null);
+      }
+    };
+
+    // Use setTimeout to ensure menu is rendered and button click event has completed
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside, true);
+      document.addEventListener('keydown', handleEscape);
+    }, 150);
+
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('mousedown', handleClickOutside, true);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [showOptionsMenu]);
+
   const getStatusBadge = (status) => {
     const statusConfig = {
       assigned: {
@@ -360,49 +667,187 @@ const AssetTable = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col sm:flex-row gap-2">
         <div className="flex-1">
           <Input
-            placeholder="Search assets by name, tag ID, model, or any other field..."
+            placeholder="Search by tag ID, model, brand, assigned to, department, location, site, or any field..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            icon={<Search className="w-4 h-4" />}
+            icon={<Search className="w-3.5 h-3.5" />}
+            className="!pl-10 !pr-3 !py-2 text-sm"
           />
         </div>
-        <div className="flex gap-3">
-          <div className="w-40">
-            <Select
-              options={assignedToOptions}
-              value={assignedToFilter}
-              onChange={setAssignedToFilter}
-              placeholder="Assigned To"
-            />
+        <div className="flex gap-2">
+          <div className="w-36 relative" ref={assignedToDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setIsAssignedToOpen(!isAssignedToOpen)}
+              className={`w-full px-3 py-2 text-sm rounded-xl border border-neutral-300 bg-white text-left flex items-center justify-between cursor-pointer hover:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-300 ${
+                assignedToFilter ? 'text-neutral-900' : 'text-neutral-400'
+              }`}
+            >
+              <span className="truncate">
+                {assignedToFilter === 'unassigned' 
+                  ? 'Unassigned' 
+                  : assignedToFilter 
+                    ? allEmployees.find(emp => emp.name === assignedToFilter)?.name || assignedToFilter
+                    : 'Assigned To'}
+              </span>
+              <ChevronDown className={`w-3.5 h-3.5 text-neutral-400 transition-transform ${isAssignedToOpen ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {/* Backdrop to close dropdown */}
+            {isAssignedToOpen && (
+              <div 
+                className="fixed inset-0 z-40" 
+                onClick={() => {
+                  setIsAssignedToOpen(false);
+                  setAssignedToSearchQuery('');
+                }}
+              />
+            )}
+            
+            {isAssignedToOpen && (
+              <div className="absolute z-50 w-full mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-64 overflow-hidden flex flex-col">
+                {/* Search Input */}
+                <div className="p-2 border-b border-neutral-200">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-neutral-400" />
+                    <input
+                      type="text"
+                      value={assignedToSearchQuery}
+                      onChange={(e) => setAssignedToSearchQuery(e.target.value)}
+                      placeholder="Search by name, email, ID..."
+                      className="w-full pl-7 pr-2 py-1.5 text-xs border border-neutral-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                </div>
+
+                {/* Options List */}
+                <div className="overflow-y-auto max-h-48">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAssignedToFilter('');
+                      setIsAssignedToOpen(false);
+                      setAssignedToSearchQuery('');
+                    }}
+                    className={`w-full px-3 py-2 text-xs text-left hover:bg-neutral-100 transition-colors ${
+                      !assignedToFilter ? 'bg-primary-50 text-primary-700' : 'text-neutral-900'
+                    }`}
+                  >
+                    All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAssignedToFilter('unassigned');
+                      setIsAssignedToOpen(false);
+                      setAssignedToSearchQuery('');
+                    }}
+                    className={`w-full px-3 py-2 text-xs text-left hover:bg-neutral-100 transition-colors ${
+                      assignedToFilter === 'unassigned' ? 'bg-primary-50 text-primary-700' : 'text-neutral-900'
+                    }`}
+                  >
+                    Unassigned
+                  </button>
+                  {filteredAssignedToOptions.length === 0 ? (
+                    <div className="p-4 text-center text-xs text-neutral-500">
+                      {assignedToSearchQuery ? 'No employees found matching your search.' : 'No employees available.'}
+                    </div>
+                  ) : (
+                    filteredAssignedToOptions.map((employee) => (
+                      <button
+                        key={employee.id}
+                        type="button"
+                        onClick={() => {
+                          setAssignedToFilter(employee.name);
+                          setIsAssignedToOpen(false);
+                          setAssignedToSearchQuery('');
+                        }}
+                        className={`w-full px-3 py-2 text-xs text-left hover:bg-neutral-100 transition-colors ${
+                          assignedToFilter === employee.name ? 'bg-primary-50 text-primary-700' : 'text-neutral-900'
+                        }`}
+                      >
+                        <div className="flex flex-col">
+                          <span className="font-medium">{employee.name}</span>
+                          {(employee.email || employee.department) && (
+                            <span className="text-neutral-500 text-xs truncate">
+                              {employee.email}
+                              {employee.email && employee.department ? ' • ' : ''}
+                              {employee.department}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+
+                {/* Footer with count */}
+                {filteredAssignedToOptions.length > 0 && (
+                  <div className="px-3 py-1.5 border-t border-neutral-200 bg-neutral-50 text-xs text-neutral-500">
+                    Showing {filteredAssignedToOptions.length} of {allEmployees.length} employees
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-          <div className="w-32">
+          <div className="w-28">
             <Select
               options={statusOptions}
               value={statusFilter}
               onChange={setStatusFilter}
               placeholder="Status"
+              className="!px-3 !py-2 text-sm"
             />
           </div>
-          <div className="w-40">
+          <div className="w-36">
             <Select
               options={categoryOptions}
               value={categoryFilter}
               onChange={setCategoryFilter}
               placeholder="Category"
+              className="!px-3 !py-2 text-sm"
             />
           </div>
-          <div className="w-40">
+          <div className="w-36">
             <Select
               options={departmentOptions}
               value={departmentFilter}
               onChange={setDepartmentFilter}
               placeholder="Department"
+              className="!px-3 !py-2 text-sm"
             />
+          </div>
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={onExport}
+              size="sm"
+              icon={<FileText className="w-3.5 h-3.5" />}
+              className="bg-white text-neutral-800 border border-neutral-300 hover:bg-neutral-50"
+            >
+              Export Report
+            </Button>
+            <Button
+              onClick={onUpload}
+              size="sm"
+              icon={<Upload className="w-3.5 h-3.5" />}
+              className="bg-white text-neutral-800 border border-neutral-300 hover:bg-neutral-50"
+            >
+              Upload Excel
+            </Button>
+            <Button
+              onClick={onAdd}
+              size="sm"
+              icon={<Plus className="w-3.5 h-3.5" />}
+            >
+              Add New Asset
+            </Button>
           </div>
         </div>
       </div>
@@ -446,7 +891,7 @@ const AssetTable = ({
           <table className="w-full border-collapse">
             <thead className="bg-neutral-50 border-b border-neutral-200">
               <tr>
-                <th className="px-4 py-3 text-left">
+                <th className="px-3 py-2 text-left">
                   <input
                     type="checkbox"
                     checked={selectedAssets.length === filteredAssets.length && filteredAssets.length > 0}
@@ -454,34 +899,34 @@ const AssetTable = ({
                     className="w-4 h-4 text-primary-600 border-neutral-300 rounded focus:ring-primary-500"
                   />
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">
+                <th className="px-3 py-2 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">
                   ASSIGNED TO
                 </th>
-                <th className="px-3 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider w-40">
+                <th className="px-2 py-2 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider w-40">
                   DEPARTMENT
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">
+                <th className="px-3 py-2 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">
                   STATUS
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">
+                <th className="px-3 py-2 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">
                   ASSET TAG ID
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">
+                <th className="px-3 py-2 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">
                   MODEL
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">
+                <th className="px-3 py-2 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">
                   CATEGORY
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">
+                <th className="px-3 py-2 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">
                   SUB CATEGORY
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">
+                <th className="px-3 py-2 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">
                   LOCATION
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">
+                <th className="px-3 py-2 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">
                   SITE
                 </th>
-                <th className="px-2 py-3 text-right text-xs font-semibold text-neutral-500 uppercase tracking-wider w-32">
+                <th className="px-2 py-2 text-right text-xs font-semibold text-neutral-500 uppercase tracking-wider w-32">
                   ACTIONS
                 </th>
               </tr>
@@ -508,7 +953,7 @@ const AssetTable = ({
                     key={asset.id}
                     className="hover:bg-neutral-50 transition-colors duration-150"
                   >
-                    <td className="px-4 py-4">
+                    <td className="px-3 py-2">
                       <input
                         type="checkbox"
                         checked={selectedAssets.includes(asset.id)}
@@ -516,36 +961,36 @@ const AssetTable = ({
                         className="w-4 h-4 text-primary-600 border-neutral-300 rounded focus:ring-primary-500"
                       />
                     </td>
-                    <td className="px-4 py-4 text-sm text-neutral-700">
+                    <td className="px-3 py-2 text-sm text-neutral-700">
                       {asset.assignedTo || 'Unassigned'}
                     </td>
-                    <td className="px-3 py-4 text-sm text-neutral-700">
+                    <td className="px-2 py-2 text-sm text-neutral-700">
                       {asset.department || '—'}
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="px-3 py-2">
                       {getStatusBadge(asset.status)}
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="px-3 py-2">
                       <button
-                        onClick={() => onView?.(asset)}
+                        onClick={() => handleViewAsset(asset)}
                         className="text-blue-600 hover:text-blue-700 font-medium text-sm"
                       >
                         {asset.assetTag}
                       </button>
                     </td>
-                    <td className="px-4 py-4 text-sm text-neutral-900">
+                    <td className="px-3 py-2 text-sm text-neutral-900">
                       {asset.model}
                     </td>
-                    <td className="px-4 py-4 text-sm text-neutral-700">
+                    <td className="px-3 py-2 text-sm text-neutral-700">
                       {asset.category}
                     </td>
-                    <td className="px-4 py-4 text-sm text-neutral-700">
+                    <td className="px-3 py-2 text-sm text-neutral-700">
                       {asset.subcategory}
                     </td>
-                    <td className="px-4 py-4 text-sm text-neutral-700">
+                    <td className="px-3 py-2 text-sm text-neutral-700">
                       {asset.location}
                     </td>
-                    <td className="px-4 py-4 text-sm text-neutral-700">
+                    <td className="px-3 py-2 text-sm text-neutral-700">
                       {asset.site}
                     </td>
                     <td className="px-2 py-4">
@@ -566,10 +1011,10 @@ const AssetTable = ({
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                onView?.(asset);
+                                handleViewAsset(asset);
                               }}
                               className="w-8 h-8 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center transition-colors"
-                              title="View/Edit Asset"
+                              title="View Asset Details"
                             >
                               <Eye className="w-4 h-4" />
                             </button>
@@ -591,25 +1036,85 @@ const AssetTable = ({
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                onView?.(asset);
+                                handleViewAsset(asset);
                               }}
                               className="w-8 h-8 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center transition-colors"
-                              title="View/Edit Asset"
+                              title="View Asset Details"
                             >
                               <Eye className="w-4 h-4" />
                             </button>
                           </>
                         )}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            // More options menu - could show dropdown with edit, delete, etc.
-                          }}
-                          className="w-8 h-8 rounded-full bg-neutral-300 hover:bg-neutral-400 text-white flex items-center justify-center transition-colors"
-                          title="More Options"
-                        >
-                          <MoreHorizontal className="w-4 h-4" />
-                        </button>
+                        <div className="relative" ref={optionsMenuRef}>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              menuButtonClickedRef.current = true;
+                              const newMenuState = showOptionsMenu === asset.id ? null : asset.id;
+                              console.log('Options menu button clicked, setting menu to:', newMenuState);
+                              setShowOptionsMenu(newMenuState);
+                            }}
+                            className="w-8 h-8 rounded-full bg-neutral-300 hover:bg-neutral-400 text-white flex items-center justify-center transition-colors"
+                            title="More Options"
+                          >
+                            <MoreHorizontal className="w-4 h-4" />
+                          </button>
+                          {showOptionsMenu === asset.id && (
+                            <div 
+                              className="absolute right-0 top-full mt-1 w-40 bg-white border border-neutral-200 rounded-lg shadow-xl z-[100]"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                              }}
+                              onMouseDown={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                              }}
+                            >
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  console.log('Edit button clicked for asset:', asset);
+                                  handleEditAsset(asset);
+                                }}
+                                className="w-full px-4 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-100 flex items-center gap-2 transition-colors rounded-t-lg"
+                              >
+                                <Edit className="w-4 h-4" />
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  console.log('View History button clicked for asset:', asset);
+                                  handleViewHistory(asset);
+                                }}
+                                className="w-full px-4 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-100 flex items-center gap-2 transition-colors"
+                              >
+                                <History className="w-4 h-4" />
+                                View History
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  console.log('Delete button clicked for asset:', asset);
+                                  handleDeleteAsset(asset);
+                                }}
+                                className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors rounded-b-lg"
+                              >
+                                <X className="w-4 h-4" />
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </td>
                   </tr>
@@ -768,6 +1273,210 @@ const AssetTable = ({
         </div>
       </Modal>
 
+      {/* View Asset Details Modal */}
+      <Modal
+        isOpen={showViewModal}
+        onClose={() => {
+          setShowViewModal(false);
+          setSelectedAsset(null);
+        }}
+        title={`Asset Details: ${selectedAsset?.assetTag || ''}`}
+        size="xl"
+      >
+        {selectedAsset && (
+          <div className="space-y-6">
+            {/* Basic Information */}
+            <div>
+              <h3 className="text-lg font-semibold text-neutral-900 mb-4 pb-2 border-b border-neutral-200">
+                Basic Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-medium text-neutral-500 uppercase">Asset Tag ID</label>
+                  <p className="text-sm text-neutral-900 mt-1 font-mono">{selectedAsset.assetTag || '—'}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-neutral-500 uppercase">Status</label>
+                  <div className="mt-1">{getStatusBadge(selectedAsset.status)}</div>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-neutral-500 uppercase">Category</label>
+                  <p className="text-sm text-neutral-900 mt-1">{selectedAsset.category || '—'}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-neutral-500 uppercase">Sub Category</label>
+                  <p className="text-sm text-neutral-900 mt-1">{selectedAsset.subcategory || '—'}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-neutral-500 uppercase">Site</label>
+                  <p className="text-sm text-neutral-900 mt-1">{selectedAsset.site || '—'}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-neutral-500 uppercase">Location</label>
+                  <p className="text-sm text-neutral-900 mt-1">{selectedAsset.location || '—'}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-neutral-500 uppercase">Assigned To</label>
+                  <p className="text-sm text-neutral-900 mt-1">{selectedAsset.assignedTo || 'Unassigned'}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-neutral-500 uppercase">Department</label>
+                  <p className="text-sm text-neutral-900 mt-1">{selectedAsset.department || '—'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Specifications */}
+            <div>
+              <h3 className="text-lg font-semibold text-neutral-900 mb-4 pb-2 border-b border-neutral-200">
+                Specifications
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-medium text-neutral-500 uppercase">Brand</label>
+                  <p className="text-sm text-neutral-900 mt-1">{selectedAsset.brand || '—'}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-neutral-500 uppercase">Model</label>
+                  <p className="text-sm text-neutral-900 mt-1">{selectedAsset.model || '—'}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-neutral-500 uppercase">Serial Number</label>
+                  <p className="text-sm text-neutral-900 mt-1 font-mono">{selectedAsset.serialNumber || '—'}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-neutral-500 uppercase">Description</label>
+                  <p className="text-sm text-neutral-900 mt-1">{selectedAsset.description || '—'}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-neutral-500 uppercase">Processor</label>
+                  <p className="text-sm text-neutral-900 mt-1">{selectedAsset.processor || '—'}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-neutral-500 uppercase">Processor Generation</label>
+                  <p className="text-sm text-neutral-900 mt-1">{selectedAsset.processorGeneration || '—'}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-neutral-500 uppercase">Total RAM</label>
+                  <p className="text-sm text-neutral-900 mt-1">{selectedAsset.totalRAM || '—'}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-neutral-500 uppercase">RAM 1 Size</label>
+                  <p className="text-sm text-neutral-900 mt-1">{selectedAsset.ram1Size || '—'}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-neutral-500 uppercase">RAM 2 Size</label>
+                  <p className="text-sm text-neutral-900 mt-1">{selectedAsset.ram2Size || '—'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Warranty Information */}
+            <div>
+              <h3 className="text-lg font-semibold text-neutral-900 mb-4 pb-2 border-b border-neutral-200">
+                Warranty Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-xs font-medium text-neutral-500 uppercase">Warranty Start</label>
+                  <p className="text-sm text-neutral-900 mt-1">
+                    {selectedAsset.warrantyStart ? new Date(selectedAsset.warrantyStart).toLocaleDateString() : '—'}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-neutral-500 uppercase">Warranty Months</label>
+                  <p className="text-sm text-neutral-900 mt-1">{selectedAsset.warrantyMonths || '—'}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-neutral-500 uppercase">Warranty Expire</label>
+                  <p className="text-sm text-neutral-900 mt-1">
+                    {selectedAsset.warrantyExpire ? new Date(selectedAsset.warrantyExpire).toLocaleDateString() : '—'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Purchase Information */}
+            <div>
+              <h3 className="text-lg font-semibold text-neutral-900 mb-4 pb-2 border-b border-neutral-200">
+                Purchase Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-medium text-neutral-500 uppercase">Purchase Date</label>
+                  <p className="text-sm text-neutral-900 mt-1">
+                    {selectedAsset.purchaseDate ? new Date(selectedAsset.purchaseDate).toLocaleDateString() : '—'}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-neutral-500 uppercase">Purchase Price</label>
+                  <p className="text-sm text-neutral-900 mt-1">
+                    {selectedAsset.purchasePrice ? `$${selectedAsset.purchasePrice}` : '—'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div>
+              <h3 className="text-lg font-semibold text-neutral-900 mb-4 pb-2 border-b border-neutral-200">
+                Notes
+              </h3>
+              <div className="bg-neutral-50 p-4 rounded-lg">
+                <p className="text-sm text-neutral-700 whitespace-pre-wrap">{selectedAsset.notes || '—'}</p>
+              </div>
+            </div>
+
+            {/* Timestamps */}
+            <div>
+              <h3 className="text-lg font-semibold text-neutral-900 mb-4 pb-2 border-b border-neutral-200">
+                Timestamps
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {selectedAsset.createdAt && (
+                  <div>
+                    <label className="text-xs font-medium text-neutral-500 uppercase">Created At</label>
+                    <p className="text-sm text-neutral-900 mt-1">
+                      {new Date(selectedAsset.createdAt).toLocaleString() || '—'}
+                    </p>
+                  </div>
+                )}
+                {selectedAsset.updatedAt && (
+                  <div>
+                    <label className="text-xs font-medium text-neutral-500 uppercase">Last Updated</label>
+                    <p className="text-sm text-neutral-900 mt-1">
+                      {new Date(selectedAsset.updatedAt).toLocaleString() || '—'}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-3 pt-4 border-t border-neutral-200">
+              <Button
+                onClick={() => {
+                  setShowViewModal(false);
+                  setSelectedAsset(null);
+                }}
+                className="bg-white text-neutral-700 border border-neutral-300 hover:bg-neutral-50"
+              >
+                Close
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowViewModal(false);
+                  handleEditAsset(selectedAsset);
+                }}
+                className="bg-blue-600 text-white hover:bg-blue-700"
+              >
+                Edit Asset
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
       {/* Bulk Delete Confirmation Dialog */}
       <Modal
         isOpen={showBulkDeleteModal}
@@ -821,6 +1530,71 @@ const AssetTable = ({
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Asset History Modal */}
+      <Modal
+        isOpen={showHistoryModal}
+        onClose={() => {
+          setShowHistoryModal(false);
+          setAssetHistory([]);
+          setSelectedAsset(null);
+        }}
+        title={`History: ${selectedAsset?.assetTag || ''}`}
+        size="xl"
+      >
+        {loadingHistory ? (
+          <div className="py-8 text-center text-sm text-neutral-500">Loading history...</div>
+        ) : assetHistory.length === 0 ? (
+          <div className="py-8 text-center text-sm text-neutral-500">No history found</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b border-neutral-200">
+                  <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider py-3 px-4">
+                    Date
+                  </th>
+                  <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider py-3 px-4">
+                    Event
+                  </th>
+                  <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider py-3 px-4">
+                    Field
+                  </th>
+                  <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider py-3 px-4">
+                    Changed from
+                  </th>
+                  <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider py-3 px-4">
+                    Changed to
+                  </th>
+                  <th className="text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider py-3 px-4">
+                    Action by
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {assetHistory.map((h, idx) => {
+                  const event = getHistoryEventLabel(h.type);
+                  const { field, changedFrom, changedTo } = parseHistoryEntry(h);
+                  const actionBy = h.actionBy || h.assignedTo || h.assignedFrom || '—';
+
+                  return (
+                    <tr key={h._id || idx} className="border-b border-neutral-100 hover:bg-neutral-50">
+                      <td className="py-3 px-4 text-xs text-neutral-700">
+                        {formatDateTimeWithAMPM(h.createdAt)}
+                      </td>
+                      <td className="py-3 px-4 text-xs text-neutral-700 capitalize">{event}</td>
+                      <td className="py-3 px-4 text-xs text-neutral-700">{field}</td>
+                      <td className="py-3 px-4 text-xs text-neutral-600">{changedFrom || '—'}</td>
+                      <td className="py-3 px-4 text-xs text-neutral-600">{changedTo || '—'}</td>
+                      <td className="py-3 px-4 text-xs text-neutral-700">{actionBy}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Modal>
     </div>
   );

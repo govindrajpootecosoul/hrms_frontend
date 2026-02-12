@@ -47,7 +47,7 @@ const FinanceDashboard = () => {
     {
       id: 'amazon-credit-note',
       title: 'Amazon Credit Note',
-      description: 'Handle Amazon credit notes and adjustments',
+      description: 'Process and Manage Amazon Credit Notes and Adjustments',
       icon: <Receipt className="w-8 h-8" />,
       color: 'from-green-500 to-green-600',
       bgColor: 'bg-green-50',
@@ -57,12 +57,12 @@ const FinanceDashboard = () => {
     {
       id: 'book-reconcile',
       title: 'Book Reconcile',
-      description: 'Reconcile your books and financial records',
+      description: 'Process, Clean and Merge Book Keeping Files (use only CSV/Excel files',
       icon: <BookOpen className="w-8 h-8" />,
       color: 'from-purple-500 to-purple-600',
       bgColor: 'bg-purple-50',
       iconColor: 'text-purple-600',
-      enabled: false
+      enabled: true
     },
     {
       id: 'gst-reconcile',
@@ -77,7 +77,7 @@ const FinanceDashboard = () => {
     {
       id: 'amazon-gst-process',
       title: 'GST File Processing & Merging',
-      description: 'Process GST file for B2B, B2BA,B2B-CDNR,IMPG, & B2B-CDNRA and merge into single file',
+      description: 'Process GST files for B2B, B2BA,B2B-CDNR,IMPG, & B2B-CDNRA and merge into single file (use only CSV/Excel files)',
       icon: <FileText className="w-8 h-8" />,
       color: 'from-teal-500 to-teal-600',
       bgColor: 'bg-teal-50',
@@ -107,12 +107,12 @@ const FinanceDashboard = () => {
     {
       id: 'books-vs-gst-reconciliation',
       title: 'Books vs GST Reconciliation',
-      description: 'Compare and reconcile books with GST records',
+      description: 'Compare and reconcile GST vs Zoho Books Data; Check for GST Match Status',
       icon: <FileCheck className="w-8 h-8" />,
       color: 'from-indigo-500 to-indigo-600',
       bgColor: 'bg-indigo-50',
       iconColor: 'text-indigo-600',
-      enabled: false
+      enabled: true
     },
     {
       id: 'amazon-pdf-merger',
@@ -166,6 +166,8 @@ const FinanceDashboard = () => {
       return '/api/finance/amazon-tax-invoice/process';
     } else if (featureId === 'amazon-credit-note') {
       return '/api/finance/amazon-credit-note/process';
+    } else if (featureId === 'book-reconcile') {
+      return '/api/finance/book-reconcile/process';
     } else if (featureId === 'gst-reconcile') {
       return '/api/finance/gst-reconcile/process';
     } else if (featureId === 'amazon-gst-process') {
@@ -174,6 +176,8 @@ const FinanceDashboard = () => {
       return '/api/finance/amazon-missing-shipment/process';
     } else if (featureId === 'meir') {
       return '/api/finance/meir/process';
+    } else if (featureId === 'books-vs-gst-reconciliation') {
+      return '/api/finance/books-vs-gst-reconciliation/process';
     }
     return '/api/finance/amazon-tax-invoice/process'; // default
   };

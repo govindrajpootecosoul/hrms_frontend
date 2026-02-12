@@ -17,7 +17,10 @@ const Navbar = ({ onMenuToggle, isMenuOpen, menuItems = [] }) => {
   const [selectedCompany, setSelectedCompany] = useState(null);
   const [openDropdown, setOpenDropdown] = useState(null);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [profileMenuPosition, setProfileMenuPosition] = useState({ top: 0, left: 0 });
   const buttonRefs = useRef({});
+  const profileButtonRef = useRef(null);
   const pathname = usePathname();
   const router = useRouter();
   const isActive = (path) =>
@@ -82,22 +85,56 @@ const Navbar = ({ onMenuToggle, isMenuOpen, menuItems = [] }) => {
     };
   }, [openDropdown]);
 
+  // Update profile menu position on scroll/resize
+  useEffect(() => {
+    if (!isProfileMenuOpen) return;
+    
+    const updatePosition = () => {
+      if (profileButtonRef.current) {
+        const rect = profileButtonRef.current.getBoundingClientRect();
+        setProfileMenuPosition({
+          top: rect.bottom + 8,
+          left: rect.right - 200 // Align dropdown to the right edge
+        });
+      }
+    };
+    
+    updatePosition();
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', updatePosition);
+    
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
+    };
+  }, [isProfileMenuOpen]);
+
   // Close dropdown when clicking outside
   useEffect(() => {
-    if (!openDropdown) return;
+    if (!openDropdown && !isProfileMenuOpen) return;
     
     const handleClickOutside = (event) => {
       const target = event.target;
-      const clickedDropdown = target.closest(`[data-dropdown-id="${openDropdown}"]`);
-      const clickedButton = target.closest(`[data-item-id="${openDropdown}"]`);
       
-      // Don't close if clicking inside the dropdown menu or its trigger button
-      if (clickedDropdown || clickedButton) {
-        return;
+      // Handle navigation dropdown
+      if (openDropdown) {
+        const clickedDropdown = target.closest(`[data-dropdown-id="${openDropdown}"]`);
+        const clickedButton = target.closest(`[data-item-id="${openDropdown}"]`);
+        
+        if (!clickedDropdown && !clickedButton) {
+          setOpenDropdown(null);
+        }
       }
       
-      // Close dropdown if clicking outside
-      setOpenDropdown(null);
+      // Handle profile menu
+      if (isProfileMenuOpen) {
+        const clickedProfileMenu = target.closest('[data-profile-menu]');
+        const clickedProfileButton = target.closest('[data-profile-button]');
+        
+        if (!clickedProfileMenu && !clickedProfileButton) {
+          setIsProfileMenuOpen(false);
+        }
+      }
     };
     
     // Use a small delay to ensure dropdown is rendered before attaching listener
@@ -109,7 +146,7 @@ const Navbar = ({ onMenuToggle, isMenuOpen, menuItems = [] }) => {
       clearTimeout(timeoutId);
       document.removeEventListener('mousedown', handleClickOutside, true);
     };
-  }, [openDropdown, menuItems, pathname]);
+  }, [openDropdown, isProfileMenuOpen, menuItems, pathname]);
 
   // Get company name (only use state, don't read sessionStorage during render to avoid hydration mismatch)
   const getCompanyName = () => {
@@ -172,6 +209,43 @@ const Navbar = ({ onMenuToggle, isMenuOpen, menuItems = [] }) => {
     return 'HRMS'; // Default
   };
 
+  // Get portal-specific title
+  const getPortalTitle = () => {
+    if (pathname?.includes('/asset-tracker')) {
+      const formattedName = getCompanyName();
+      if (formattedName) {
+        return `${formattedName} Assets Console`;
+      }
+      return 'Assets Management Console';
+    } else if (pathname?.includes('/hrms')) {
+      return 'Admin Console';
+    } else if (pathname?.includes('/finance')) {
+      return 'Finance Console';
+    } else if (pathname?.includes('/query-tracker')) {
+      return 'Query Tracker Console';
+    } else if (pathname?.includes('/employee-portal')) {
+      return 'Employee Portal';
+    }
+    return 'Admin Console'; // Default
+  };
+
+  // Get portal-specific description
+  const getPortalDescription = () => {
+    if (pathname?.includes('/asset-tracker')) {
+      return 'Track and manage your company assets efficiently from a centralized platform.';
+    } else if (pathname?.includes('/hrms')) {
+      return 'Monitor employee attendance, recruitment, and finances from a single workspace.';
+    } else if (pathname?.includes('/finance')) {
+      return 'Manage your financial operations, invoices, and reconciliations seamlessly.';
+    } else if (pathname?.includes('/query-tracker')) {
+      return 'Track and resolve queries efficiently from a unified dashboard.';
+    } else if (pathname?.includes('/employee-portal')) {
+      return 'Access your personal information, attendance, and leave requests.';
+    }
+    return 'Monitor employee attendance, recruitment, and finances from a single workspace.'; // Default
+  };
+
+
   return (
     <nav className="relative bg-gradient-to-r from-slate-900 via-indigo-900 to-sky-900 sticky top-0 z-40 shadow-lg overflow-hidden border-b">
       {/* Decorative blur circles */}
@@ -181,26 +255,16 @@ const Navbar = ({ onMenuToggle, isMenuOpen, menuItems = [] }) => {
       
       <div className="relative max-w-[1600px] mx-auto flex flex-col px-6 text-white">
         {/* Top header row */}
-        <div className="flex items-start justify-between py-6">
+        <div className="flex items-start justify-between py-2">
           {/* Left side - brand and title */}
           <div className="flex-1">
             <p className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-sky-300 font-semibold">
               VECTORLYTICS HRMS
             </p>
-            <h1 className="mt-2 text-4xl lg:text-5xl font-bold text-white leading-tight">Admin Console</h1>
-            <p className="mt-3 text-sm text-slate-200 leading-relaxed">
-              Monitor employee attendance, recruitment, and finances from a single workspace.
+            <h1 className="mt-1 text-2xl lg:text-3xl font-bold text-white leading-tight">{getPortalTitle()}</h1>
+            <p className="mt-1 text-sm text-slate-200 leading-relaxed">
+              {getPortalDescription()}
             </p>
-            {user && (
-              <div className="mt-4 flex flex-wrap gap-2.5">
-                <span className="rounded-full bg-slate-800/70 px-4 py-2 text-xs font-medium text-white backdrop-blur-sm border border-white/10">
-                  Role: {user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Admin'}
-                </span>
-                <span className="rounded-full bg-slate-800/70 px-4 py-2 text-xs font-medium text-white backdrop-blur-sm border border-white/10">
-                  {user.email || 'admin@vectorlytics.com'}
-                </span>
-              </div>
-            )}
           </div>
 
           {/* Right side - user actions */}
@@ -219,28 +283,86 @@ const Navbar = ({ onMenuToggle, isMenuOpen, menuItems = [] }) => {
               <Bell className="h-5 w-5" />
             </button>
 
-            {/* Admin User button */}
-            <button className="flex items-center gap-2 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-400/30 rounded-full px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition-colors">
-              <User className="h-4 w-4" />
-              <span>Admin User</span>
-            </button>
-
-            {/* Logout button */}
-            <button 
-              onClick={logout}
-              className="flex items-center gap-2 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-400/30 rounded-full px-4 py-2 text-sm font-medium text-white backdrop-blur-sm transition-colors"
-            >
-              <LogOut className="h-4 w-4" />
-              <span>Logout</span>
-            </button>
+            {/* Profile Menu */}
+            <div className="relative" data-profile-button>
+              <button 
+                ref={profileButtonRef}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (profileButtonRef.current) {
+                    const rect = profileButtonRef.current.getBoundingClientRect();
+                    setProfileMenuPosition({
+                      top: rect.bottom + 8,
+                      left: rect.right - 200
+                    });
+                  }
+                  setIsProfileMenuOpen(!isProfileMenuOpen);
+                }}
+                className="h-10 w-10 rounded-full bg-blue-500/20 hover:bg-blue-500/30 border border-blue-400/30 text-white backdrop-blur-sm transition-colors flex items-center justify-center"
+                title="Profile Menu"
+              >
+                <User className="h-5 w-5" />
+              </button>
+              
+              {/* Profile Dropdown Menu */}
+              {isProfileMenuOpen && typeof window !== 'undefined' && createPortal(
+                <div 
+                  data-profile-menu
+                  className="bg-white rounded-lg shadow-lg border border-blue-200 py-2 min-w-[200px]"
+                  style={{ 
+                    zIndex: 10000,
+                    position: 'fixed',
+                    top: `${profileMenuPosition.top}px`,
+                    left: `${profileMenuPosition.left}px`
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                  }}
+                >
+                  {/* User Info Section */}
+                  {user && (
+                    <>
+                      <div className="px-4 py-3 border-b border-slate-200">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-semibold text-slate-900">{user.name || 'Admin User'}</span>
+                          <span className="text-xs text-slate-500 mt-0.5">{user.email || 'admin@vectorlytics.com'}</span>
+                          <span className="text-xs text-slate-500 mt-1">
+                            Role: {user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Admin'}
+                          </span>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  
+                  {/* Menu Items */}
+                  <div className="py-1">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsProfileMenuOpen(false);
+                        logout();
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center gap-3 text-slate-600 hover:bg-slate-50"
+                    >
+                      <LogOut className="h-4 w-4 text-slate-400" />
+                      <span>Logout</span>
+                    </button>
+                  </div>
+                </div>,
+                document.body
+              )}
+            </div>
           </div>
         </div>
 
         {/* Navigation bar */}
         {menuItems.length > 0 && (
-          <div className="pb-3 border-t border-white/5 relative">
+          <div className="pb-2 border-t border-white/5 relative">
             <div className="overflow-x-auto">
-              <nav className="flex items-center gap-0.5 pt-3 relative" style={{ minWidth: 'max-content' }}>
+              <nav className="flex items-center gap-0.5 pt-2 relative" style={{ minWidth: 'max-content' }}>
                 {menuItems.map((item) => {
                   // Check if current path matches this item or any of its children
                   const itemActive = isActive(item.path);
@@ -289,7 +411,7 @@ const Navbar = ({ onMenuToggle, isMenuOpen, menuItems = [] }) => {
                             e.stopPropagation();
                           }
                         }}
-                        className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-all duration-200 flex items-center gap-1 rounded-full ${
+                        className={`px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all duration-200 flex items-center gap-1 rounded-full ${
                           active
                             ? 'bg-purple-600 text-white shadow-lg'
                             : 'text-white/90 hover:text-white hover:bg-white/10'
@@ -298,9 +420,9 @@ const Navbar = ({ onMenuToggle, isMenuOpen, menuItems = [] }) => {
                         {displayLabel}
                         {hasChildren && (
                           isDropdownOpen ? (
-                            <ChevronUp className="h-3.5 w-3.5 text-white" />
+                            <ChevronUp className="h-3 w-3 text-white" />
                           ) : (
-                            <ChevronDown className="h-3.5 w-3.5" />
+                            <ChevronDown className="h-3 w-3" />
                           )
                         )}
                       </button>

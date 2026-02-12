@@ -36,9 +36,9 @@ export const HRMS_MARITAL_STATUS = [
 
 // Asset Tracker Constants
 export const ASSET_STATUS = [
-  { value: 'available', label: 'Available', color: 'green' },
   { value: 'assigned', label: 'Assigned', color: 'blue' },
-  { value: 'maintenance', label: 'Under Maintenance', color: 'orange' },
+  { value: 'available', label: 'Available', color: 'green' },
+  { value: 'maintenance', label: 'Maintenance', color: 'orange' },
   { value: 'broken', label: 'Broken', color: 'red' }
 ];
 
@@ -103,4 +103,6 @@ export const FILE_LIMITS = {
 };
 
 // API Configuration
+// Uses NEXT_PUBLIC_API_URL from next.config.mjs which gets it from network.config.js
+// This ensures the API URL is always in sync with the network configuration
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://192.168.50.107:5008/api';

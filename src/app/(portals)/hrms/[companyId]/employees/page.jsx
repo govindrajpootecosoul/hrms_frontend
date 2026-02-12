@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import * as XLSX from 'xlsx';
 import { 
   Plus, 
@@ -22,8 +23,11 @@ import {
 import Card from '@/components/common/Card';
 import Button from '@/components/common/Button';
 import AddEmployeeDialog from './components/AddEmployeeDialog';
+import { API_BASE_URL } from '@/lib/utils/constants';
 
 export default function EmployeesPage() {
+  const params = useParams();
+  const companyId = params?.companyId;
   const [searchQuery, setSearchQuery] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('All Departments');
   const [locationFilter, setLocationFilter] = useState('All Locations');
@@ -31,71 +35,255 @@ export default function EmployeesPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [employeeToEdit, setEmployeeToEdit] = useState(null);
   const [actionMenuOpen, setActionMenuOpen] = useState(null); // Track which employee's menu is open
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Employee Data
-  const [employees, setEmployees] = useState([
-    {
-      id: 1,
-      name: 'HR Manager',
-      jobTitle: 'HR Manager',
-      department: 'Human Resources',
-      location: 'Bangalore',
-      status: 'Active',
-      tenure: '2 years',
-      joiningDate: '2022-01-15'
-    },
-    {
-      id: 2,
-      name: 'Department Manager',
-      jobTitle: 'Department Manager',
-      department: 'Engineering',
-      location: 'Mumbai',
-      status: 'Active',
-      tenure: '3 years',
-      joiningDate: '2021-03-20'
-    },
-    {
-      id: 3,
-      name: 'John Doe',
-      jobTitle: 'Software Engineer',
-      department: 'Engineering',
-      location: 'Bangalore',
-      status: 'Active',
-      tenure: '1 year',
-      joiningDate: '2023-06-10'
-    },
-    {
-      id: 4,
-      name: 'Jane Smith',
-      jobTitle: 'Sales Executive',
-      department: 'Sales',
-      location: 'Delhi',
-      status: 'Active',
-      tenure: '6 months',
-      joiningDate: '2023-12-01'
-    },
-    {
-      id: 5,
-      name: 'Sales Manager',
-      jobTitle: 'Sales Manager',
-      department: 'Sales',
-      location: 'Mumbai',
-      status: 'Active',
-      tenure: '4 years',
-      joiningDate: '2020-08-15'
-    },
-  ]);
+  // Employee Data - will be fetched from MongoDB
+  const [employees, setEmployees] = useState([]);
+
+  // Fetch employees from MongoDB
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // Get company name from sessionStorage or use companyId
+        let company = null;
+        if (typeof window !== 'undefined') {
+          company = sessionStorage.getItem('selectedCompany') || 
+                    sessionStorage.getItem('adminSelectedCompany');
+        }
+        
+        // If companyId is '1', try to map it to company name
+        // You may need to adjust this mapping based on your setup
+        if (!company && companyId) {
+          // Try to determine company from URL or other context
+          // For now, we'll try both collections
+        }
+        
+        // Build API URL with company filter if available
+        let apiUrl = `${API_BASE_URL}/admin-users`;
+        if (company) {
+          apiUrl += `?company=${encodeURIComponent(company)}`;
+        }
+        
+        console.log('[EmployeesPage] Fetching employees from:', apiUrl);
+        
+        const response = await fetch(apiUrl);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success && data.users) {
+          // Transform users to employee format with all fields
+          const employeeList = data.users
+            .map(user => {
+              // Calculate tenure from createdAt or joiningDate
+              let tenure = '-';
+              if (user.createdAt) {
+                const createdDate = new Date(user.createdAt);
+                const now = new Date();
+                const years = Math.floor((now - createdDate) / (1000 * 60 * 60 * 24 * 365));
+                const months = Math.floor(((now - createdDate) % (1000 * 60 * 60 * 24 * 365)) / (1000 * 60 * 60 * 24 * 30));
+                if (years > 0) {
+                  tenure = `${years} year${years > 1 ? 's' : ''}`;
+                } else if (months > 0) {
+                  tenure = `${months} month${months > 1 ? 's' : ''}`;
+                } else {
+                  tenure = 'Less than a month';
+                }
+              }
+              
+              return {
+                id: user.id || user._id,
+                _id: user._id || user.id,
+                name: user.name || 'N/A',
+                email: user.email || '',
+                employeeId: user.employeeId || '',
+                jobTitle: user.jobTitle || user.designation || user.role || 'Employee',
+                department: user.department || 'N/A',
+                location: user.location || 'N/A',
+                company: user.company || '',
+                status: user.active !== false ? 'Active' : 'Inactive',
+                tenure: tenure,
+                joiningDate: user.createdAt || user.joiningDate,
+                hasCredentialAccess: user.hasCredentialAccess !== false,
+                hasSubscriptionAccess: user.hasSubscriptionAccess !== false,
+                role: user.role || 'user',
+                createdAt: user.createdAt,
+                updatedAt: user.updatedAt
+              };
+            })
+            .sort((a, b) => {
+              // Sort by name
+              return (a.name || '').localeCompare(b.name || '');
+            });
+          
+          setEmployees(employeeList);
+          console.log(`[EmployeesPage] Loaded ${employeeList.length} employees${company ? ` for company: ${company}` : ''}`);
+        } else {
+          throw new Error(data.error || 'Failed to fetch employees');
+        }
+      } catch (err) {
+        console.error('[EmployeesPage] Error fetching employees:', err);
+        setError(err.message || 'Failed to load employees');
+        setEmployees([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchEmployees();
+  }, [companyId]);
 
   // Handle adding/updating employee
-  const handleSaveEmployee = (employeeData) => {
-    if (employeeToEdit) {
-      // Update existing employee
-      setEmployees((prev) => 
-        prev.map((emp) => emp.id === employeeToEdit.id ? employeeData : emp)
-      );
-    } else {
-      // Add new employee
-      setEmployees((prev) => [employeeData, ...prev]);
+  const handleSaveEmployee = async (employeeData) => {
+    try {
+      // Get company name
+      let company = null;
+      if (typeof window !== 'undefined') {
+        company = sessionStorage.getItem('selectedCompany') || 
+                  sessionStorage.getItem('adminSelectedCompany');
+      }
+      
+      if (employeeToEdit) {
+        // Update existing employee via API - Only send fields that have values (partial update)
+        let apiUrl = `${API_BASE_URL}/admin-users/${employeeToEdit.id || employeeToEdit._id}`;
+        if (company) {
+          apiUrl += `?company=${encodeURIComponent(company)}`;
+        }
+        
+        // Build update payload with only provided fields
+        const updatePayload = {};
+        
+        // Basic fields
+        if (employeeData.name) updatePayload.name = employeeData.name;
+        if (employeeData.email) updatePayload.email = employeeData.email;
+        if (employeeData.employeeId !== undefined) updatePayload.employeeId = employeeData.employeeId;
+        if (employeeData.department) updatePayload.department = employeeData.department;
+        if (employeeData.company || company) updatePayload.company = employeeData.company || company;
+        if (employeeData.role) updatePayload.role = employeeData.role;
+        if (employeeData.status !== undefined) updatePayload.active = employeeData.status === 'Active';
+        if (employeeData.hasCredentialAccess !== undefined) updatePayload.hasCredentialAccess = employeeData.hasCredentialAccess;
+        if (employeeData.hasSubscriptionAccess !== undefined) updatePayload.hasSubscriptionAccess = employeeData.hasSubscriptionAccess;
+        
+        // Personal details
+        if (employeeData.phone) updatePayload.phone = employeeData.phone;
+        if (employeeData.dateOfBirth) updatePayload.dateOfBirth = employeeData.dateOfBirth;
+        if (employeeData.gender) updatePayload.gender = employeeData.gender;
+        if (employeeData.address) updatePayload.address = employeeData.address;
+        if (employeeData.city) updatePayload.city = employeeData.city;
+        if (employeeData.state) updatePayload.state = employeeData.state;
+        if (employeeData.zipCode) updatePayload.zipCode = employeeData.zipCode;
+        if (employeeData.emergencyContact) updatePayload.emergencyContact = employeeData.emergencyContact;
+        if (employeeData.emergencyPhone) updatePayload.emergencyPhone = employeeData.emergencyPhone;
+        
+        // Work details
+        if (employeeData.jobTitle) updatePayload.jobTitle = employeeData.jobTitle;
+        if (employeeData.location) updatePayload.location = employeeData.location;
+        if (employeeData.reportingManager) updatePayload.reportingManager = employeeData.reportingManager;
+        if (employeeData.joiningDate) updatePayload.joiningDate = employeeData.joiningDate;
+        
+        // Bank & Insurance
+        if (employeeData.bankAccount) updatePayload.bankAccount = employeeData.bankAccount;
+        if (employeeData.ifsc) updatePayload.ifsc = employeeData.ifsc;
+        if (employeeData.pan) updatePayload.pan = employeeData.pan;
+        if (employeeData.aadhaar) updatePayload.aadhaar = employeeData.aadhaar;
+        if (employeeData.uan) updatePayload.uan = employeeData.uan;
+        if (employeeData.esiNo) updatePayload.esiNo = employeeData.esiNo;
+        if (employeeData.pfNo) updatePayload.pfNo = employeeData.pfNo;
+        
+        // Password (only if provided)
+        if (employeeData.password && employeeData.password.trim() !== '') {
+          updatePayload.password = employeeData.password;
+        }
+        
+        const response = await fetch(apiUrl, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(updatePayload),
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+          alert('Employee updated successfully!');
+          // Refresh employees list
+          window.location.reload();
+        } else {
+          throw new Error(data.error || 'Failed to update employee');
+        }
+      } else {
+        // Add new employee via API - Send all fields
+        let apiUrl = `${API_BASE_URL}/admin-users`;
+        if (company) {
+          apiUrl += `?company=${encodeURIComponent(company)}`;
+        }
+        
+        const createPayload = {
+          name: employeeData.name,
+          email: employeeData.email,
+          password: employeeData.password || 'TempPassword123!',
+          employeeId: employeeData.employeeId,
+          department: employeeData.department,
+          company: employeeData.company || company,
+          role: employeeData.role || 'user',
+          active: true,
+          hasCredentialAccess: employeeData.hasCredentialAccess !== false,
+          hasSubscriptionAccess: employeeData.hasSubscriptionAccess !== false,
+          
+          // Personal details
+          phone: employeeData.phone || '',
+          dateOfBirth: employeeData.dateOfBirth || '',
+          gender: employeeData.gender || '',
+          address: employeeData.address || '',
+          city: employeeData.city || '',
+          state: employeeData.state || '',
+          zipCode: employeeData.zipCode || '',
+          emergencyContact: employeeData.emergencyContact || '',
+          emergencyPhone: employeeData.emergencyPhone || '',
+          
+          // Work details
+          jobTitle: employeeData.jobTitle || '',
+          location: employeeData.location || '',
+          reportingManager: employeeData.reportingManager || '',
+          joiningDate: employeeData.joiningDate || '',
+          
+          // Bank & Insurance
+          bankAccount: employeeData.bankAccount || '',
+          ifsc: employeeData.ifsc || '',
+          pan: employeeData.pan || '',
+          aadhaar: employeeData.aadhaar || '',
+          uan: employeeData.uan || '',
+          esiNo: employeeData.esiNo || '',
+          pfNo: employeeData.pfNo || '',
+        };
+        
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(createPayload),
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+          alert('Employee created successfully!');
+          // Refresh employees list
+          window.location.reload();
+        } else {
+          throw new Error(data.error || 'Failed to create employee');
+        }
+      }
+    } catch (err) {
+      console.error('Error saving employee:', err);
+      alert(`Error: ${err.message || 'Failed to save employee'}`);
     }
   };
 
@@ -106,10 +294,36 @@ export default function EmployeesPage() {
   };
 
   // Handle delete employee
-  const handleDeleteEmployee = (employee) => {
+  const handleDeleteEmployee = async (employee) => {
     if (confirm(`Are you sure you want to delete ${employee.name}?`)) {
-      setEmployees((prev) => prev.filter((emp) => emp.id !== employee.id));
-      alert('Employee deleted successfully!');
+      try {
+        // Get company name
+        let company = null;
+        if (typeof window !== 'undefined') {
+          company = sessionStorage.getItem('selectedCompany') || 
+                    sessionStorage.getItem('adminSelectedCompany');
+        }
+        
+        let apiUrl = `${API_BASE_URL}/admin-users/${employee.id || employee._id}`;
+        if (company) {
+          apiUrl += `?company=${encodeURIComponent(company)}`;
+        }
+        
+        const response = await fetch(apiUrl, {
+          method: 'DELETE',
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+          // Refresh employees list
+          window.location.reload();
+        } else {
+          throw new Error(data.error || 'Failed to delete employee');
+        }
+      } catch (err) {
+        console.error('Error deleting employee:', err);
+        alert(`Error: ${err.message || 'Failed to delete employee'}`);
+      }
     }
   };
 
@@ -252,9 +466,14 @@ export default function EmployeesPage() {
   // Filter employees
   const filteredEmployees = useMemo(() => {
     return employees.filter((emp) => {
-      const matchesSearch = emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           emp.jobTitle?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           emp.department.toLowerCase().includes(searchQuery.toLowerCase());
+      const searchLower = searchQuery.toLowerCase();
+      const matchesSearch = !searchQuery || 
+                           (emp.name || '').toLowerCase().includes(searchLower) ||
+                           (emp.jobTitle || '').toLowerCase().includes(searchLower) ||
+                           (emp.department || '').toLowerCase().includes(searchLower) ||
+                           (emp.employeeId || '').toLowerCase().includes(searchLower) ||
+                           (emp.email || '').toLowerCase().includes(searchLower) ||
+                           (emp.company || '').toLowerCase().includes(searchLower);
       const matchesDepartment = departmentFilter === 'All Departments' || emp.department === departmentFilter;
       const matchesLocation = locationFilter === 'All Locations' || emp.location === locationFilter;
       return matchesSearch && matchesDepartment && matchesLocation;
@@ -406,7 +625,7 @@ export default function EmployeesPage() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Search employees..."
+                  placeholder="Search by name, email, employee ID, department, or company..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
@@ -467,9 +686,34 @@ export default function EmployeesPage() {
       </Card>
 
       {/* Employee List/Grid View */}
-      {viewMode === 'grid' ? (
+      {loading ? (
+        <Card className="border-2">
+          <div className="p-12 text-center">
+            <p className="text-slate-600">Loading employees from database...</p>
+          </div>
+        </Card>
+      ) : error ? (
+        <Card className="border-2">
+          <div className="p-12 text-center">
+            <p className="text-red-600">Error: {error}</p>
+            <Button 
+              onClick={() => window.location.reload()} 
+              className="mt-4 bg-blue-600 text-white hover:bg-blue-700"
+            >
+              Retry
+            </Button>
+          </div>
+        </Card>
+      ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredEmployees.map((employee, index) => {
+          {filteredEmployees.length === 0 ? (
+            <Card className="border-2 col-span-full">
+              <div className="p-12 text-center">
+                <p className="text-slate-600">No employees found</p>
+              </div>
+            </Card>
+          ) : (
+            filteredEmployees.map((employee, index) => {
             const gradient = gradients[index % gradients.length];
             const shadow = shadows[index % shadows.length];
             return (
@@ -486,23 +730,50 @@ export default function EmployeesPage() {
                       <h3 className="font-semibold text-lg mb-1 group-hover:text-white transition-colors">{employee.name}</h3>
                       <p className="text-sm text-muted-foreground group-hover:text-white/90 transition-colors">{employee.jobTitle || 'No title'}</p>
                       <p className="text-xs text-muted-foreground group-hover:text-white/80 transition-colors mt-1">{employee.department}</p>
+                      {employee.employeeId && (
+                        <p className="text-xs text-muted-foreground group-hover:text-white/70 transition-colors mt-0.5">ID: {employee.employeeId}</p>
+                      )}
                     </div>
                   </div>
                   
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <p className="text-xs text-muted-foreground group-hover:text-white/80 transition-colors">Location</p>
-                      <p className="text-sm font-medium group-hover:text-white transition-colors">{employee.location || '-'}</p>
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-muted-foreground group-hover:text-white/80 transition-colors">Email</p>
+                        <p className="text-sm font-medium group-hover:text-white transition-colors truncate">{employee.email || '-'}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground group-hover:text-white/80 transition-colors">Status</p>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium transition-colors ${
-                        employee.status === 'Active'
-                          ? 'bg-green-100 text-green-700 group-hover:bg-white/20 group-hover:text-white'
-                          : 'bg-gray-100 text-gray-700 group-hover:bg-white/20 group-hover:text-white'
-                      }`}>
-                        {employee.status}
-                      </span>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-muted-foreground group-hover:text-white/80 transition-colors">Company</p>
+                        <p className="text-sm font-medium group-hover:text-white transition-colors">{employee.company || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground group-hover:text-white/80 transition-colors">Location</p>
+                        <p className="text-sm font-medium group-hover:text-white transition-colors">{employee.location || '-'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-muted-foreground group-hover:text-white/80 transition-colors">Status</p>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium transition-colors ${
+                          employee.status === 'Active'
+                            ? 'bg-green-100 text-green-700 group-hover:bg-white/20 group-hover:text-white'
+                            : 'bg-gray-100 text-gray-700 group-hover:bg-white/20 group-hover:text-white'
+                        }`}>
+                          {employee.status}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground group-hover:text-white/80 transition-colors">Credential Access</p>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium transition-colors ${
+                          employee.hasCredentialAccess
+                            ? 'bg-green-100 text-green-700 group-hover:bg-white/20 group-hover:text-white'
+                            : 'bg-red-100 text-red-700 group-hover:bg-white/20 group-hover:text-white'
+                        }`}>
+                          {employee.hasCredentialAccess ? 'Yes' : 'No'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                   
@@ -515,13 +786,14 @@ export default function EmployeesPage() {
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
-                          setActionMenuOpen(actionMenuOpen === employee.id ? null : employee.id);
+                          const empId = employee.id || employee._id;
+                          setActionMenuOpen(actionMenuOpen === empId ? null : empId);
                         }}
                         className="p-1.5 text-slate-400 hover:text-slate-600 group-hover:text-white transition-colors"
                       >
                         <MoreVertical className="w-4 h-4" />
                       </button>
-                      {actionMenuOpen === employee.id && (
+                      {actionMenuOpen === (employee.id || employee._id) && (
                         <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-neutral-200 z-10">
                           <div className="py-1">
                             <button
@@ -554,7 +826,8 @@ export default function EmployeesPage() {
                 </div>
               </Card>
             );
-          })}
+            })
+          )}
         </div>
       ) : (
         <Card className="border-2">
@@ -563,22 +836,57 @@ export default function EmployeesPage() {
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">EMPLOYEE NAME</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">EMPLOYEE ID</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">EMAIL</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">JOB TITLE</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">DEPARTMENT</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">COMPANY</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">LOCATION</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">STATUS</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">CREDENTIAL ACCESS</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">SUBSCRIPTION ACCESS</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">TENURE</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">ACTIONS</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
-                {filteredEmployees.map((employee) => (
+                {loading ? (
+                  <tr>
+                    <td colSpan={12} className="px-4 py-8 text-center text-slate-500">
+                      Loading employees...
+                    </td>
+                  </tr>
+                ) : error ? (
+                  <tr>
+                    <td colSpan={12} className="px-4 py-8 text-center text-red-500">
+                      Error: {error}
+                    </td>
+                  </tr>
+                ) : filteredEmployees.length === 0 ? (
+                  <tr>
+                    <td colSpan={12} className="px-4 py-8 text-center text-slate-500">
+                      No employees found
+                    </td>
+                  </tr>
+                ) : (
+                  filteredEmployees.map((employee) => (
                   <tr 
-                    key={employee.id} 
+                    key={employee.id || employee._id} 
                     className="hover:bg-slate-50 transition-colors duration-200 cursor-pointer"
                   >
                     <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-slate-900">{employee.name}</div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-semibold">
+                          {(employee.name || 'U').charAt(0).toUpperCase()}
+                        </div>
+                        <div className="text-sm font-medium text-slate-900">{employee.name}</div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="text-sm text-slate-600">{employee.employeeId || '-'}</div>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="text-sm text-slate-600">{employee.email || '-'}</div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
                       <div className="text-sm text-slate-600">{employee.jobTitle || '-'}</div>
@@ -587,11 +895,36 @@ export default function EmployeesPage() {
                       <div className="text-sm text-slate-600">{employee.department}</div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="text-sm text-slate-600">{employee.company || '-'}</div>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
                       <div className="text-sm text-slate-600">{employee.location || '-'}</div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
-                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        employee.status === 'Active' 
+                          ? 'bg-green-100 text-green-700' 
+                          : 'bg-red-100 text-red-700'
+                      }`}>
                         {employee.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        employee.hasCredentialAccess 
+                          ? 'bg-green-100 text-green-700' 
+                          : 'bg-red-100 text-red-700'
+                      }`}>
+                        {employee.hasCredentialAccess ? 'Yes' : 'No'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        employee.hasSubscriptionAccess 
+                          ? 'bg-green-100 text-green-700' 
+                          : 'bg-red-100 text-red-700'
+                      }`}>
+                        {employee.hasSubscriptionAccess ? 'Yes' : 'No'}
                       </span>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
@@ -602,13 +935,14 @@ export default function EmployeesPage() {
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
-                            setActionMenuOpen(actionMenuOpen === employee.id ? null : employee.id);
+                            const empId = employee.id || employee._id;
+                            setActionMenuOpen(actionMenuOpen === empId ? null : empId);
                           }}
                           className="p-1.5 text-slate-400 hover:text-slate-600 transition-colors"
                         >
                           <MoreVertical className="w-4 h-4" />
                         </button>
-                        {actionMenuOpen === employee.id && (
+                        {actionMenuOpen === (employee.id || employee._id) && (
                           <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-neutral-200 z-10">
                             <div className="py-1">
                               <button
@@ -639,7 +973,8 @@ export default function EmployeesPage() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  ))
+                )}
               </tbody>
             </table>
           </div>

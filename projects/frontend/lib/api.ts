@@ -1,5 +1,7 @@
 import axios from 'axios';
 
+// API URL is set via NEXT_PUBLIC_API_URL from next.config.js
+// which uses network.config.js as the source of truth
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
 const api = axios.create({

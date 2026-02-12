@@ -294,7 +294,7 @@ const LocationManagement = () => {
               <option value="Location">Location</option>
             </select>
           </div>
-
+        
           <Input
             label="Name *"
             value={formData.name}

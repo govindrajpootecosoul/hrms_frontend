@@ -25,6 +25,11 @@ export default function UsersPage() {
     active: true,
     role: 'user',
     portals: [],
+    employeeId: '',
+    department: '',
+    company: '',
+    hasCredentialAccess: true,
+    hasSubscriptionAccess: true,
   });
 
   const handleCreate = () => {
@@ -35,6 +40,11 @@ export default function UsersPage() {
       active: true,
       role: 'user',
       portals: [],
+      employeeId: '',
+      department: '',
+      company: '',
+      hasCredentialAccess: true,
+      hasSubscriptionAccess: true,
     });
     setIsCreateModalOpen(true);
   };
@@ -42,12 +52,17 @@ export default function UsersPage() {
   const handleEdit = (user) => {
     setSelectedUser(user);
     setFormData({
-      name: user.name,
-      email: user.email,
-      password: user.password,
-      active: user.active,
+      name: user.name || '',
+      email: user.email || '',
+      password: '', // Don't pre-fill password
+      active: user.active !== false,
       role: user.role || 'user',
-      portals: user.portals,
+      portals: user.portals || [],
+      employeeId: user.employeeId || '',
+      department: user.department || '',
+      company: user.company || '',
+      hasCredentialAccess: user.hasCredentialAccess !== false,
+      hasSubscriptionAccess: user.hasSubscriptionAccess !== false,
     });
     setIsEditModalOpen(true);
   };
@@ -71,6 +86,11 @@ export default function UsersPage() {
         active: true,
         role: 'user',
         portals: [],
+        employeeId: '',
+        department: '',
+        company: '',
+        hasCredentialAccess: true,
+        hasSubscriptionAccess: true,
       });
     } catch (err) {
       setSubmitError(err.message || 'Failed to create user');
@@ -129,7 +149,18 @@ export default function UsersPage() {
 
   // Ensure portalList is an array
   const portals = Array.isArray(portalList) ? portalList : [];
-  const tableHeaders = ['Name', 'Email', 'Role', 'Active', ...portals, 'Actions'];
+  // Map portal names to display names (matching old design)
+  const portalDisplayMap = {
+    'HRMS': 'HRMS',
+    'DataHive': 'DRIVE',
+    'Asset Tracker': 'ASSET TRACKER',
+    'Finance Tools': 'FINANCE TOOLS',
+    'Project Tracker': 'PROJECT TRACKER',
+    'Employee Portal': 'EMPLOYEE PORTAL',
+    'Query Tracker': 'QUERY TRACKER',
+    'Demand / Panel': 'DEMAND / PANEL'
+  };
+  const tableHeaders = ['Name', 'Email', 'Role', 'Active', ...portals.map(p => portalDisplayMap[p] || p.toUpperCase()), 'Actions'];
 
   // Filter users based on search query
   const filteredUsers = useMemo(() => {
@@ -151,14 +182,16 @@ export default function UsersPage() {
       if (!user) return false;
       const name = String(user.name || '').toLowerCase();
       const email = String(user.email || '').toLowerCase();
-      return name.includes(query) || email.includes(query);
+      const employeeId = String(user.employeeId || '').toLowerCase();
+      const department = String(user.department || '').toLowerCase();
+      return name.includes(query) || email.includes(query) || employeeId.includes(query) || department.includes(query);
     });
   }, [users, searchQuery]);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Loading users...</div>
+        <div className="text-gray-500">Loading employees...</div>
       </div>
     );
   }
@@ -189,7 +222,7 @@ export default function UsersPage() {
         <div className="relative">
           <input
             type="text"
-            placeholder="Search users by name or email..."
+            placeholder="Q Search users by name or email"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -210,32 +243,33 @@ export default function UsersPage() {
         </div>
         {searchQuery && (
           <div className="mt-2 text-sm text-gray-600">
-            Showing {filteredUsers.length} of {users.length} users
+            Showing {filteredUsers.length} of {users.length} employees
           </div>
         )}
       </div>
 
       <div className="bg-white rounded-lg shadow overflow-x-auto">
-        <AdminTable headers={tableHeaders}>
+        <div className="min-w-full inline-block align-middle">
+          <AdminTable headers={tableHeaders}>
           {filteredUsers.length === 0 ? (
             <tr>
               <td colSpan={tableHeaders.length} className="px-6 py-8 text-center text-gray-500">
-                {searchQuery ? 'No users found matching your search.' : 'No users found.'}
+                {searchQuery ? 'No employees found matching your search.' : 'No employees found.'}
               </td>
             </tr>
           ) : (
             filteredUsers.map((user) => (
-            <tr key={user.id} className="hover:bg-gray-50">
+            <tr key={user.id || user._id} className="hover:bg-gray-50">
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold shadow-md">
-                    {user.name.charAt(0).toUpperCase()}
+                    {(user.name || 'U').charAt(0).toUpperCase()}
                   </div>
-                  <span>{user.name}</span>
+                  <span>{user.name || 'N/A'}</span>
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {user.email}
+                {user.email || 'N/A'}
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -243,28 +277,29 @@ export default function UsersPage() {
                     ? 'bg-purple-100 text-purple-800'
                     : 'bg-gray-100 text-gray-800'
                 }`}>
-                  {user.role === 'superadmin' ? 'Super Admin' : user.role === 'admin' ? 'Admin' : 'User'}
+                  {user.role === 'superadmin' ? 'SuperAdmin' : user.role === 'admin' ? 'Admin' : 'User'}
                 </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <AdminToggle
-                  checked={user.active}
-                  onChange={() => toggleUserActive(user.id)}
+                  checked={user.active !== false}
+                  onChange={() => toggleUserActive(user.id || user._id)}
                 />
               </td>
-              {portals.map((portal) => (
-                <td key={portal} className="px-4 py-4 whitespace-nowrap text-center">
-                  <label className="flex items-center justify-center cursor-pointer">
+              {portals.map((portal) => {
+                const userPortals = user.portals || [];
+                const hasAccess = userPortals.includes(portal);
+                return (
+                  <td key={portal} className="px-6 py-4 whitespace-nowrap text-center">
                     <input
                       type="checkbox"
-                      checked={user.portals.includes(portal)}
-                      onChange={() => handleTogglePortal(user.id, portal)}
-                      className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
-                      title={`Toggle ${portal} access`}
+                      checked={hasAccess}
+                      onChange={() => handleTogglePortal(user.id || user._id, portal)}
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
                     />
-                  </label>
-                </td>
-              ))}
+                  </td>
+                );
+              })}
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                 <div className="flex space-x-2">
                   <AdminButton
@@ -287,13 +322,14 @@ export default function UsersPage() {
             ))
           )}
         </AdminTable>
+        </div>
       </div>
 
       {/* Create Modal */}
       <AdminModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        title="Create User"
+        title="Add Employee"
       >
         <form onSubmit={handleSubmitCreate} className="space-y-4">
           <div className="flex justify-center mb-4">
@@ -339,6 +375,42 @@ export default function UsersPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
+              Employee ID
+            </label>
+            <input
+              type="text"
+              value={formData.employeeId}
+              onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="e.g., ECOSIND0006"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Department
+            </label>
+            <input
+              type="text"
+              value={formData.department}
+              onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="e.g., Thrive Ecom"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Company
+            </label>
+            <input
+              type="text"
+              value={formData.company}
+              onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="e.g., Ecosoul Home"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
               Role
             </label>
             <select
@@ -356,6 +428,20 @@ export default function UsersPage() {
               checked={formData.active}
               onChange={(checked) => setFormData({ ...formData, active: checked })}
               label="Active"
+            />
+          </div>
+          <div>
+            <AdminToggle
+              checked={formData.hasCredentialAccess}
+              onChange={(checked) => setFormData({ ...formData, hasCredentialAccess: checked })}
+              label="Has Credential Access"
+            />
+          </div>
+          <div>
+            <AdminToggle
+              checked={formData.hasSubscriptionAccess}
+              onChange={(checked) => setFormData({ ...formData, hasSubscriptionAccess: checked })}
+              label="Has Subscription Access"
             />
           </div>
           <div>
@@ -386,7 +472,7 @@ export default function UsersPage() {
       <AdminModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
-        title="Edit User"
+        title="Edit Employee"
       >
         <form onSubmit={handleSubmitEdit} className="space-y-4">
           <div className="flex justify-center mb-4">
@@ -479,11 +565,11 @@ export default function UsersPage() {
       <AdminModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
-        title="Delete User"
+        title="Delete Employee"
         size="sm"
       >
         <p className="text-gray-700 mb-4">
-          Are you sure you want to delete user <strong>{selectedUser?.name}</strong>? This action cannot be undone.
+          Are you sure you want to delete employee <strong>{selectedUser?.name}</strong>? This action cannot be undone.
         </p>
         <div className="flex justify-end space-x-3">
           <AdminButton

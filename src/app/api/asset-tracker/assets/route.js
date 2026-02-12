@@ -3,8 +3,11 @@ import { getAssetsCollection, getAssetHistoryCollection } from '@/lib/mongodb';
 
 async function logAssetHistory(entry, company = null) {
   try {
+    console.log('[API] Logging asset history:', { type: entry.type, action: entry.action, company, assetTag: entry.assetTag });
     const history = await getAssetHistoryCollection(company);
-    await history.insertOne({ ...entry, createdAt: new Date().toISOString() });
+    const historyEntry = { ...entry, createdAt: new Date().toISOString() };
+    const result = await history.insertOne(historyEntry);
+    console.log('[API] Asset history logged successfully:', result.insertedId);
   } catch (e) {
     // Never fail the main request because of history logging
     console.error('[API] Failed to write asset history:', e);
@@ -18,32 +21,43 @@ export async function GET(request) {
     const companyId = searchParams.get('companyId');
     const company = searchParams.get('company'); // Company name filter (Thrive, Ecosoul Home, etc.)
 
+    // Company name is REQUIRED for proper data isolation
+    // Without company name, we cannot determine which database to use
+    if (!company || company.trim() === '') {
+      console.warn('[API] No company name provided - returning empty array for safety');
+      return NextResponse.json({
+        success: true,
+        data: [],
+        count: 0,
+        message: 'Company name is required to fetch assets'
+      });
+    }
+
     // Get company-specific collection (this automatically uses the correct database)
-    // If company is provided, it uses e.g., 'thrive_asset_tracker' or 'ecosoul_asset_tracker'
-    // If no company, it uses default 'asset_tracker' database
+    // e.g., 'thrive_asset_tracker' or 'ecosoul_asset_tracker'
     const collection = await getAssetsCollection(company);
 
-    // Build query - filter by companyId if provided
-    // Note: We don't need to filter by company name in the query since we're already
-    // using company-specific databases (thrive_asset_tracker vs ecosoul_asset_tracker)
+    // Build query - Since we're using company-specific databases, we don't need to filter by company field
+    // The database itself is already isolated by company
+    // We'll only filter by companyId if provided (for extra safety)
     const query = {};
     
     if (companyId) {
       query.companyId = companyId;
     }
     
-    // Optional: Also filter by company field for extra safety (in case data is mixed)
-    if (company) {
-      const escapedCompany = company.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      query.company = { $regex: new RegExp(`^${escapedCompany}$`, 'i') };
-    }
-    
-    console.log(`[API] Fetching assets from company DB: ${company || 'default'}, query:`, JSON.stringify(query));
+    console.log(`[API] Fetching assets from company DB: ${company}, query:`, JSON.stringify(query));
     console.log(`[API] CompanyId from params: ${companyId}, Company: ${company}`);
+    console.log(`[API] Using database collection for company: ${company}`);
 
     const assets = await collection.find(query).sort({ createdAt: -1 }).toArray();
     
-    console.log(`[API] Found ${assets.length} assets in database`);
+    console.log(`[API] Found ${assets.length} assets in database for company: ${company}`);
+    
+    // Debug: Log first asset's company field if available
+    if (assets.length > 0) {
+      console.log(`[API] Sample asset company field:`, assets[0].company);
+    }
 
     return NextResponse.json({
       success: true,
@@ -69,8 +83,10 @@ export async function POST(request) {
     const collection = await getAssetsCollection(company);
 
     // Add timestamps and ensure company field is stored
+    // Default status to 'available' if not provided or empty
     const asset = {
       ...body,
+      status: body.status && body.status.trim() ? body.status : 'available',
       company: company, // Ensure company field is stored (from sessionStorage)
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

@@ -8,6 +8,7 @@ import {
   Users, 
   Clock, 
   Package, 
+  List,
   ChevronDown,
   ChevronRight,
   PanelLeftClose,
@@ -300,10 +301,16 @@ export const ASSET_TRACKER_MENU_ITEMS = [
     icon: <LayoutDashboard className="w-5 h-5" />
   },
   {
-    id: 'assets',
-    label: 'Assets',
+    id: 'asset-list',
+    label: 'Asset List',
     path: '/asset-tracker/assets',
-    icon: <Package className="w-5 h-5" />
+    icon: <List className="w-5 h-5" />
+  },
+  {
+    id: 'settings',
+    label: 'Settings',
+    path: '/asset-tracker/settings',
+    icon: <Settings className="w-5 h-5" />
   }
 ];
 

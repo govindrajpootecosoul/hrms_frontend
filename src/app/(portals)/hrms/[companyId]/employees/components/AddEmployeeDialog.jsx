@@ -9,7 +9,7 @@ import Input from '@/components/common/Input';
 const PHASES = [
   { id: 1, name: 'Basic Details', fields: ['firstName', 'lastName', 'email', 'phone', 'dateOfBirth', 'gender'] },
   { id: 2, name: 'Personal Details', fields: ['address', 'city', 'state', 'zipCode', 'emergencyContact', 'emergencyPhone'] },
-  { id: 3, name: 'Work Details', fields: ['employeeId', 'jobTitle', 'department', 'location', 'reportingManager', 'joiningDate'] },
+  { id: 3, name: 'Work Details', fields: ['employeeId', 'jobTitle', 'department', 'company', 'location', 'reportingManager', 'joiningDate', 'role', 'hasCredentialAccess', 'hasSubscriptionAccess'] },
   { id: 4, name: 'Bank & Insurance', fields: ['bankAccount', 'ifsc', 'pan', 'aadhaar', 'uan', 'esiNo', 'pfNo'] },
 ];
 
@@ -30,7 +30,13 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
         lastName: lastName,
         email: employeeToEdit.email || '',
         phone: employeeToEdit.phone || '',
-        dateOfBirth: employeeToEdit.dateOfBirth || '',
+        dateOfBirth: (() => {
+          const date = employeeToEdit.dateOfBirth || '';
+          if (!date) return '';
+          if (date instanceof Date) return date.toISOString().split('T')[0];
+          if (typeof date === 'string' && date.includes('T')) return date.split('T')[0];
+          return date;
+        })(),
         gender: employeeToEdit.gender || '',
         // Personal Details
         address: employeeToEdit.address || '',
@@ -43,9 +49,20 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
         employeeId: employeeToEdit.employeeId || '',
         jobTitle: employeeToEdit.jobTitle || '',
         department: employeeToEdit.department || '',
+        company: employeeToEdit.company || '',
         location: employeeToEdit.location || '',
         reportingManager: employeeToEdit.reportingManager || '',
-        joiningDate: employeeToEdit.joiningDate || '',
+        joiningDate: (() => {
+          const date = employeeToEdit.joiningDate || employeeToEdit.createdAt || '';
+          if (!date) return '';
+          if (date instanceof Date) return date.toISOString().split('T')[0];
+          if (typeof date === 'string' && date.includes('T')) return date.split('T')[0];
+          return date;
+        })(),
+        role: employeeToEdit.role || 'user',
+        hasCredentialAccess: employeeToEdit.hasCredentialAccess !== false,
+        hasSubscriptionAccess: employeeToEdit.hasSubscriptionAccess !== false,
+        password: '', // Don't pre-fill password
         // Bank & Insurance
         bankAccount: employeeToEdit.bankAccount || '',
         ifsc: employeeToEdit.ifsc || '',
@@ -76,9 +93,14 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
       employeeId: '',
       jobTitle: '',
       department: '',
+      company: '',
       location: '',
       reportingManager: '',
       joiningDate: '',
+      role: 'user',
+      hasCredentialAccess: true,
+      hasSubscriptionAccess: true,
+      password: '',
       // Bank & Insurance
       bankAccount: '',
       ifsc: '',
@@ -112,7 +134,7 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
     let isValid = true;
 
     // Optional fields that don't need validation
-    const optionalFields = ['employeeId']; // Employee ID is auto-generated if empty
+    const optionalFields = ['employeeId', 'company', 'password', 'hasCredentialAccess', 'hasSubscriptionAccess']; // Employee ID is auto-generated if empty, company can be auto-detected
     
     // Phase 4 (Bank & Insurance) is completely optional - skip validation for this phase
     if (phase === 4) {
@@ -141,6 +163,26 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
       if (!emailRegex.test(formData.email)) {
         newErrors.email = 'Invalid email format';
         isValid = false;
+      }
+    }
+
+    // Password validation
+    if (phase === 3) {
+      if (!employeeToEdit) {
+        // Required for new employees
+        if (!formData.password || formData.password.trim() === '') {
+          newErrors.password = 'Password is required for new employees';
+          isValid = false;
+        } else if (formData.password.length < 6) {
+          newErrors.password = 'Password must be at least 6 characters long';
+          isValid = false;
+        }
+      } else {
+        // Optional for editing, but if provided, must be at least 6 characters
+        if (formData.password && formData.password.trim() !== '' && formData.password.length < 6) {
+          newErrors.password = 'Password must be at least 6 characters long';
+          isValid = false;
+        }
       }
     }
 
@@ -213,19 +255,33 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
 
       const tenure = `${years} year${years !== 1 ? 's' : ''} ${months} month${months !== 1 ? 's' : ''}`;
 
+      // Get company from form or sessionStorage
+      let company = finalFormData.company;
+      if (!company && typeof window !== 'undefined') {
+        company = sessionStorage.getItem('selectedCompany') || 
+                  sessionStorage.getItem('adminSelectedCompany') || 
+                  '';
+      }
+
       // Prepare employee data
       const employeeData = {
-        id: employeeToEdit ? employeeToEdit.id : Date.now().toString(),
+        id: employeeToEdit ? (employeeToEdit.id || employeeToEdit._id) : Date.now().toString(),
+        _id: employeeToEdit ? (employeeToEdit._id || employeeToEdit.id) : null,
         employeeId: finalFormData.employeeId,
         name: `${finalFormData.firstName} ${finalFormData.lastName}`,
         jobTitle: finalFormData.jobTitle,
         department: finalFormData.department,
+        company: company,
         location: finalFormData.location,
         status: employeeToEdit ? employeeToEdit.status : 'Active',
         tenure,
         email: finalFormData.email,
         phone: finalFormData.phone,
         joiningDate: finalFormData.joiningDate,
+        role: finalFormData.role || 'user',
+        hasCredentialAccess: finalFormData.hasCredentialAccess !== false,
+        hasSubscriptionAccess: finalFormData.hasSubscriptionAccess !== false,
+        password: finalFormData.password || '', // Include password for new employees
         ...finalFormData,
       };
 
@@ -433,6 +489,7 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
                 <option value="Finance">Finance</option>
                 <option value="Operations">Operations</option>
                 <option value="IT">IT</option>
+                <option value="Thrive Ecom">Thrive Ecom</option>
               </select>
               {errors.department && <p className="text-sm text-red-500 mt-1">{errors.department}</p>}
             </div>
@@ -480,6 +537,78 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
                 />
               </div>
               {errors.joiningDate && <p className="text-sm text-red-500 mt-1">{errors.joiningDate}</p>}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Company</label>
+              <Input
+                value={formData.company}
+                onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                placeholder="e.g., Ecosoul Home, Thrive"
+              />
+              <p className="text-xs text-slate-500 mt-1">Leave empty to use default company</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Role *</label>
+              <select
+                value={formData.role}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                className={`w-full px-4 py-3 rounded-xl border transition-all duration-200 ${
+                  errors.role ? 'border-red-500' : 'border-neutral-300'
+                } focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
+              >
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+              </select>
+              {errors.role && <p className="text-sm text-red-500 mt-1">{errors.role}</p>}
+            </div>
+            {!employeeToEdit ? (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Password *</label>
+                <Input
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  className={errors.password ? 'border-red-500' : ''}
+                  placeholder="Enter password (min 6 characters)"
+                />
+                {errors.password && <p className="text-sm text-red-500 mt-1">{errors.password}</p>}
+                <p className="text-xs text-slate-500 mt-1">Required for new employees</p>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Password (Optional)</label>
+                <Input
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  className={errors.password ? 'border-red-500' : ''}
+                  placeholder="Leave blank to keep current password"
+                />
+                {errors.password && <p className="text-sm text-red-500 mt-1">{errors.password}</p>}
+                <p className="text-xs text-slate-500 mt-1">Enter new password to change, or leave blank to keep current</p>
+              </div>
+            )}
+            <div className="col-span-2">
+              <div className="flex items-center gap-6">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.hasCredentialAccess}
+                    onChange={(e) => setFormData({ ...formData, hasCredentialAccess: e.target.checked })}
+                    className="w-4 h-4 text-blue-600 border-neutral-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-slate-700">Has Credential Access</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.hasSubscriptionAccess}
+                    onChange={(e) => setFormData({ ...formData, hasSubscriptionAccess: e.target.checked })}
+                    className="w-4 h-4 text-blue-600 border-neutral-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-slate-700">Has Subscription Access</span>
+                </label>
+              </div>
             </div>
           </div>
         );

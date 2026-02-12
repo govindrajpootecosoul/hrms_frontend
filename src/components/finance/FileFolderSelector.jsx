@@ -22,7 +22,9 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
   const isGstFileProcessing = feature?.id === 'gst-file-processing' || feature?.id === 'amazon-gst-process';
   const isMissingShipment = feature?.id === 'amazon-missing-shipment';
   const isMeir = feature?.id === 'meir';
-  const allowedExtensions = isGstFeature || isGstFileProcessing || isMissingShipment || isMeir ? ['.csv', '.xlsx', '.xls'] : ['.pdf'];
+  const isBookReconcile = feature?.id === 'book-reconcile';
+  const isBooksVsGst = feature?.id === 'books-vs-gst-reconciliation';
+  const allowedExtensions = isGstFeature || isGstFileProcessing || isMissingShipment || isMeir || isBookReconcile || isBooksVsGst ? ['.csv', '.xlsx', '.xls'] : ['.pdf'];
   const acceptString = allowedExtensions.join(',');
 
   const MODE_REQUIREMENTS = {
@@ -220,6 +222,28 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
       }
     }
 
+    if (isBooksVsGst) {
+      if (selectedFiles.length !== 2) {
+        alert('Please select exactly 2 files: 1 GST Excel file (B2B) and 1 bookkeeping CSV/Excel file, in that order.');
+        return;
+      }
+
+      const [gstFile, booksFile] = selectedFiles;
+      const gstName = (gstFile.name || '').toLowerCase();
+      const booksName = (booksFile.name || '').toLowerCase();
+
+      const isGstExcel = gstName.endsWith('.xlsx') || gstName.endsWith('.xls');
+      const isBooksValid =
+        booksName.endsWith('.csv') ||
+        booksName.endsWith('.xlsx') ||
+        booksName.endsWith('.xls');
+
+      if (!isGstExcel || !isBooksValid) {
+        alert('Invalid files selected. Please upload:\n- 1 GST Excel file (.xlsx or .xls) exported from GST portal (B2B sheet)\n- 1 bookkeeping CSV/Excel file (.csv, .xlsx, .xls) exported from books.');
+        return;
+      }
+    }
+
     setIsProcessing(true);
     setProgress(0);
     setProcessingStatus(`Uploading ${selectedFiles.length} file(s)...`);
@@ -245,7 +269,7 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
       }
 
       // Update status to processing
-      const fileTypeText = isGstFileProcessing || isMeir ? 'Excel' : 'PDF';
+      const fileTypeText = isGstFileProcessing || isMeir || isBookReconcile || isBooksVsGst ? 'Excel/CSV' : 'PDF';
       setProcessingStatus(`Processing ${selectedFiles.length} ${fileTypeText} file(s)...`);
       setFileStatuses(prev => prev.map(status => ({
         ...status,
@@ -281,6 +305,8 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
           fileTypeCheck = '- All 7 files are valid Excel files (.xlsx, .xls)\n- Files are in correct order (India Platform, USA Platform, 3G, Shipcube, Updike, Amazon, Container)';
         } else if (isGstFileProcessing) {
           fileTypeCheck = '- All files are valid Excel files (.xlsx, .xls)\n- Files contain GST data';
+        } else if (isBooksVsGst) {
+          fileTypeCheck = '- First file is a valid GST Excel file (.xlsx, .xls)\n- Second file is a valid bookkeeping CSV/Excel file (.csv, .xlsx, .xls)';
         } else {
           fileTypeCheck = '- All files are valid PDF files\n- Files contain Amazon tax invoice data';
         }
@@ -338,7 +364,11 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
         ? `amazon_credit_notes_${new Date().getTime()}.xlsx`
         : feature.id === 'gst-reconcile'
           ? `gst_${mode}_${new Date().getTime()}.csv`
-          : `amazon_tax_invoices_${new Date().getTime()}.xlsx`;
+          : feature.id === 'book-reconcile'
+            ? `cleaned_book_keeping_${new Date().getTime()}.csv`
+            : feature.id === 'books-vs-gst-reconciliation'
+              ? `books_vs_gst_reconciliation_${new Date().getTime()}.csv`
+              : `amazon_tax_invoices_${new Date().getTime()}.xlsx`;
       a.download = fileName;
       document.body.appendChild(a);
       a.click();
@@ -446,7 +476,7 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
         </div>
       </div>
 
-      {(isGstFeature || isGstFileProcessing || isMissingShipment || isMeir) && (
+      {(isGstFeature || isGstFileProcessing || isMissingShipment || isMeir || isBookReconcile || isBooksVsGst) && (
         <div className="space-y-2">
           {isGstFeature ? (
             <>
@@ -509,6 +539,10 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
                 <li>Container Data (with Container SKU sheet)</li>
               </ol>
             </div>
+          ) : isBooksVsGst ? (
+            <p className="text-xs text-neutral-500">
+              Upload exactly 2 files: 1 GST Excel file (B2B sheet) and 1 bookkeeping CSV/Excel file (.csv, .xlsx, .xls) in that order.
+            </p>
           ) : (
             <p className="text-xs text-neutral-500">
               Upload one or more GST Excel/CSV files; we will clean and merge them.
@@ -542,7 +576,7 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
             />
           </div>
           <p className="text-xs text-center text-neutral-500">
-            Progress: {progress}% - Please wait while we process your {isGstFileProcessing ? 'Excel' : 'PDF'} files...
+            Progress: {progress}% - Please wait while we process your {isGstFileProcessing || isBookReconcile || isBooksVsGst ? 'Excel/CSV' : 'PDF'} files...
           </p>
         </div>
       )}
@@ -619,6 +653,10 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
                 <li>Choose the GST process mode and upload the required files.</li>
               ) : isGstFileProcessing ? (
                 <li>Only Excel files (.xlsx, .xls) will be processed</li>
+              ) : isBookReconcile ? (
+                <li>Upload Book Keeping CSV/Excel files to clean and process</li>
+              ) : isBooksVsGst ? (
+                <li>Upload 1 GST Excel file (B2B) and 1 bookkeeping CSV/Excel file; we will reconcile them.</li>
               ) : (
                 <li>Only PDF files will be processed</li>
               )}

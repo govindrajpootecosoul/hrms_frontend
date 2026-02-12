@@ -4,6 +4,7 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Plus, Upload, FileText, Download } from 'lucide-react';
 import { useCompany } from '@/lib/context/CompanyContext';
+import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/components/common/Toast';
 import PageHeader from '@/components/layout/PageHeader';
 import AssetTable from '@/components/asset-tracker/AssetTable';
@@ -11,11 +12,13 @@ import AssetForm from '@/components/asset-tracker/AssetForm';
 import Modal from '@/components/common/Modal';
 import Button from '@/components/common/Button';
 import { API_BASE_URL } from '@/lib/utils/constants';
+import { getCompanyFromEmail } from '@/lib/config/database.config';
 
 const AssetsPage = () => {
   const params = useParams();
   const companyId = params.companyId;
   const { currentCompany } = useCompany();
+  const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const toast = useToast();
@@ -165,16 +168,36 @@ const AssetsPage = () => {
     try {
       setLoading(true);
       
-      // Get selected company from sessionStorage to filter assets
-      const selectedCompany = typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null;
+      // Get selected company from state or sessionStorage (don't modify state here to avoid re-renders)
+      let company = selectedCompany || (typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null);
       
-      console.log(`[AssetsPage] Fetching assets for companyId: ${companyId}, Company: ${selectedCompany}`);
-      
-      // Build API URL with company filter if available
-      let apiUrl = `/api/asset-tracker/assets?companyId=${companyId}`;
-      if (selectedCompany) {
-        apiUrl += `&company=${encodeURIComponent(selectedCompany)}`;
+      // Auto-detect company from user email if not available
+      if (!company && user?.email) {
+        const detectedCompany = getCompanyFromEmail(user.email);
+        if (detectedCompany) {
+          company = detectedCompany;
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('selectedCompany', company);
+          }
+          // Update state but don't trigger another loadAssets call
+          if (!selectedCompany) {
+            setSelectedCompany(company);
+          }
+          console.log(`[AssetsPage] Auto-detected company from email: ${company}`);
+        }
       }
+      
+      // Company is REQUIRED - if still not available, don't clear assets, just return
+      if (!company) {
+        console.warn('[AssetsPage] Company name is required but not available - skipping load');
+        setLoading(false);
+        return; // Don't clear assets, just don't load new ones
+      }
+      
+      console.log(`[AssetsPage] Fetching assets for companyId: ${companyId}, Company: ${company}`);
+      
+      // Build API URL - company parameter is REQUIRED
+      const apiUrl = `/api/asset-tracker/assets?companyId=${companyId}&company=${encodeURIComponent(company)}`;
       
       const res = await fetch(apiUrl);
       
@@ -183,7 +206,7 @@ const AssetsPage = () => {
       }
       
       const data = await res.json();
-      console.log(`[AssetsPage] API Response:`, { success: data.success, count: data.count, dataLength: data.data?.length, company: selectedCompany });
+      console.log(`[AssetsPage] API Response:`, { success: data.success, count: data.count, dataLength: data.data?.length, company: company });
       
       if (data.success && Array.isArray(data.data)) {
         // Convert MongoDB _id to id for frontend compatibility
@@ -224,17 +247,34 @@ const AssetsPage = () => {
     return company;
   };
 
-  // Get selected company from sessionStorage and reload assets when it changes
+  // Get selected company from sessionStorage and auto-detect from user email if not set
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const company = sessionStorage.getItem('selectedCompany');
-      setSelectedCompany(company);
+      let company = sessionStorage.getItem('selectedCompany');
+      
+      // Auto-detect from user's email if available
+      if (!company && user?.email) {
+        const detectedCompany = getCompanyFromEmail(user.email);
+        if (detectedCompany) {
+          company = detectedCompany;
+          sessionStorage.setItem('selectedCompany', company);
+          console.log(`[AssetsPage] Auto-detected and set company from email: ${company}`);
+        }
+      }
+      
+      // Only update state if it's different to avoid unnecessary re-renders
+      if (company !== selectedCompany) {
+        setSelectedCompany(company);
+      }
     }
-  }, []);
+  }, [user, selectedCompany]);
 
   // Load assets on mount and when companyId or selectedCompany changes
+  // Only load if selectedCompany is available
   useEffect(() => {
-    loadAssets();
+    if (selectedCompany) {
+      loadAssets();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId, selectedCompany]);
 
@@ -256,7 +296,14 @@ const AssetsPage = () => {
 
   const handleDeleteAsset = async (asset) => {
     try {
-      const res = await fetch(`/api/asset-tracker/assets?id=${asset.id}`, {
+      // Get company name for the DELETE request
+      const company = typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null;
+      if (!company) {
+        toast.error('Company information is required to delete asset');
+        return;
+      }
+      
+      const res = await fetch(`/api/asset-tracker/assets?id=${asset.id}&company=${encodeURIComponent(company)}`, {
         method: 'DELETE',
       });
       const data = await res.json();
@@ -274,9 +321,16 @@ const AssetsPage = () => {
 
   const handleBulkDeleteAssets = async (assetsToDelete) => {
     try {
+      // Get company name for the DELETE requests
+      const company = typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null;
+      if (!company) {
+        toast.error('Company information is required to delete assets');
+        return;
+      }
+      
       // Delete all assets in parallel without any confirmations
       const deletePromises = assetsToDelete.map(asset =>
-        fetch(`/api/asset-tracker/assets?id=${asset.id}`, {
+        fetch(`/api/asset-tracker/assets?id=${asset.id}&company=${encodeURIComponent(company)}`, {
           method: 'DELETE',
         })
       );
@@ -339,12 +393,20 @@ const AssetsPage = () => {
         }
       }
 
+      // Get company name for the update request
+      const company = typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null;
+      if (!company) {
+        toast.error('Company information is required to assign asset');
+        return;
+      }
+      
       const updateData = {
         id: assetId,
         assignedTo: employeeName || null,
         status: employeeName ? 'assigned' : 'available',
         department: employeeName ? employeeDepartment : null, // Always use employee's department, or null if not found
         companyId,
+        company: company, // Include company name
       };
 
       const res = await fetch('/api/asset-tracker/assets', {
@@ -357,6 +419,12 @@ const AssetsPage = () => {
       if (data.success) {
         // Refresh assets from database to ensure consistency
         await loadAssets();
+        
+        // Trigger refresh event for feed
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('asset-assigned'));
+        }
+        
         toast.success(employeeName ? `Asset assigned to ${employeeName}` : 'Asset unassigned successfully');
       } else {
         toast.error(data.error || 'Failed to assign asset');
@@ -373,11 +441,17 @@ const AssetsPage = () => {
       const selectedCompany = typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null;
       
       if (selectedAsset) {
-        // Update status based on assignedTo
+        // Update status - use formData.status if provided, otherwise keep existing logic
+        let finalStatus = formData.status;
+        if (!finalStatus || !finalStatus.trim()) {
+          // If status is empty, determine based on assignedTo
+          finalStatus = formData.assignedTo ? 'assigned' : 'available';
+        }
+        
         const updateData = {
           id: selectedAsset.id,
           ...formData,
-          status: formData.assignedTo ? 'assigned' : (formData.status || 'available'),
+          status: finalStatus,
           companyId,
           company: selectedCompany || '', // Store company name
         };
@@ -398,10 +472,11 @@ const AssetsPage = () => {
           return;
         }
       } else {
-        // Add new asset
+        // Add new asset - default status to 'available' if not provided
         const newAsset = {
           id: Date.now().toString(),
           ...formData,
+          status: formData.status && formData.status.trim() ? formData.status : 'available',
           companyId,
           company: selectedCompany || '', // Store company name from sessionStorage
           createdAt: new Date().toISOString(),
@@ -524,9 +599,34 @@ const AssetsPage = () => {
     setUploadResult(null);
 
     try {
+      // Get company name for the upload request - auto-detect if not in sessionStorage
+      let company = typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null;
+      
+      // Auto-detect company from user email if not in sessionStorage
+      if (!company && user?.email) {
+        const detectedCompany = getCompanyFromEmail(user.email);
+        if (detectedCompany) {
+          company = detectedCompany;
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('selectedCompany', company);
+          }
+          setSelectedCompany(company);
+          console.log(`[AssetsPage] Auto-detected company from email for upload: ${company}`);
+        }
+      }
+      
+      if (!company) {
+        toast.error('Company information is required to upload assets. Please ensure your email is configured correctly.');
+        setUploading(false);
+        return;
+      }
+      
+      console.log(`[AssetsPage] Uploading assets for company: ${company}, companyId: ${companyId}`);
+      
       const fd = new FormData();
       fd.append('file', file);
       fd.append('companyId', companyId);
+      fd.append('company', company);
 
       const res = await fetch('/api/asset-tracker/bulk-upload', {
         method: 'POST',
@@ -540,16 +640,9 @@ const AssetsPage = () => {
 
       if (Array.isArray(data.created) && data.created.length) {
         // Assets are already saved to MongoDB by the bulk-upload route
-        // Just refresh the list from DB
-        const res = await fetch(`/api/asset-tracker/assets?companyId=${companyId}`);
-        const loadData = await res.json();
-        if (loadData.success && Array.isArray(loadData.data)) {
-          const formattedAssets = loadData.data.map(asset => ({
-            ...asset,
-            id: asset.id || asset._id?.toString() || Date.now().toString(),
-          }));
-          setAssets(formattedAssets);
-        }
+        // Reload assets using the existing loadAssets function to ensure consistency
+        await loadAssets();
+        console.log(`[AssetsPage] Reloaded assets after bulk upload: ${data.createdCount} assets uploaded`);
       }
 
       setUploadResult(data);
@@ -563,43 +656,7 @@ const AssetsPage = () => {
   };
 
   return (
-    <div className="min-h-screen space-y-6">
-      {/* Header Section */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-4xl font-bold text-neutral-900 mb-2">
-            {selectedCompany ? `${formatCompanyName(selectedCompany)} Assets` : 'Asset Management'}
-          </h1>
-          <p className="text-lg text-neutral-600">
-            {selectedCompany 
-              ? `Track and manage all ${formatCompanyName(selectedCompany)} assets`
-              : 'Track and manage all your company assets'}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button
-            onClick={handleExportReport}
-            icon={<FileText className="w-4 h-4" />}
-            className="bg-white text-neutral-800 border border-neutral-300 hover:bg-neutral-50"
-          >
-            Export Report
-          </Button>
-          <Button
-            onClick={openUpload}
-            icon={<Upload className="w-4 h-4" />}
-            className="bg-white text-neutral-800 border border-neutral-300 hover:bg-neutral-50"
-          >
-            Upload Excel
-          </Button>
-          <Button
-            onClick={handleAddAsset}
-            icon={<Plus className="w-4 h-4" />}
-          >
-            + Add New Asset
-          </Button>
-        </div>
-      </div>
-
+    <div className="min-h-screen space-y-4" style={{ zoom: '0.85' }}>
       {/* Asset Table */}
       <AssetTable
         assets={assets}
@@ -613,6 +670,7 @@ const AssetsPage = () => {
         onAssign={handleAssignAsset}
         onUnassign={(assetId) => handleAssignAsset(assetId, '')}
         onExport={handleExportReport}
+        onUpload={openUpload}
         onFilteredAssetsChange={handleFilteredAssetsChange}
       />
 

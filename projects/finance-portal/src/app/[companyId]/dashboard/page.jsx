@@ -36,7 +36,7 @@ const FinanceDashboard = () => {
     {
       id: 'amazon-credit-note',
       title: 'Amazon Credit Note',
-      description: 'Handle Amazon credit notes and adjustments',
+      description: 'Process and Manage Amazon Credit Notes and Adjustments',
       icon: <Receipt className="w-8 h-8" />,
       color: 'from-green-500 to-green-600',
       bgColor: 'bg-green-50',

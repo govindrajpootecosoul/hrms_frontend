@@ -8,7 +8,7 @@ const nextConfig = {
     // Use API URL from network.config.js (can be overridden by env var)
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || getApiUrl(),
   },
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;
 

@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams } from 'next/navigation';
-import { Plus, Upload, Settings as SettingsIcon, LayoutDashboard, List, FileText, CheckCircle, FileText as FileTextIcon, Wrench, X, Download } from 'lucide-react';
+import { Plus, Upload, FileText, CheckCircle, FileText as FileTextIcon, X, Download } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import PageHeader from '@/components/layout/PageHeader';
 import MetricCards from '@/components/asset-tracker/MetricCards';
@@ -12,7 +12,7 @@ import StatusOverviewCard from '@/components/asset-tracker/StatusOverviewCard';
 import AssetHistoryFeed from '@/components/asset-tracker/AssetHistoryFeed';
 import QuickActions from '@/components/asset-tracker/QuickActions';
 import AssetCategoryCountTable from '@/components/asset-tracker/AssetCategoryCountTable';
-import Settings from '@/components/asset-tracker/Settings';
+import WarrantyCalendar from '@/components/asset-tracker/WarrantyCalendar';
 import Modal from '@/components/common/Modal';
 import Card from '@/components/common/Card';
 import Button from '@/components/common/Button';
@@ -30,7 +30,6 @@ const AssetTrackerDashboard = () => {
   const [selectedCompany, setSelectedCompany] = useState(null);
   const [showCompanySelectModal, setShowCompanySelectModal] = useState(false);
   
-  const [activeTab, setActiveTab] = useState('dashboard');
   const [showAddAsset, setShowAddAsset] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [showEditAsset, setShowEditAsset] = useState(false);
@@ -73,16 +72,36 @@ const AssetTrackerDashboard = () => {
     try {
       setLoading(true);
       
-      // Get selected company from sessionStorage to filter assets
-      const selectedCompany = typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null;
+      // Get selected company from state or sessionStorage (don't modify state here to avoid re-renders)
+      let company = selectedCompany || (typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null);
       
-      console.log(`[AssetTracker] Fetching assets for companyId: ${companyId}, Company: ${selectedCompany}`);
-      
-      // Build API URL with company filter if available
-      let apiUrl = `/api/asset-tracker/assets?companyId=${companyId}`;
-      if (selectedCompany) {
-        apiUrl += `&company=${encodeURIComponent(selectedCompany)}`;
+      // Auto-detect company from user email if not available
+      if (!company && user?.email) {
+        const detectedCompany = getCompanyFromEmail(user.email);
+        if (detectedCompany) {
+          company = detectedCompany;
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('selectedCompany', company);
+          }
+          // Update state but don't trigger another loadAssets call
+          if (!selectedCompany) {
+            setSelectedCompany(company);
+          }
+          console.log(`[AssetTracker] Auto-detected company from email: ${company}`);
+        }
       }
+      
+      // Company is REQUIRED - if still not available, don't clear assets, just return
+      if (!company) {
+        console.warn('[AssetTracker] Company name is required but not available - skipping load');
+        setLoading(false);
+        return; // Don't clear assets, just don't load new ones
+      }
+      
+      console.log(`[AssetTracker] Fetching assets for companyId: ${companyId}, Company: ${company}`);
+      
+      // Build API URL - company parameter is REQUIRED
+      const apiUrl = `/api/asset-tracker/assets?companyId=${companyId}&company=${encodeURIComponent(company)}`;
       
       const res = await fetch(apiUrl);
       
@@ -148,7 +167,10 @@ const AssetTrackerDashboard = () => {
         }
       }
       
-      setSelectedCompany(company);
+      // Only update state if it's different to avoid unnecessary re-renders
+      if (company !== selectedCompany) {
+        setSelectedCompany(company);
+      }
       
       // Show company selection modal only if we still don't have a company after checking user email
       if (!company) {
@@ -170,7 +192,7 @@ const AssetTrackerDashboard = () => {
         setShowCompanySelectModal(false);
       }
     }
-  }, [user]);
+  }, [user, selectedCompany]);
   
   // Handle company selection
   const handleCompanySelect = (companyName) => {
@@ -184,21 +206,19 @@ const AssetTrackerDashboard = () => {
   };
 
   // Load assets on mount and when companyId or selectedCompany changes
-  // Also reload when user changes (to ensure company is set from email)
+  // Only load if selectedCompany is available
   useEffect(() => {
-    // Only load assets if we have a company set (either from sessionStorage or auto-detected)
-    if (selectedCompany || user?.email) {
+    if (selectedCompany) {
       loadAssets();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [companyId, selectedCompany, user]);
+  }, [companyId, selectedCompany]);
 
   // Calculate metrics dynamically from assets (using useMemo for performance)
   const metrics = useMemo(() => {
     const totalAssets = assets.length;
     const assigned = assets.filter(a => a.status === 'assigned').length;
     const available = assets.filter(a => a.status === 'available').length;
-    const underMaintenance = assets.filter(a => a.status === 'maintenance').length;
     const broken = assets.filter(a => a.status === 'broken').length;
 
     // Calculate category counts
@@ -213,7 +233,6 @@ const AssetTrackerDashboard = () => {
       totalAssets,
       assigned,
       available,
-      underMaintenance,
       broken,
       categories,
     };
@@ -347,6 +366,12 @@ const AssetTrackerDashboard = () => {
       if (data.success) {
         // Refresh assets from database to ensure consistency
         await loadAssets();
+        
+        // Trigger refresh event for feed
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('asset-assigned'));
+        }
+        
         toast.success(employeeName ? `Asset assigned to ${employeeName}` : 'Asset unassigned successfully');
       } else {
         toast.error(data.error || 'Failed to assign asset');
@@ -526,9 +551,34 @@ const AssetTrackerDashboard = () => {
     setUploadResult(null);
 
     try {
+      // Get company name for the upload request
+      let company = typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null;
+      
+      // Auto-detect company from user email if not in sessionStorage
+      if (!company && user?.email) {
+        const detectedCompany = getCompanyFromEmail(user.email);
+        if (detectedCompany) {
+          company = detectedCompany;
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('selectedCompany', company);
+          }
+          setSelectedCompany(company);
+          console.log(`[Dashboard] Auto-detected company from email: ${company}`);
+        }
+      }
+      
+      if (!company) {
+        toast.error('Company information is required to upload assets. Please ensure your email is configured correctly.');
+        setUploading(false);
+        return;
+      }
+      
+      console.log(`[Dashboard] Uploading assets for company: ${company}, companyId: ${companyId}`);
+      
       const fd = new FormData();
       fd.append('file', file);
       fd.append('companyId', companyId);
+      fd.append('company', company);
 
       const res = await fetch('/api/asset-tracker/bulk-upload', {
         method: 'POST',
@@ -542,16 +592,9 @@ const AssetTrackerDashboard = () => {
 
       if (Array.isArray(data.created) && data.created.length) {
         // Assets are already saved to MongoDB by the bulk-upload route
-        // Just refresh the list from DB
-        const res = await fetch(`/api/asset-tracker/assets?companyId=${companyId}`);
-        const loadData = await res.json();
-        if (loadData.success && Array.isArray(loadData.data)) {
-          const formattedAssets = loadData.data.map(asset => ({
-            ...asset,
-            id: asset.id || asset._id?.toString() || Date.now().toString(),
-          }));
-          setAssets(formattedAssets);
-        }
+        // Reload assets using the existing loadAssets function to ensure consistency
+        await loadAssets();
+        console.log(`[Dashboard] Reloaded assets after bulk upload: ${data.createdCount} assets uploaded`);
       }
 
       setUploadResult(data);
@@ -569,213 +612,101 @@ const AssetTrackerDashboard = () => {
   };
 
   const handleSettings = () => {
-    // Navigate to settings or open settings modal
-    console.log('Settings clicked');
-  };
-
-  const tabs = [
-    { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
-    { id: 'asset-list', label: 'Asset List', icon: <List className="w-4 h-4" /> },
-    { id: 'settings', label: 'Settings', icon: <SettingsIcon className="w-4 h-4" /> },
-  ];
-
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'dashboard':
-        return (
-          <div className="space-y-3">
-            {/* Header */}
-            <div>
-              <h2 className="text-neutral-900 text-xl font-bold mb-1">Dashboard</h2>
-              <p className="text-neutral-600 text-xs mb-3">
-                Welcome back! Here's what's happening with your assets today.
-              </p>
-            </div>
-
-            {/* Top Section - Key Metrics */}
-            <MetricCards
-              {...metrics}
-              loading={loading}
-              onMetricClick={(metricKey) => {
-                switch (metricKey) {
-                  case 'total':
-                    setInitialStatusFilter('');
-                    break;
-                  case 'assigned':
-                    setInitialStatusFilter('assigned');
-                    break;
-                  case 'available':
-                    setInitialStatusFilter('available');
-                    break;
-                  case 'maintenance':
-                    setInitialStatusFilter('maintenance');
-                    break;
-                  default:
-                    setInitialStatusFilter('');
-                }
-                setActiveTab('asset-list');
-              }}
-            />
-
-            {/* Middle Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              {/* Left - Asset Status Overview */}
-              <Card title="Asset Status Overview" className="p-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <StatusOverviewCard
-                    status="Assigned"
-                    count={metrics.assigned}
-                    color="blue"
-                    icon={<CheckCircle className="w-4 h-4" />}
-                    onClick={() => {
-                      setInitialStatusFilter('assigned');
-                      setActiveTab('asset-list');
-                    }}
-                  />
-                  <StatusOverviewCard
-                    status="Available"
-                    count={metrics.available}
-                    color="green"
-                    icon={<FileTextIcon className="w-4 h-4" />}
-                    onClick={() => {
-                      setInitialStatusFilter('available');
-                      setActiveTab('asset-list');
-                    }}
-                  />
-                  <StatusOverviewCard
-                    status="Maintenance"
-                    count={metrics.underMaintenance}
-                    color="orange"
-                    icon={<Wrench className="w-4 h-4" />}
-                    onClick={() => {
-                      setInitialStatusFilter('maintenance');
-                      setActiveTab('asset-list');
-                    }}
-                  />
-                  <StatusOverviewCard
-                    status="Broken"
-                    count={metrics.broken}
-                    color="red"
-                    icon={<X className="w-4 h-4" />}
-                    onClick={() => {
-                      setInitialStatusFilter('broken');
-                      setActiveTab('asset-list');
-                    }}
-                  />
-                </div>
-              </Card>
-
-              {/* Right - Asset Categories */}
-              <AssetCategoryCountTable staticData={metrics.categories} />
-            </div>
-
-            {/* Bottom Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              {/* Left - Asset History */}
-              <AssetHistoryFeed companyId={companyId} company={selectedCompany} />
-
-              {/* Right - Quick Actions */}
-              <QuickActions
-                onAddAsset={handleAddAsset}
-                onAudit={handleAudit}
-                onExport={handleExportAssets}
-                onSettings={handleSettings}
-              />
-            </div>
-          </div>
-        );
-      case 'asset-list':
-        return (
-          <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-start justify-between">
-              <div>
-                <h1 className="text-xl font-bold text-neutral-900 mb-1">
-                  {selectedCompany ? `${formatCompanyName(selectedCompany)} Assets` : 'Asset Management'}
-                </h1>
-                <p className="text-xs text-neutral-600">
-                  {selectedCompany 
-                    ? `Track and manage all ${formatCompanyName(selectedCompany)} assets`
-                    : 'Track and manage all your company assets'}
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <Button
-                  onClick={handleExportAssets}
-                  icon={<FileText className="w-4 h-4" />}
-                  className="bg-white text-neutral-800 border border-neutral-300 hover:bg-neutral-50"
-                >
-                  Export Report
-                </Button>
-                <Button
-                  onClick={openUpload}
-                  icon={<Upload className="w-4 h-4" />}
-                  className="bg-white text-neutral-800 border border-neutral-300 hover:bg-neutral-50"
-                >
-                  Upload Excel
-                </Button>
-                <Button
-                  onClick={handleAddAsset}
-                  icon={<Plus className="w-4 h-4" />}
-                  className="bg-blue-600 text-white hover:bg-blue-700"
-                >
-                  + Add New Asset
-                </Button>
-              </div>
-            </div>
-
-            {/* Asset Table */}
-            <AssetTable
-              assets={assets}
-              employees={employees}
-              initialStatusFilter={initialStatusFilter}
-              onView={handleViewAsset}
-              onEdit={handleEditAsset}
-              onDelete={handleDeleteAsset}
-              onBulkDelete={handleBulkDeleteAssets}
-              onAdd={handleAddAsset}
-              onAssign={handleAssignAsset}
-              onUnassign={(assetId) => handleAssignAsset(assetId, '')}
-              onExport={handleExportAssets}
-              onFilteredAssetsChange={handleFilteredAssetsChange}
-            />
-          </div>
-        );
-      case 'settings':
-        return <Settings />;
-      default:
-        return null;
-    }
+    router.push(`/asset-tracker/${companyId}/settings`);
   };
 
   return (
-    <div className="min-h-screen space-y-3">
-      {/* Tabs Navigation */}
-      <div className="border-b border-neutral-200">
-        <nav className="flex space-x-1" aria-label="Tabs">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`
-                flex items-center gap-1.5 px-4 py-2 text-xs font-medium border-b-2 transition-colors
-                ${
-                  activeTab === tab.id
-                    ? 'border-primary-600 text-primary-600'
-                    : 'border-transparent text-neutral-600 hover:text-neutral-900 hover:border-neutral-300'
-                }
-              `}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
-          ))}
-        </nav>
+    <>
+      <div className="space-y-3">
+        {/* Header */}
+        <div>
+          <h2 className="text-neutral-900 text-xl font-bold mb-1">Dashboard</h2>
+          <p className="text-neutral-600 text-xs mb-3">
+            Welcome back! Here's what's happening with your assets today.
+          </p>
+        </div>
+
+        {/* Top Section - Key Metrics */}
+        <MetricCards
+          {...metrics}
+          loading={loading}
+          onMetricClick={(metricKey) => {
+            switch (metricKey) {
+              case 'total':
+                setInitialStatusFilter('');
+                break;
+              case 'assigned':
+                setInitialStatusFilter('assigned');
+                break;
+              case 'available':
+                setInitialStatusFilter('available');
+                break;
+              default:
+                setInitialStatusFilter('');
+            }
+            router.push(`/asset-tracker/${companyId}/assets`);
+          }}
+        />
+
+        {/* Middle Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {/* Left - Asset Status Overview */}
+          <Card title="Asset Status Overview" className="p-3">
+            <div className="grid grid-cols-2 gap-2">
+              <StatusOverviewCard
+                status="Assigned"
+                count={metrics.assigned}
+                color="blue"
+                icon={<CheckCircle className="w-4 h-4" />}
+                onClick={() => {
+                  setInitialStatusFilter('assigned');
+                  router.push(`/asset-tracker/${companyId}/assets`);
+                }}
+              />
+              <StatusOverviewCard
+                status="Available"
+                count={metrics.available}
+                color="green"
+                icon={<FileTextIcon className="w-4 h-4" />}
+                onClick={() => {
+                  setInitialStatusFilter('available');
+                  router.push(`/asset-tracker/${companyId}/assets`);
+                }}
+              />
+              <StatusOverviewCard
+                status="Broken"
+                count={metrics.broken}
+                color="red"
+                icon={<X className="w-4 h-4" />}
+                onClick={() => {
+                  setInitialStatusFilter('broken');
+                  router.push(`/asset-tracker/${companyId}/assets`);
+                }}
+              />
+            </div>
+          </Card>
+
+          {/* Right - Asset Categories */}
+          <AssetCategoryCountTable staticData={metrics.categories} />
+        </div>
+
+        {/* Bottom Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          {/* Left - Warranty Calendar */}
+          <WarrantyCalendar assets={assets} />
+
+          {/* Middle - Asset History */}
+          <AssetHistoryFeed companyId={companyId} company={selectedCompany} />
+
+          {/* Right - Quick Actions */}
+          <QuickActions
+            onAddAsset={handleAddAsset}
+            onAudit={handleAudit}
+            onExport={handleExportAssets}
+            onSettings={handleSettings}
+          />
+        </div>
       </div>
-
-      {/* Tab Content */}
-      {renderTabContent()}
-
 
       {/* Company Selection Modal */}
       {showCompanySelectModal && (
@@ -913,7 +844,7 @@ const AssetTrackerDashboard = () => {
           </div>
         </div>
       </Modal>
-    </div>
+    </>
   );
 };
 

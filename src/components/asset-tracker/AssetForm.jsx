@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { Link as LinkIcon, Calendar, ChevronDown } from 'lucide-react';
 import Button from '@/components/common/Button';
 import Input from '@/components/common/Input';
-import Select from '@/components/common/Select';
 import EmployeeSelect from '@/components/common/EmployeeSelect';
-import { API_BASE_URL } from '@/lib/utils/constants';
+import { API_BASE_URL, ASSET_STATUS } from '@/lib/utils/constants';
 
 const AssetForm = ({ 
   asset = null, 
@@ -26,7 +25,7 @@ const AssetForm = ({
     subcategory: asset?.subcategory || '',
     site: asset?.site || '',
     location: asset?.location || '',
-    status: asset?.status || 'available',
+    status: asset?.status || '', // Empty by default, user must select
     assignedTo: asset?.assignedTo || '',
     department: asset?.department || '',
     
@@ -54,6 +53,7 @@ const AssetForm = ({
   const [usersData, setUsersData] = useState([]);
   const [settingsCategories, setSettingsCategories] = useState([]);
   const [settingsLocations, setSettingsLocations] = useState([]);
+  const dropdownRefs = useRef({});
   const isEditMode = !!asset;
 
   // Fetch users data for auto-filling department
@@ -192,12 +192,18 @@ const AssetForm = ({
     return [{ value: '', label: 'Select Location' }, ...locs.map((l) => ({ value: l.name, label: l.name }))];
   }, [settingsLocations]);
 
-  const statusOptions = [
-    { value: 'available', label: 'Available' },
-    { value: 'assigned', label: 'Assigned' },
-    { value: 'maintenance', label: 'Under Maintenance' },
-    { value: 'broken', label: 'Broken' },
-  ];
+  const statusOptions = useMemo(() => {
+    const base = (ASSET_STATUS && Array.isArray(ASSET_STATUS) && ASSET_STATUS.length > 0)
+      ? ASSET_STATUS.map((s) => ({ value: s.value, label: s.label }))
+      : [
+          { value: 'assigned', label: 'Assigned' },
+          { value: 'available', label: 'Available' },
+          { value: 'maintenance', label: 'Maintenance' },
+          { value: 'broken', label: 'Broken' },
+        ];
+
+    return [{ value: '', label: 'Select Status' }, ...base];
+  }, []);
 
   // Generate Asset Tag ID when category and subcategory are selected (only for new assets)
   useEffect(() => {
@@ -291,6 +297,21 @@ const AssetForm = ({
     setSelectOpen({});
   };
 
+  // Auto-scroll dropdowns to top when they open
+  useEffect(() => {
+    Object.keys(selectOpen).forEach((field) => {
+      if (selectOpen[field] && dropdownRefs.current[field]) {
+        setTimeout(() => {
+          if (dropdownRefs.current[field]) {
+            dropdownRefs.current[field].scrollTop = 0;
+          }
+        }, 10);
+      }
+    });
+  }, [selectOpen]);
+
+
+
   const renderStep1 = () => {
     const getSelectOptions = (field) => {
       switch (field) {
@@ -327,7 +348,9 @@ const AssetForm = ({
           <div className="relative">
             <button
               type="button"
-              onClick={() => {
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 closeAllSelects();
                 toggleSelect(field);
               }}
@@ -343,25 +366,37 @@ const AssetForm = ({
             </button>
             {isOpen && (
               <>
-                <div className="absolute z-50 w-full mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-48 overflow-auto">
-                  {options.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => {
-                        handleChange(field, option.value);
-                        setSelectOpen(prev => ({ ...prev, [field]: false }));
-                      }}
-                      className={`w-full px-3 py-1.5 text-xs text-left hover:bg-neutral-100 transition-colors ${
-                        option.value === value ? 'bg-blue-50 text-blue-700' : 'text-neutral-900'
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
+                <div className="absolute z-[100] w-full mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-64 overflow-hidden flex flex-col">
+                  <div 
+                    ref={(el) => { dropdownRefs.current[field] = el; }}
+                    className="overflow-y-auto max-h-48"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {options && options.length > 0 ? (
+                      options.map((option, index) => (
+                        <button
+                          key={option.value || `option-${index}`}
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleChange(field, option.value);
+                            setSelectOpen(prev => ({ ...prev, [field]: false }));
+                          }}
+                          className={`w-full px-3 py-1.5 text-xs text-left hover:bg-neutral-100 transition-colors ${
+                            option.value === value ? 'bg-blue-50 text-blue-700' : 'text-neutral-900'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-3 py-1.5 text-xs text-neutral-500">No options available</div>
+                    )}
+                  </div>
                 </div>
                 <div
-                  className="fixed inset-0 z-40"
+                  className="fixed inset-0 z-[90]"
                   onClick={() => setSelectOpen(prev => ({ ...prev, [field]: false }))}
                 />
               </>
@@ -393,10 +428,13 @@ const AssetForm = ({
           
           {renderCompactSelect('site', 'Site', true)}
           {renderCompactSelect('location', 'Location', true)}
-          {renderCompactSelect('status', 'Status', false)}
+          <div className="pb-5">
+            {renderCompactSelect('status', 'Status', false)}
+          </div>
           
           {/* Assigned To - Department auto-fetches in background */}
-          <EmployeeSelect
+          <div className="pb-5">
+            <EmployeeSelect
             value={formData.assignedTo}
             onChange={(value) => {
               handleChange('assignedTo', value);
@@ -418,6 +456,7 @@ const AssetForm = ({
             showUnassigned={true}
             error={errors.assignedTo}
           />
+          </div>
         </div>
       </div>
     );

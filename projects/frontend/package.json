@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:network": "node scripts/start-with-network-config.js",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

@@ -1,13 +1,12 @@
 'use client';
 
-import { BarChart3, Percent, CheckCircle, Wrench, TrendingUp, TrendingDown } from 'lucide-react';
+import { BarChart3, Percent, CheckCircle, TrendingUp, TrendingDown } from 'lucide-react';
 import Card from '@/components/common/Card';
 
 const MetricCards = ({ 
   totalAssets = 0, 
   assigned = 0, 
   available = 0, 
-  underMaintenance = 0,
   broken = 0,
   loading = false,
   onMetricClick,
@@ -34,13 +33,6 @@ const MetricCards = ({
       color: 'green',
       key: 'available',
     },
-    {
-      title: 'Under Maintenance',
-      value: underMaintenance,
-      icon: <Wrench className="w-4 h-4" />,
-      color: 'orange',
-      key: 'maintenance',
-    }
   ];
 
   const colorStyles = {
@@ -64,8 +56,8 @@ const MetricCards = ({
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {Array.from({ length: 4 }).map((_, index) => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {Array.from({ length: 3 }).map((_, index) => (
           <Card key={index} className="p-3">
             <div className="animate-pulse">
               <div className="flex items-start justify-between">
@@ -83,7 +75,7 @@ const MetricCards = ({
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
       {metrics.map((metric, index) => {
         const styles = colorStyles[metric.color] || colorStyles.blue;
         const clickable = typeof onMetricClick === 'function';
