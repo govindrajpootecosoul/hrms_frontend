@@ -87,14 +87,21 @@ const WarrantyCalendar = ({ assets = [] }) => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h3 className="text-white text-lg font-semibold">Warranty</h3>
-            <div className="flex items-center gap-1">
+            <div className="px-3 py-1 bg-neutral-800 rounded">
+              <h3 className="text-white text-base font-semibold">Warranty</h3>
+            </div>
+            <div className="flex items-center gap-2">
               <button
                 onClick={goToPreviousMonth}
                 className="w-8 h-8 flex items-center justify-center bg-neutral-800 hover:bg-neutral-700 text-white rounded transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
+              <div className="px-3 py-1 bg-neutral-800 rounded">
+                <h2 className="text-white text-base font-semibold min-w-[140px] text-center">
+                  {format(currentDate, 'MMMM yyyy')}
+                </h2>
+              </div>
               <button
                 onClick={goToNextMonth}
                 className="w-8 h-8 flex items-center justify-center bg-neutral-800 hover:bg-neutral-700 text-white rounded transition-colors"
@@ -111,13 +118,6 @@ const WarrantyCalendar = ({ assets = [] }) => {
               month
             </div>
           </div>
-        </div>
-
-        {/* Month/Year */}
-        <div className="text-center">
-          <h2 className="text-white text-xl font-semibold">
-            {format(currentDate, 'MMMM yyyy').toUpperCase()}
-          </h2>
         </div>
 
         {/* Calendar Grid */}
