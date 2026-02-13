@@ -58,6 +58,8 @@ const EmployeePortalHome = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [loadingData, setLoadingData] = useState(false);
   const [timeState, setTimeState] = useState(() => loadInitialState());
+  const [checkInHistory, setCheckInHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const [now, setNow] = useState(new Date());
   const [selectedCompany, setSelectedCompany] = useState(null);
 
@@ -87,15 +89,45 @@ const EmployeePortalHome = () => {
 
   const workedMinutes = useMemo(() => {
     // Only calculate if this state belongs to the current user
-    if (timeState.employeeId !== user?.employeeId) {
+    if (!timeState || timeState.employeeId !== user?.employeeId) {
       return 0;
     }
-    let minutes = timeState.totalMinutes;
+    
+    let minutes = timeState.totalMinutes || 0;
+    
+    // Check if checked in and has valid check-in time
     if (timeState.status === 'checked-in' && timeState.checkInTime) {
-      const elapsedMs = now.getTime() - new Date(timeState.checkInTime).getTime();
-      minutes += elapsedMs / 60000;
+      try {
+        const checkInDate = new Date(timeState.checkInTime);
+        const nowDate = new Date(now);
+        
+        if (!isNaN(checkInDate.getTime()) && !isNaN(nowDate.getTime())) {
+          const elapsedMs = nowDate.getTime() - checkInDate.getTime();
+          const elapsedMinutes = elapsedMs / 60000;
+          
+          // Calculate total: base minutes (accumulated from previous sessions) + current session elapsed time
+          // timeState.totalMinutes contains base minutes (without current session) - extracted from backend responses
+          if (elapsedMinutes > 0) {
+            const baseMinutes = timeState.totalMinutes || 0;
+            minutes = baseMinutes + elapsedMinutes;
+          }
+        } else {
+          console.warn('Invalid date in timer calculation', {
+            checkInTime: timeState.checkInTime,
+            checkInValid: !isNaN(checkInDate.getTime()),
+            nowValid: !isNaN(nowDate.getTime())
+          });
+        }
+      } catch (e) {
+        console.error('Error calculating worked minutes:', e, {
+          checkInTime: timeState.checkInTime,
+          now: now.toISOString(),
+          status: timeState.status
+        });
+      }
     }
-    return minutes;
+    
+    return Math.max(0, minutes);
   }, [timeState, now, user?.employeeId]);
 
   // Fetch check-in status from backend - runs on mount and when employeeId changes
@@ -107,8 +139,8 @@ const EmployeePortalHome = () => {
         // Get company from state or sessionStorage
         const company = selectedCompany || (typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null);
         
-        // Build API URL with company parameter
-        let apiUrl = `${API_BASE_URL}/employee-portal/checkin/status?employeeId=${encodeURIComponent(user.employeeId)}`;
+        // Build API URL - use Next.js API route as proxy
+        let apiUrl = `/api/employee-portal/checkin/status?employeeId=${encodeURIComponent(user.employeeId)}`;
         if (company) {
           apiUrl += `&company=${encodeURIComponent(company)}`;
         }
@@ -122,11 +154,27 @@ const EmployeePortalHome = () => {
           const json = await res.json();
           if (json?.success && json?.data) {
             const { status, checkInTime, totalMinutes } = json.data;
+            
+            // Calculate base minutes (without current session elapsed time) for checked-in status
+            // For checked-out status, use totalMinutes as-is (it's the final total)
+            let baseMinutes = totalMinutes || 0;
+            if (status === 'checked-in' && checkInTime) {
+              try {
+                const checkInTimeDate = new Date(checkInTime);
+                const nowDate = new Date();
+                const currentSessionMinutes = Math.max(0, (nowDate.getTime() - checkInTimeDate.getTime()) / 60000);
+                baseMinutes = Math.max(0, (totalMinutes || 0) - currentSessionMinutes);
+              } catch (e) {
+                console.error('Error calculating base minutes:', e);
+                baseMinutes = totalMinutes || 0;
+              }
+            }
+            
             setTimeState((prev) => ({
               ...prev,
               status: status || 'checked-out',
               checkInTime: checkInTime || null,
-              totalMinutes: totalMinutes || 0,
+              totalMinutes: baseMinutes, // Base minutes for checked-in, full totalMinutes for checked-out
               date: getTodayKey(),
               employeeId: user.employeeId, // Ensure employeeId is set
             }));
@@ -182,6 +230,42 @@ const EmployeePortalHome = () => {
     fetchDashboard();
   }, [user, selectedCompany]);
 
+  // Fetch check-in history from backend
+  useEffect(() => {
+    const fetchCheckInHistory = async () => {
+      if (!user?.employeeId) return;
+      try {
+        setLoadingHistory(true);
+        const token = localStorage.getItem('auth_token');
+        const company = selectedCompany || (typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null);
+        
+        let apiUrl = `/api/employee-portal/checkin/history?employeeId=${encodeURIComponent(user.employeeId)}&limit=10`;
+        if (company) {
+          apiUrl += `&company=${encodeURIComponent(company)}`;
+        }
+        
+        const res = await fetch(apiUrl, {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+        
+        if (res.ok) {
+          const json = await res.json();
+          if (json?.success && json?.data?.history) {
+            setCheckInHistory(json.data.history);
+          }
+        }
+      } catch (err) {
+        console.error('Check-in history fetch failed', err);
+      } finally {
+        setLoadingHistory(false);
+      }
+    };
+    
+    fetchCheckInHistory();
+  }, [user?.employeeId, selectedCompany]);
+
   const greeting = useMemo(() => {
     const hours = now.getHours();
     if (hours < 12) return 'Good morning';
@@ -218,12 +302,12 @@ const EmployeePortalHome = () => {
           const company = selectedCompany || (typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null);
           
           // Build API URL with company parameter
-          let apiUrl = `${API_BASE_URL}/employee-portal/checkin/status?employeeId=${encodeURIComponent(user.employeeId)}`;
-          if (company) {
-            apiUrl += `&company=${encodeURIComponent(company)}`;
-          }
-          
-          const res = await fetch(apiUrl, {
+        let apiUrl = `/api/employee-portal/checkin/status?employeeId=${encodeURIComponent(user.employeeId)}`;
+        if (company) {
+          apiUrl += `&company=${encodeURIComponent(company)}`;
+        }
+        
+        const res = await fetch(apiUrl, {
             headers: {
               ...(token ? { Authorization: `Bearer ${token}` } : {}),
             },
@@ -259,8 +343,8 @@ const EmployeePortalHome = () => {
     try {
       const endpoint = isCheckingIn ? '/checkin' : '/checkout';
       
-      // Build API URL with company parameter
-      let apiUrl = `${API_BASE_URL}/employee-portal${endpoint}`;
+      // Build API URL - use Next.js API route as proxy
+      let apiUrl = `/api/employee-portal${endpoint}`;
       if (company) {
         apiUrl += `?company=${encodeURIComponent(company)}`;
       }
@@ -277,36 +361,125 @@ const EmployeePortalHome = () => {
       if (res.ok) {
         const json = await res.json();
         if (json?.success) {
-          // Refresh status from backend to ensure consistency
-          const refreshStatus = async () => {
+          const timestamp = new Date().toISOString();
+          
+          if (isCheckingIn) {
+            // Immediately update state with check-in time to start the timer
+            // Use the checkInTime from response if available, otherwise use current timestamp
+            const checkInTimeFromResponse = json.data?.checkInTime || timestamp;
+            
+            // Ensure checkInTime is a valid ISO string
+            let validCheckInTime = checkInTimeFromResponse;
             try {
-              let statusUrl = `${API_BASE_URL}/employee-portal/checkin/status?employeeId=${encodeURIComponent(user.employeeId)}`;
-              if (company) {
-                statusUrl += `&company=${encodeURIComponent(company)}`;
+              // Validate and normalize the date
+              const checkInDate = new Date(checkInTimeFromResponse);
+              if (isNaN(checkInDate.getTime())) {
+                // If invalid, use current time
+                validCheckInTime = new Date().toISOString();
+              } else {
+                validCheckInTime = checkInDate.toISOString();
               }
-              
-              const statusRes = await fetch(statusUrl, {
-                headers: {
-                  ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                },
-              });
-              
-              if (statusRes.ok) {
-                const statusJson = await statusRes.json();
-                if (statusJson?.success && statusJson?.data) {
-                  const { status, checkInTime, totalMinutes } = statusJson.data;
-                  const timestamp = new Date().toISOString();
-                  
-                  if (isCheckingIn) {
-                    setTimeState({
-                      date: getTodayKey(),
-                      status: 'checked-in',
-                      checkInTime: checkInTime || timestamp,
-                      totalMinutes: 0,
-                      history: [{ action: 'Checked in', time: timestamp }],
-                      employeeId: user.employeeId,
-                    });
-                  } else {
+            } catch (e) {
+              validCheckInTime = new Date().toISOString();
+            }
+            
+            console.log('Setting check-in time:', validCheckInTime);
+            
+            // Get accumulated totalMinutes from response if available (for resuming after checkout)
+            const accumulatedMinutes = json.data?.totalMinutes || 0;
+            
+            // Force immediate state update to start timer
+            // Use functional update to ensure React detects the change
+            const newState = {
+              date: getTodayKey(),
+              status: 'checked-in',
+              checkInTime: validCheckInTime,
+              totalMinutes: accumulatedMinutes, // Resume from accumulated time, not 0
+              history: [{ action: 'Checked in', time: timestamp }],
+              employeeId: user.employeeId,
+            };
+            
+            console.log('🔵 CHECKING IN - Setting state:', newState);
+            
+            // Use React.startTransition or flushSync to ensure immediate update
+            // First update timeState
+            setTimeState(newState);
+            
+            // Then immediately update now in next tick to force recalculation
+            setTimeout(() => {
+              const currentNow = new Date();
+              console.log('🔵 CHECKING IN - Setting now:', currentNow.toISOString());
+              setNow(currentNow);
+            }, 0);
+            
+            // Also update now immediately
+            setNow(new Date());
+            
+            // Then refresh from backend to ensure consistency after a short delay
+            setTimeout(async () => {
+              try {
+                let statusUrl = `/api/employee-portal/checkin/status?employeeId=${encodeURIComponent(user.employeeId)}`;
+                if (company) {
+                  statusUrl += `&company=${encodeURIComponent(company)}`;
+                }
+                
+                const statusRes = await fetch(statusUrl, {
+                  headers: {
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                  },
+                });
+                
+                if (statusRes.ok) {
+                  const statusJson = await statusRes.json();
+                  if (statusJson?.success && statusJson?.data) {
+                    const { status, checkInTime, totalMinutes } = statusJson.data;
+                    // Only update if we got a valid checkInTime from backend
+                    if (checkInTime) {
+                      // Extract base minutes (without current session elapsed time) so timer can calculate correctly
+                      // Backend returns totalMinutes that includes current session time, but we need base for timer calculation
+                      let baseMinutes = totalMinutes || 0;
+                      try {
+                        const checkInTimeDate = new Date(checkInTime);
+                        const nowDate = new Date();
+                        const currentSessionMinutes = Math.max(0, (nowDate.getTime() - checkInTimeDate.getTime()) / 60000);
+                        baseMinutes = Math.max(0, (totalMinutes || 0) - currentSessionMinutes);
+                      } catch (e) {
+                        console.error('Error calculating base minutes in refresh:', e);
+                      }
+                      
+                      setTimeState(prev => ({
+                        ...prev,
+                        status: status || 'checked-in',
+                        checkInTime: checkInTime,
+                        totalMinutes: baseMinutes, // Store base minutes (accumulated from previous sessions only)
+                        employeeId: user.employeeId,
+                      }));
+                    }
+                  }
+                }
+              } catch (refreshErr) {
+                console.error('Failed to refresh status after check-in:', refreshErr);
+              }
+            }, 1000);
+          } else {
+            // For check-out, refresh status from backend
+            const refreshStatus = async () => {
+              try {
+                let statusUrl = `/api/employee-portal/checkin/status?employeeId=${encodeURIComponent(user.employeeId)}`;
+                if (company) {
+                  statusUrl += `&company=${encodeURIComponent(company)}`;
+                }
+                
+                const statusRes = await fetch(statusUrl, {
+                  headers: {
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                  },
+                });
+                
+                if (statusRes.ok) {
+                  const statusJson = await statusRes.json();
+                  if (statusJson?.success && statusJson?.data) {
+                    const { status, checkInTime, totalMinutes } = statusJson.data;
                     const sessionHours = totalMinutes / 60;
                     setTimeState({
                       date: getTodayKey(),
@@ -320,13 +493,41 @@ const EmployeePortalHome = () => {
                     });
                   }
                 }
+              } catch (refreshErr) {
+                console.error('Failed to refresh status after check-out:', refreshErr);
               }
-            } catch (refreshErr) {
-              console.error('Failed to refresh status after check-in/out:', refreshErr);
+            };
+            
+            await refreshStatus();
+          }
+          
+          // Refresh check-in history after check-in/out (for both cases)
+          const refreshHistory = async () => {
+            try {
+              const company = selectedCompany || (typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null);
+              let historyUrl = `/api/employee-portal/checkin/history?employeeId=${encodeURIComponent(user.employeeId)}&limit=10`;
+              if (company) {
+                historyUrl += `&company=${encodeURIComponent(company)}`;
+              }
+              
+              const historyRes = await fetch(historyUrl, {
+                headers: {
+                  ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+              });
+              
+              if (historyRes.ok) {
+                const historyJson = await historyRes.json();
+                if (historyJson?.success && historyJson?.data?.history) {
+                  setCheckInHistory(historyJson.data.history);
+                }
+              }
+            } catch (err) {
+              console.error('Failed to refresh check-in history', err);
             }
           };
           
-          await refreshStatus();
+          await refreshHistory();
         } else {
           alert(json.error || `Failed to ${isCheckingIn ? 'check in' : 'check out'}`);
         }
@@ -682,22 +883,45 @@ const EmployeePortalHome = () => {
         </div>
         <div className="grid gap-3 md:grid-cols-2">
           <div className="space-y-3">
-            {(timeState.history || []).length === 0 && (
+            {loadingHistory ? (
+              <p className="text-sm text-neutral-500">Loading history...</p>
+            ) : checkInHistory.length === 0 ? (
+              <p className="text-sm text-neutral-500">No check-in history available.</p>
+            ) : (
+              checkInHistory
+                .filter(record => record.date === getTodayKey())
+                .map((record, index) => (
+                  <div
+                    key={`${record.date}-${index}`}
+                    className="rounded-lg border border-slate-200/70 bg-white/90 p-3 text-sm shadow-sm"
+                  >
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-primary-600" />
+                      <span className="font-semibold">
+                        {record.checkInTime ? 'Checked in' : 'Checked out'}
+                      </span>
+                    </div>
+                    {record.checkInTime && (
+                      <p className="text-xs text-neutral-500">
+                        Check-in: {formatTime(record.checkInTime)}
+                      </p>
+                    )}
+                    {record.checkOutTime && (
+                      <p className="text-xs text-neutral-500">
+                        Check-out: {formatTime(record.checkOutTime)}
+                      </p>
+                    )}
+                    {record.totalHours && parseFloat(record.totalHours) > 0 && (
+                      <p className="text-xs text-slate-500 mt-1">
+                        Total: {parseFloat(record.totalHours).toFixed(1)} hours
+                      </p>
+                    )}
+                  </div>
+                ))
+            )}
+            {checkInHistory.filter(record => record.date === getTodayKey()).length === 0 && !loadingHistory && (
               <p className="text-sm text-neutral-500">No actions captured today yet.</p>
             )}
-            {(timeState.history || []).map((entry, index) => (
-              <div
-                key={`${entry.time}-${index}`}
-                className="rounded-lg border border-slate-200/70 bg-white/90 p-3 text-sm shadow-sm"
-              >
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-primary-600" />
-                  <span className="font-semibold">{entry.action}</span>
-                </div>
-                <p className="text-xs text-neutral-500">{formatTime(entry.time)}</p>
-                {entry.meta && <p className="text-xs text-slate-500">{entry.meta}</p>}
-              </div>
-            ))}
           </div>
           <div className="rounded-lg border border-slate-200/70 bg-white p-4 text-sm text-slate-600 shadow-sm">
             <p className="font-semibold text-slate-800">Work tips</p>

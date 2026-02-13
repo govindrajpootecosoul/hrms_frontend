@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Calendar } from '@/components/ui/calendar';
 import { useAuth } from '@/lib/context/AuthContext';
-import { mockData } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -79,7 +78,6 @@ export default function EmployeeAttendancePage() {
   const { user } = useAuth();
   const [attendanceData, setAttendanceData] = useState(null);
   const [loadingData, setLoadingData] = useState(false);
-  const attendance = attendanceData?.attendanceLast7Days || mockData.employeePortal.attendanceLast7Days;
   const [timeframe, setTimeframe] = useState('7d');
   const [selectedMonth, setSelectedMonth] = useState(() => format(subMonths(new Date(), 1), 'yyyy-MM'));
   const [requestTab, setRequestTab] = useState('time-off');
@@ -87,14 +85,37 @@ export default function EmployeeAttendancePage() {
   const thisMonthKey = format(currentMonthDate, 'yyyy-MM');
   const previousMonthDate = useMemo(() => parseMonthValue(selectedMonth), [selectedMonth]);
 
+  // Get company from sessionStorage
+  const [selectedCompany, setSelectedCompany] = useState(null);
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const company = sessionStorage.getItem('selectedCompany');
+      setSelectedCompany(company);
+    }
+  }, []);
+
   useEffect(() => {
     const fetchAttendance = async () => {
-      if (!user) return;
+      if (!user?.employeeId) return;
       try {
         setLoadingData(true);
         const token = localStorage.getItem('auth_token');
+        const company = selectedCompany || (typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null);
+        
+        // Build query params
+        const params = new URLSearchParams();
+        params.append('employeeId', user.employeeId);
+        params.append('timeframe', timeframe);
+        if (timeframe === 'prev' && selectedMonth) {
+          params.append('month', selectedMonth);
+        }
+        if (company) {
+          params.append('company', company);
+        }
+
         const res = await fetch(
-          `${API_BASE_URL}/employee-portal/attendance?employeeId=${encodeURIComponent(user.employeeId || 'default')}`,
+          `/api/employee-portal/attendance?${params.toString()}`,
           { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } }
         );
         if (res.ok) {
@@ -110,30 +131,117 @@ export default function EmployeeAttendancePage() {
       }
     };
     fetchAttendance();
-  }, [user]);
+  }, [user, timeframe, selectedMonth, selectedCompany]);
+
+  // Get attendance data based on timeframe
+  const attendance = useMemo(() => {
+    if (!attendanceData) return [];
+    if (timeframe === '7d') {
+      return attendanceData.attendanceLast7Days || [];
+    } else if (timeframe === 'month') {
+      return attendanceData.attendanceThisMonth || [];
+    } else {
+      return attendanceData.attendancePreviousMonth || [];
+    }
+  }, [attendanceData, timeframe]);
 
   const totalHours = useMemo(() => {
-    return attendance.reduce((sum, day) => sum + (day.hours || 0), 0);
-  }, [attendance]);
+    if (!attendanceData) return 0;
+    if (timeframe === '7d') {
+      return attendanceData.totalHours7Days || 0;
+    } else if (timeframe === 'month') {
+      return attendanceData.totalHoursThisMonth || 0;
+    } else {
+      return attendanceData.totalHoursPreviousMonth || 0;
+    }
+  }, [attendanceData, timeframe]);
 
+  // Create calendar data from live attendance data
   const thisMonthCalendar = useMemo(() => {
-    const pattern = monthPatterns[thisMonthKey] ?? {
-      absent: [4, 11, 18, 25].filter((day) => day <= getDaysInMonth(currentMonthDate)),
-      wfh: [2, 9, 16, 23].filter((day) => day <= getDaysInMonth(currentMonthDate)),
+    if (!attendanceData?.attendanceThisMonth) {
+      return createCalendarData(currentMonthDate, { absent: [], wfh: [] });
+    }
+    
+    const attendanceMap = new Map();
+    attendanceData.attendanceThisMonth.forEach((day) => {
+      const date = new Date(day.date);
+      attendanceMap.set(date.getDate(), day);
+    });
+
+    const absent = [];
+    const wfh = [];
+    const present = [];
+    const weekend = [];
+
+    eachDayOfInterval({ start: startOfMonth(currentMonthDate), end: endOfMonth(currentMonthDate) }).forEach((date) => {
+      const dayNumber = date.getDate();
+      const dayData = attendanceMap.get(dayNumber);
+      
+      if (isWeekend(date)) {
+        weekend.push(date);
+      } else if (dayData) {
+        if (dayData.status === 'Absent') {
+          absent.push(date);
+        } else if (dayData.status === 'WFH') {
+          wfh.push(date);
+        } else if (dayData.status === 'Present') {
+          present.push(date);
+        }
+      } else {
+        // No check-in data, assume absent
+        absent.push(date);
+      }
+    });
+
+    return {
+      month: currentMonthDate,
+      key: thisMonthKey,
+      modifiers: { present, absent, wfh, weekend },
     };
-    return createCalendarData(currentMonthDate, pattern);
-  }, [currentMonthDate, thisMonthKey]);
+  }, [attendanceData, currentMonthDate, thisMonthKey]);
 
   const previousMonthCalendar = useMemo(() => {
-    const key = format(previousMonthDate, 'yyyy-MM');
-    const pattern =
-      monthPatterns[key] ??
-      {
-        absent: [5, 12, 19, 26].filter((day) => day <= getDaysInMonth(previousMonthDate)),
-        wfh: [3, 10, 17, 24].filter((day) => day <= getDaysInMonth(previousMonthDate)),
-      };
-    return createCalendarData(previousMonthDate, pattern);
-  }, [previousMonthDate]);
+    if (!attendanceData?.attendancePreviousMonth) {
+      return createCalendarData(previousMonthDate, { absent: [], wfh: [] });
+    }
+    
+    const attendanceMap = new Map();
+    attendanceData.attendancePreviousMonth.forEach((day) => {
+      const date = new Date(day.date);
+      attendanceMap.set(date.getDate(), day);
+    });
+
+    const absent = [];
+    const wfh = [];
+    const present = [];
+    const weekend = [];
+
+    eachDayOfInterval({ start: startOfMonth(previousMonthDate), end: endOfMonth(previousMonthDate) }).forEach((date) => {
+      const dayNumber = date.getDate();
+      const dayData = attendanceMap.get(dayNumber);
+      
+      if (isWeekend(date)) {
+        weekend.push(date);
+      } else if (dayData) {
+        if (dayData.status === 'Absent') {
+          absent.push(date);
+        } else if (dayData.status === 'WFH') {
+          wfh.push(date);
+        } else if (dayData.status === 'Present') {
+          present.push(date);
+        }
+      } else {
+        // No check-in data, assume absent
+        absent.push(date);
+      }
+    });
+
+    return {
+      month: previousMonthDate,
+      key: format(previousMonthDate, 'yyyy-MM'),
+      modifiers: { present, absent, wfh, weekend },
+    };
+  }, [attendanceData, previousMonthDate]);
 
   const renderAttendanceRows = () => (
     <div className="space-y-2">
@@ -219,23 +327,42 @@ export default function EmployeeAttendancePage() {
                     <SelectValue placeholder="Select month" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="2025-01">Jan 2025</SelectItem>
-                    <SelectItem value="2024-12">Dec 2024</SelectItem>
-                    <SelectItem value="2024-11">Nov 2024</SelectItem>
+                    {/* Generate month options for last 6 months */}
+                    {Array.from({ length: 6 }, (_, i) => {
+                      const date = subMonths(new Date(), i);
+                      const value = format(date, 'yyyy-MM');
+                      const label = format(date, 'MMM yyyy');
+                      return (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               )}
               <Badge variant="secondary" className="flex items-center gap-2">
                 <Clock4 className="h-4 w-4" />
-                {totalHours.toFixed(1)} hrs
+                {loadingData ? '...' : `${totalHours.toFixed(1)} hrs`}
               </Badge>
             </div>
           </CardHeader>
           <CardContent>
-            <Tabs value={timeframe}>
-              <TabsContent value="7d">{renderAttendanceRows()}</TabsContent>
-              <TabsContent value="month">{renderCalendarView(thisMonthCalendar)}</TabsContent>
-              <TabsContent value="prev">
+            {loadingData ? (
+              <div className="flex items-center justify-center py-8">
+                <p className="text-sm text-muted-foreground">Loading attendance data...</p>
+              </div>
+            ) : (
+              <Tabs value={timeframe}>
+                <TabsContent value="7d">
+                  {attendance.length > 0 ? renderAttendanceRows() : (
+                    <div className="text-center py-8 text-sm text-muted-foreground">
+                      No attendance data available for the past 7 days
+                    </div>
+                  )}
+                </TabsContent>
+                <TabsContent value="month">{renderCalendarView(thisMonthCalendar)}</TabsContent>
+                <TabsContent value="prev">
                 <div className="mb-3 flex flex-col gap-3 text-xs text-muted-foreground">
                   <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
                     <span className="font-semibold text-slate-900">Compare older months</span>
@@ -244,9 +371,17 @@ export default function EmployeeAttendancePage() {
                         <SelectValue placeholder="Select month" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="2025-01">Jan 2025</SelectItem>
-                        <SelectItem value="2024-12">Dec 2024</SelectItem>
-                        <SelectItem value="2024-11">Nov 2024</SelectItem>
+                        {/* Generate month options for last 6 months */}
+                        {Array.from({ length: 6 }, (_, i) => {
+                          const date = subMonths(new Date(), i);
+                          const value = format(date, 'yyyy-MM');
+                          const label = format(date, 'MMM yyyy');
+                          return (
+                            <SelectItem key={value} value={value}>
+                              {label}
+                            </SelectItem>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
                   </div>
@@ -257,6 +392,7 @@ export default function EmployeeAttendancePage() {
                 {renderCalendarView(previousMonthCalendar, 'Snapshot of past attendance')}
               </TabsContent>
             </Tabs>
+            )}
           </CardContent>
         </Card>
 

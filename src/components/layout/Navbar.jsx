@@ -23,8 +23,33 @@ const Navbar = ({ onMenuToggle, isMenuOpen, menuItems = [] }) => {
   const profileButtonRef = useRef(null);
   const pathname = usePathname();
   const router = useRouter();
-  const isActive = (path) =>
-    path && (pathname === path || pathname.startsWith(path + '/'));
+  const isActive = (path) => {
+    if (!path || !pathname) return false;
+    
+    // Normalize paths (remove trailing slashes for comparison)
+    const normalizedPath = path.replace(/\/$/, '');
+    const normalizedPathname = pathname.replace(/\/$/, '');
+    
+    // Exact match
+    if (normalizedPathname === normalizedPath) return true;
+    
+    // For base paths that should only match exactly (not sub-paths)
+    const basePaths = ['/employee-portal', '/hrms', '/finance', '/asset-tracker', '/query-tracker'];
+    const isBasePath = basePaths.includes(normalizedPath);
+    
+    if (isBasePath) {
+      // Base paths should only match exactly, not sub-paths
+      return false;
+    }
+    
+    // For other paths, check if pathname starts with path + '/'
+    // This allows sub-paths to match their parent menu items
+    if (normalizedPathname.startsWith(normalizedPath + '/')) {
+      return true;
+    }
+    
+    return false;
+  };
 
   // Format company name for display
   const formatCompanyName = (company) => {
@@ -218,7 +243,7 @@ const Navbar = ({ onMenuToggle, isMenuOpen, menuItems = [] }) => {
       }
       return 'Assets Management Console';
     } else if (pathname?.includes('/hrms')) {
-      return 'Admin Console';
+      return 'HRMS Admin Portal';
     } else if (pathname?.includes('/finance')) {
       return 'Finance Console';
     } else if (pathname?.includes('/query-tracker')) {
@@ -226,7 +251,7 @@ const Navbar = ({ onMenuToggle, isMenuOpen, menuItems = [] }) => {
     } else if (pathname?.includes('/employee-portal')) {
       return 'Employee Portal';
     }
-    return 'Admin Console'; // Default
+    return 'HRMS Admin Portal'; // Default
   };
 
   // Get portal-specific description

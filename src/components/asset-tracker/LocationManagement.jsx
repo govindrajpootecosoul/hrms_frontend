@@ -294,7 +294,7 @@ const LocationManagement = () => {
               <option value="Location">Location</option>
             </select>
           </div>
-        
+
           <Input
             label="Name *"
             value={formData.name}
@@ -312,6 +312,7 @@ const LocationManagement = () => {
                 placeholder="e.g. 123 Main Street, City, State ZIP"
                 required
               />
+              
               <Input
                 label="Country"
                 value={formData.country}

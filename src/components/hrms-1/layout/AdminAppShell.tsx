@@ -199,7 +199,7 @@ export function AdminAppShell({ children, user, onLogout }: AdminAppShellProps) 
             <p className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-sky-300 font-semibold">
               VECTORLYTICS HRMS
             </p>
-            <h1 className="mt-2 text-4xl lg:text-5xl font-bold text-white leading-tight">Admin Console</h1>
+            <h1 className="mt-2 text-4xl lg:text-5xl font-bold text-white leading-tight">HRMS Admin Portal</h1>
             <p className="mt-3 text-sm text-slate-200 leading-relaxed">
               Monitor employees, attendance, recruitment, and finances from a single workspace.
             </p>

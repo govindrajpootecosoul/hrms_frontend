@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Users, Clock, Calendar, Cake, Plus, BarChart3, FileText, Sparkles } from 'lucide-react';
 import Card from '@/components/common/Card';
@@ -9,6 +9,53 @@ import LineChart from '@/components/charts/LineChart';
 import Modal from '@/components/common/Modal';
 import Input from '@/components/common/Input';
 import Textarea from '@/components/common/Textarea';
+
+// Memoized KPI Card component - only re-renders when its value changes
+const KPICard = memo(({ kpi, index }) => {
+  const Icon = kpi.icon;
+  return (
+    <div
+      key={index}
+      className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${kpi.gradient} ${kpi.shadow} shadow-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl ${kpi.clickable ? 'cursor-pointer' : ''}`}
+      onClick={kpi.clickable && kpi.onClick ? kpi.onClick : undefined}
+    >
+      <div className={`absolute inset-0 bg-gradient-to-br ${kpi.gradient} opacity-100`} />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
+      
+      <div className="relative z-10 p-4 lg:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="bg-white/20 p-2.5 rounded-lg backdrop-blur-sm flex-shrink-0 shadow-lg">
+            <Icon className="h-5 w-5 text-white" />
+          </div>
+          
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] font-semibold text-white/90 mb-2 uppercase tracking-wide truncate">
+              {kpi.title}
+            </p>
+            <h3 className="text-2xl lg:text-3xl font-bold text-white leading-tight drop-shadow-sm">
+              {kpi.value}
+            </h3>
+            {kpi.active !== undefined && kpi.inactive !== undefined && (
+              <div className="flex items-center gap-4 mt-2">
+                <span className="text-xs text-white/90">
+                  Active: {kpi.active}
+                </span>
+                <span className="text-xs text-white/70">
+                  Inactive: {kpi.inactive}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      
+      <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+      <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
+    </div>
+  );
+});
+
+KPICard.displayName = 'KPICard';
 
 const Dashboard = () => {
   const params = useParams();
@@ -26,44 +73,218 @@ const Dashboard = () => {
 
   const [dashboardData, setDashboardData] = useState(null);
   const [stats, setStats] = useState(null);
+  const [recentCheckIns, setRecentCheckIns] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Load mock data
+    // Fetch live data from API
     const loadData = async () => {
       try {
-        const apiModule = await import('../../../../../../projects/frontend/lib/api');
-        const data = apiModule.mockData;
-        setDashboardData(data.dashboard);
-        setStats(data.dashboard.stats);
-      } catch (error) {
-        console.error('Error loading dashboard data:', error);
+        setLoading(true);
+        setError(null);
+
+        // Get company from sessionStorage or params
+        const company = typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null;
+        
+        // Build query params
+        const params = new URLSearchParams();
+        if (companyId) params.append('companyId', companyId);
+        if (company) params.append('company', company);
+        const queryString = params.toString();
+
+        // Fetch critical dashboard data first (stats is most important)
+        const statsRes = await fetch(`/api/hrms/dashboard${queryString ? `?${queryString}` : ''}`);
+        
+        // Process stats immediately to show dashboard faster
+        const statsData = statsRes.ok ? await statsRes.json() : null;
+        
+        // Set initial stats (will be updated with check-ins data later)
+        if (statsData && statsData.success && statsData.data && statsData.data.stats) {
+          setStats(statsData.data.stats);
+        } else {
+          setStats({
+            totalEmployees: 0,
+            activeEmployees: 0,
+            todayAttendance: 0,
+            pendingLeaves: 0,
+            upcomingBirthdays: 0,
+          });
+        }
+        
+        // Fetch remaining dashboard data in parallel (non-critical)
+        const [
+          monthlyHeadcountsRes,
+          birthdaysRes,
+          workAnniversariesRes,
+          recentActivitiesRes,
+          upcomingEventsRes,
+          upcomingLeavesFestivalsRes,
+          complianceRemindersRes,
+          checkInsRes,
+        ] = await Promise.all([
+          fetch(`/api/hrms/dashboard/monthly-headcounts${queryString ? `?${queryString}` : ''}`),
+          fetch(`/api/hrms/dashboard/birthdays${queryString ? `?${queryString}` : ''}`),
+          fetch(`/api/hrms/dashboard/work-anniversaries${queryString ? `?${queryString}` : ''}`),
+          fetch(`/api/hrms/dashboard/recent-activities${queryString ? `?${queryString}` : ''}`),
+          fetch(`/api/hrms/dashboard/upcoming-events${queryString ? `?${queryString}` : ''}`),
+          fetch(`/api/hrms/dashboard/upcoming-leaves-festivals${queryString ? `?${queryString}` : ''}`),
+          fetch(`/api/hrms/dashboard/compliance-reminders${queryString ? `?${queryString}` : ''}`),
+        ]);
+        
+        // Load check-ins separately after main data loads (non-blocking)
+        const checkInsPromise = fetch(`/api/hrms/dashboard/checkins${queryString ? `?${queryString}` : ''}`)
+          .then(res => res.ok ? res.json() : null)
+          .catch(() => null);
+
+        // Process responses (stats already processed above)
+        const monthlyHeadcountsData = monthlyHeadcountsRes.ok ? await monthlyHeadcountsRes.json() : null;
+        const birthdaysData = birthdaysRes.ok ? await birthdaysRes.json() : null;
+        const workAnniversariesData = workAnniversariesRes.ok ? await workAnniversariesRes.json() : null;
+        const recentActivitiesData = recentActivitiesRes.ok ? await recentActivitiesRes.json() : null;
+        const upcomingEventsData = upcomingEventsRes.ok ? await upcomingEventsRes.json() : null;
+        const upcomingLeavesFestivalsData = upcomingLeavesFestivalsRes.ok ? await upcomingLeavesFestivalsRes.json() : null;
+        const complianceRemindersData = complianceRemindersRes.ok ? await complianceRemindersRes.json() : null;
+        
+        // Process check-ins separately (non-blocking)
+        const checkInsData = await checkInsPromise;
+        
+        // Update stats with check-ins count if available
+        // Only update if the value actually changed to prevent unnecessary re-renders
+        if (checkInsData?.success && checkInsData?.data?.totalCheckedIn !== undefined) {
+          setStats(prevStats => {
+            // Only update if the value changed
+            if (prevStats && prevStats.todayAttendance !== checkInsData.data.totalCheckedIn) {
+              return {
+                ...prevStats,
+                todayAttendance: checkInsData.data.totalCheckedIn,
+              };
+            }
+            return prevStats;
+          });
+        }
+
+        // Set dashboard data (stats already set above)
+        setDashboardData({
+          stats: statsData?.success && statsData?.data?.stats ? statsData.data.stats : {
+            totalEmployees: 0,
+            activeEmployees: 0,
+            todayAttendance: 0,
+            pendingLeaves: 0,
+            upcomingBirthdays: 0,
+          },
+          monthlyHeadcounts: monthlyHeadcountsData?.success && monthlyHeadcountsData?.data 
+            ? monthlyHeadcountsData.data 
+            : [],
+          recentActivities: recentActivitiesData?.success && recentActivitiesData?.data 
+            ? recentActivitiesData.data 
+            : [],
+          upcomingEvents: upcomingEventsData?.success && upcomingEventsData?.data 
+            ? upcomingEventsData.data 
+            : [],
+          upcomingLeavesAndFestivals: upcomingLeavesFestivalsData?.success && upcomingLeavesFestivalsData?.data 
+            ? upcomingLeavesFestivalsData.data 
+            : [],
+          birthdayCalendar: birthdaysData?.success && birthdaysData?.data 
+            ? birthdaysData.data 
+            : [],
+          workAnniversaryCalendar: workAnniversariesData?.success && workAnniversariesData?.data 
+            ? workAnniversariesData.data 
+            : [],
+          complianceReminders: complianceRemindersData?.success && complianceRemindersData?.data 
+            ? complianceRemindersData.data 
+            : [],
+        });
+
+        // Set recent check-ins
+        if (checkInsData?.success && checkInsData?.data?.checkIns) {
+          setRecentCheckIns(checkInsData.data.checkIns.slice(0, 10));
+        }
+      } catch (err) {
+        console.error('Error loading dashboard data:', err);
+        setError(err.message);
         // Fallback to minimal data
         setDashboardData({
-          stats: { totalEmployees: 142, activeEmployees: 138, todayAttendance: 135, pendingLeaves: 7, upcomingBirthdays: 12 },
+          stats: { totalEmployees: 0, activeEmployees: 0, todayAttendance: 0, pendingLeaves: 0, upcomingBirthdays: 0 },
           monthlyHeadcounts: [],
           recentActivities: [],
           upcomingEvents: [],
           upcomingLeavesAndFestivals: [],
           birthdayCalendar: [],
           workAnniversaryCalendar: [],
+          complianceReminders: [],
         });
-        setStats({ totalEmployees: 142, activeEmployees: 138, todayAttendance: 135, pendingLeaves: 7, upcomingBirthdays: 12 });
+        setStats({ totalEmployees: 0, activeEmployees: 0, todayAttendance: 0, pendingLeaves: 0, upcomingBirthdays: 0 });
+      } finally {
+        setLoading(false);
       }
     };
+    
+    // Initial load
     loadData();
-  }, []);
+    
+    // Set up auto-refresh for attendance count only (not full reload)
+    const refreshAttendanceOnly = async () => {
+      try {
+        const company = typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null;
+        const params = new URLSearchParams();
+        if (companyId) params.append('companyId', companyId);
+        if (company) params.append('company', company);
+        const queryString = params.toString();
+        
+        // Only fetch check-ins data to update attendance count
+        const checkInsRes = await fetch(`/api/hrms/dashboard/checkins${queryString ? `?${queryString}` : ''}`);
+        if (checkInsRes.ok) {
+          const checkInsData = await checkInsRes.json();
+          if (checkInsData?.success && checkInsData?.data?.totalCheckedIn !== undefined) {
+            // Update only the attendance count, not the entire stats object
+            setStats(prevStats => {
+              if (prevStats && prevStats.todayAttendance !== checkInsData.data.totalCheckedIn) {
+                return {
+                  ...prevStats,
+                  todayAttendance: checkInsData.data.totalCheckedIn,
+                };
+              }
+              return prevStats;
+            });
+            
+            // Update recent check-ins if available
+            if (checkInsData?.data?.checkIns) {
+              setRecentCheckIns(checkInsData.data.checkIns.slice(0, 10));
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error refreshing attendance:', err);
+        // Silently fail - don't disrupt the UI
+      }
+    };
+    
+    // Refresh attendance every 30 seconds (lightweight update)
+    const refreshInterval = setInterval(refreshAttendanceOnly, 30000);
+    
+    return () => clearInterval(refreshInterval);
+  }, [companyId]);
 
-  if (!dashboardData || !stats) {
-    return <div className="p-6">Loading...</div>;
-  }
-
-  // KPI Cards data
-  const kpiCards = [
+  // Memoize KPI Cards data to prevent unnecessary re-renders
+  // Only re-compute when stats actually change
+  // IMPORTANT: This hook must be called before any conditional returns
+  const kpiCards = useMemo(() => {
+    // Provide default values if stats is not available yet
+    const currentStats = stats || {
+      totalEmployees: 0,
+      activeEmployees: 0,
+      todayAttendance: 0,
+      pendingLeaves: 0,
+      upcomingBirthdays: 0,
+    };
+    
+    return [
     {
       title: 'Total Employees',
-      value: stats.totalEmployees,
-      active: stats.activeEmployees,
-      inactive: stats.totalEmployees - stats.activeEmployees,
+      value: currentStats.totalEmployees,
+      active: currentStats.activeEmployees,
+      inactive: currentStats.totalEmployees - currentStats.activeEmployees,
       gradient: 'from-blue-600 via-indigo-600 to-blue-700',
       shadow: 'shadow-blue-500/30',
       icon: Users,
@@ -72,14 +293,14 @@ const Dashboard = () => {
     },
     {
       title: 'Today Attendance',
-      value: stats.todayAttendance,
+      value: currentStats.todayAttendance,
       gradient: 'from-purple-600 via-violet-600 to-purple-700',
       shadow: 'shadow-purple-500/30',
       icon: Clock,
     },
     {
       title: 'Pending Leaves',
-      value: stats.pendingLeaves,
+      value: currentStats.pendingLeaves,
       gradient: 'from-orange-600 via-amber-600 to-orange-700',
       shadow: 'shadow-orange-500/30',
       icon: Calendar,
@@ -88,12 +309,39 @@ const Dashboard = () => {
     },
     {
       title: 'Upcoming Birthdays',
-      value: stats.upcomingBirthdays,
+      value: currentStats.upcomingBirthdays,
       gradient: 'from-pink-600 via-rose-600 to-pink-700',
       shadow: 'shadow-pink-500/30',
       icon: Cake,
     },
-  ];
+    ];
+  }, [stats, companyId, router]);
+
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-800 font-semibold">Error loading dashboard</p>
+          <p className="text-red-600 text-sm mt-1">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!dashboardData || !stats) {
+    return <div className="p-6">No data available</div>;
+  }
 
   // Quick Actions
   const handleAddEmployee = () => {
@@ -125,8 +373,12 @@ const Dashboard = () => {
   };
 
   // Format monthly headcounts for chart
-  const monthlyHeadcountsData = dashboardData.monthlyHeadcounts.map(item => item.headcount);
-  const monthlyHeadcountsCategories = dashboardData.monthlyHeadcounts.map(item => item.month);
+  const monthlyHeadcountsData = dashboardData.monthlyHeadcounts && dashboardData.monthlyHeadcounts.length > 0
+    ? dashboardData.monthlyHeadcounts.map(item => item.headcount)
+    : [];
+  const monthlyHeadcountsCategories = dashboardData.monthlyHeadcounts && dashboardData.monthlyHeadcounts.length > 0
+    ? dashboardData.monthlyHeadcounts.map(item => item.month)
+    : [];
 
   return (
     <div className="space-y-6">
@@ -136,51 +388,11 @@ const Dashboard = () => {
         <p className="text-slate-600 mt-1">Welcome to HRMS Portal</p>
       </div>
 
-      {/* KPI Cards */}
+      {/* KPI Cards - Using memoized components for optimal re-rendering */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        {kpiCards.map((kpi, index) => {
-          const Icon = kpi.icon;
-          return (
-            <div
-              key={index}
-              className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${kpi.gradient} ${kpi.shadow} shadow-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl ${kpi.clickable ? 'cursor-pointer' : ''}`}
-              onClick={kpi.clickable && kpi.onClick ? kpi.onClick : undefined}
-            >
-              <div className={`absolute inset-0 bg-gradient-to-br ${kpi.gradient} opacity-100`} />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
-              
-              <div className="relative z-10 p-4 lg:p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="bg-white/20 p-2.5 rounded-lg backdrop-blur-sm flex-shrink-0 shadow-lg">
-                    <Icon className="h-5 w-5 text-white" />
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-semibold text-white/90 mb-2 uppercase tracking-wide truncate">
-                      {kpi.title}
-                    </p>
-                    <h3 className="text-2xl lg:text-3xl font-bold text-white leading-tight drop-shadow-sm">
-                      {kpi.value}
-                    </h3>
-                    {kpi.active !== undefined && kpi.inactive !== undefined && (
-                      <div className="flex items-center gap-4 mt-2">
-                        <span className="text-xs text-white/90">
-                          Active: {kpi.active}
-                        </span>
-                        <span className="text-xs text-white/70">
-                          Inactive: {kpi.inactive}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-              <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
-            </div>
-          );
-        })}
+        {kpiCards.map((kpi, index) => (
+          <KPICard key={`${kpi.title}-${kpi.value}`} kpi={kpi} index={index} />
+        ))}
       </div>
 
       {/* Quick Actions */}
@@ -275,7 +487,8 @@ const Dashboard = () => {
             <h2 className="text-base font-semibold mb-1">Birthday Calendar & Work Anniversary</h2>
             <p className="text-xs text-slate-600 mb-4">This month birthdays and work anniversaries</p>
             <div className="space-y-3 max-h-[300px] overflow-y-auto">
-              {dashboardData.birthdayCalendar.slice(0, 5).map((item) => (
+              {dashboardData.birthdayCalendar && dashboardData.birthdayCalendar.length > 0 ? (
+                dashboardData.birthdayCalendar.slice(0, 5).map((item) => (
                 <div key={item.id} className="flex items-center justify-between p-3 rounded-lg border border-neutral-200 hover:bg-slate-50 hover:shadow-md transition-all duration-200 cursor-pointer">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center">
@@ -288,8 +501,12 @@ const Dashboard = () => {
                   </div>
                   <span className="text-xs bg-pink-100 text-pink-800 border border-pink-200 px-2 py-1 rounded-full">Birthday</span>
                 </div>
-              ))}
-              {dashboardData.workAnniversaryCalendar.slice(0, 5).map((item) => (
+                ))
+              ) : (
+                <p className="text-sm text-slate-500 text-center py-4">No birthdays this month</p>
+              )}
+              {dashboardData.workAnniversaryCalendar && dashboardData.workAnniversaryCalendar.length > 0 ? (
+                dashboardData.workAnniversaryCalendar.slice(0, 5).map((item) => (
                 <div key={item.id} className="flex items-center justify-between p-3 rounded-lg border border-neutral-200 hover:bg-slate-50 hover:shadow-md transition-all duration-200 cursor-pointer">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
@@ -302,7 +519,10 @@ const Dashboard = () => {
                   </div>
                   <span className="text-xs bg-blue-100 text-blue-800 border border-blue-200 px-2 py-1 rounded-full">Anniversary</span>
                 </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-sm text-slate-500 text-center py-4">No work anniversaries this month</p>
+              )}
             </div>
           </Card>
 
@@ -311,20 +531,64 @@ const Dashboard = () => {
             <h2 className="text-base font-semibold mb-1">People Pulse</h2>
             <p className="text-xs text-slate-600 mb-4">Latest movements across the organization</p>
             <div className="space-y-3">
-              {dashboardData.recentActivities.slice(0, 6).map((activity) => (
-                <div key={activity.id} className="flex items-start gap-3 p-3 rounded-lg border border-neutral-200 hover:bg-slate-50 hover:shadow-md transition-all duration-200 cursor-pointer">
-                  <div className="w-2 h-2 rounded-full bg-blue-500 mt-2" />
-                  <div className="flex-1">
-                    <p className="text-sm">{activity.description}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs bg-blue-100 text-blue-800 border border-blue-200 px-2 py-0.5 rounded-full">
-                        {activity.type}
-                      </span>
-                      <span className="text-xs text-slate-600">{activity.date}</span>
+              {dashboardData.recentActivities && dashboardData.recentActivities.length > 0 ? (
+                dashboardData.recentActivities.slice(0, 6).map((activity) => (
+                  <div key={activity.id} className="flex items-start gap-3 p-3 rounded-lg border border-neutral-200 hover:bg-slate-50 hover:shadow-md transition-all duration-200 cursor-pointer">
+                    <div className="w-2 h-2 rounded-full bg-blue-500 mt-2" />
+                    <div className="flex-1">
+                      <p className="text-sm">{activity.description}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs bg-blue-100 text-blue-800 border border-blue-200 px-2 py-0.5 rounded-full">
+                          {activity.type}
+                        </span>
+                        <span className="text-xs text-slate-600">{activity.date}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-sm text-slate-500 text-center py-4">No recent activities</p>
+              )}
+            </div>
+          </Card>
+
+          {/* Today's Check-Ins */}
+          <Card className="border-2 p-6">
+            <h2 className="text-base font-semibold mb-1">Today's Check-Ins</h2>
+            <p className="text-xs text-slate-600 mb-4">Employees checked in today</p>
+            <div className="space-y-3 max-h-[300px] overflow-y-auto">
+              {recentCheckIns && recentCheckIns.length > 0 ? (
+                recentCheckIns.map((checkIn) => (
+                  <div key={`${checkIn.employeeId}-${checkIn.checkInTime}`} className="flex items-center justify-between p-3 rounded-lg border border-neutral-200 hover:bg-slate-50 hover:shadow-md transition-all duration-200">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-3 h-3 rounded-full ${checkIn.status === 'checked-in' ? 'bg-green-500' : 'bg-gray-400'}`} />
+                      <div>
+                        <p className="text-sm font-medium">{checkIn.employeeName}</p>
+                        <p className="text-xs text-slate-600">{checkIn.department}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      {checkIn.checkInTime && (
+                        <p className="text-xs text-slate-600">
+                          Check-in: {new Date(checkIn.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      )}
+                      {checkIn.checkOutTime && (
+                        <p className="text-xs text-slate-600">
+                          Check-out: {new Date(checkIn.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      )}
+                      {checkIn.totalMinutes > 0 && (
+                        <p className="text-xs text-slate-500">
+                          {(checkIn.totalMinutes / 60).toFixed(1)}h
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-slate-500 text-center py-4">No check-ins recorded today</p>
+              )}
             </div>
           </Card>
         </div>
@@ -336,7 +600,8 @@ const Dashboard = () => {
             <h2 className="text-base font-semibold mb-1">Upcoming Leaves & Festivals</h2>
             <p className="text-xs text-slate-600 mb-4">Upcoming events and holidays</p>
             <div className="space-y-3 max-h-[300px] overflow-y-auto">
-              {dashboardData.upcomingLeavesAndFestivals.slice(0, 8).map((item) => (
+              {dashboardData.upcomingLeavesAndFestivals && dashboardData.upcomingLeavesAndFestivals.length > 0 ? (
+                dashboardData.upcomingLeavesAndFestivals.slice(0, 8).map((item) => (
                 <div key={item.id} className="p-3 rounded-lg border border-neutral-200 hover:bg-slate-50 hover:shadow-md transition-all duration-200 cursor-pointer">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs text-slate-600">{item.date}</span>
@@ -351,7 +616,10 @@ const Dashboard = () => {
                   <p className="text-sm font-medium">{item.name}</p>
                   <p className="text-xs text-slate-600">{item.reason} • {item.department}</p>
                 </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-sm text-slate-500 text-center py-4">No upcoming leaves or festivals</p>
+              )}
             </div>
           </Card>
 
@@ -360,7 +628,8 @@ const Dashboard = () => {
             <h2 className="text-base font-semibold mb-1">Talent Pipeline & Events</h2>
             <p className="text-xs text-slate-600 mb-4">Next 5 interviews, trainings or workshops</p>
             <div className="space-y-3">
-              {dashboardData.upcomingEvents.slice(0, 5).map((event) => (
+              {dashboardData.upcomingEvents && dashboardData.upcomingEvents.length > 0 ? (
+                dashboardData.upcomingEvents.slice(0, 5).map((event) => (
                 <div key={event.id} className="p-3 rounded-lg border border-neutral-200 hover:bg-slate-50 hover:shadow-md transition-all duration-200 cursor-pointer">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs bg-indigo-100 text-indigo-800 border border-indigo-200 px-2 py-0.5 rounded-full">
@@ -371,7 +640,10 @@ const Dashboard = () => {
                   <p className="text-sm font-medium">{event.title}</p>
                   <p className="text-xs text-slate-600">{event.time}</p>
                 </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-sm text-slate-500 text-center py-4">No upcoming events</p>
+              )}
             </div>
           </Card>
 
@@ -380,18 +652,35 @@ const Dashboard = () => {
             <h2 className="text-base font-semibold mb-1">Compliance & Reminders</h2>
             <p className="text-xs text-slate-600 mb-4">Track critical HR obligations</p>
             <div className="space-y-3">
-              <div className="p-3 rounded-lg border-2 border-red-200 bg-red-50/70 hover:shadow-md transition-all duration-200">
-                <p className="text-sm font-medium mb-1">Tax Filing Due</p>
-                <p className="text-xs text-slate-600">Due in 5 days</p>
-              </div>
-              <div className="p-3 rounded-lg border-2 border-amber-200 bg-amber-50/70 hover:shadow-md transition-all duration-200">
-                <p className="text-sm font-medium mb-1">Payroll Processing</p>
-                <p className="text-xs text-slate-600">Due in 3 days</p>
-              </div>
-              <div className="p-3 rounded-lg border-2 border-blue-200 bg-blue-50/70 hover:shadow-md transition-all duration-200">
-                <p className="text-sm font-medium mb-1">Quarterly Review</p>
-                <p className="text-xs text-slate-600">Due in 10 days</p>
-              </div>
+              {dashboardData.complianceReminders && dashboardData.complianceReminders.length > 0 ? (
+                dashboardData.complianceReminders.map((reminder) => {
+                  const borderColor = reminder.color === 'red' ? 'border-red-200 bg-red-50/70' 
+                    : reminder.color === 'amber' ? 'border-amber-200 bg-amber-50/70' 
+                    : 'border-blue-200 bg-blue-50/70';
+                  
+                  return (
+                    <div key={reminder.id} className={`p-3 rounded-lg border-2 ${borderColor} hover:shadow-md transition-all duration-200`}>
+                      <p className="text-sm font-medium mb-1">{reminder.title}</p>
+                      <p className="text-xs text-slate-600">Due in {reminder.daysRemaining} day{reminder.daysRemaining !== 1 ? 's' : ''}</p>
+                    </div>
+                  );
+                })
+              ) : (
+                <>
+                  <div className="p-3 rounded-lg border-2 border-red-200 bg-red-50/70 hover:shadow-md transition-all duration-200">
+                    <p className="text-sm font-medium mb-1">Tax Filing Due</p>
+                    <p className="text-xs text-slate-600">Due in 5 days</p>
+                  </div>
+                  <div className="p-3 rounded-lg border-2 border-amber-200 bg-amber-50/70 hover:shadow-md transition-all duration-200">
+                    <p className="text-sm font-medium mb-1">Payroll Processing</p>
+                    <p className="text-xs text-slate-600">Due in 3 days</p>
+                  </div>
+                  <div className="p-3 rounded-lg border-2 border-blue-200 bg-blue-50/70 hover:shadow-md transition-all duration-200">
+                    <p className="text-sm font-medium mb-1">Quarterly Review</p>
+                    <p className="text-xs text-slate-600">Due in 10 days</p>
+                  </div>
+                </>
+              )}
             </div>
           </Card>
         </div>

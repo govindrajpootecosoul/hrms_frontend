@@ -18,11 +18,14 @@ import {
   Edit,
   Trash2,
   Download,
-  Upload
+  Upload,
+  Eye
 } from 'lucide-react';
 import Card from '@/components/common/Card';
 import Button from '@/components/common/Button';
 import AddEmployeeDialog from './components/AddEmployeeDialog';
+import ConfirmationDialog from './components/ConfirmationDialog';
+import ViewEmployeeDetailsDialog from './components/ViewEmployeeDetailsDialog';
 import { API_BASE_URL } from '@/lib/utils/constants';
 
 export default function EmployeesPage() {
@@ -35,6 +38,72 @@ export default function EmployeesPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [employeeToEdit, setEmployeeToEdit] = useState(null);
   const [actionMenuOpen, setActionMenuOpen] = useState(null); // Track which employee's menu is open
+  const [dropdownDirection, setDropdownDirection] = useState('down'); // 'up' or 'down'
+  
+  // Dialog states
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, employee: null });
+  const [successDialog, setSuccessDialog] = useState({ open: false, message: '' });
+  const [errorDialog, setErrorDialog] = useState({ open: false, message: '' });
+  const [infoDialog, setInfoDialog] = useState({ open: false, message: '' });
+  const [viewDetailsDialog, setViewDetailsDialog] = useState({ open: false, employee: null });
+
+  // Debug: Log when dialog state changes
+  useEffect(() => {
+    console.log('[EmployeesPage] Dialog state changed:', {
+      isAddDialogOpen,
+      employeeToEdit: employeeToEdit ? {
+        id: employeeToEdit.id,
+        _id: employeeToEdit._id,
+        name: employeeToEdit.name,
+        email: employeeToEdit.email
+      } : null
+    });
+  }, [isAddDialogOpen, employeeToEdit]);
+
+  // Check dropdown position when it opens
+  useEffect(() => {
+    if (actionMenuOpen && typeof window !== 'undefined') {
+      const button = document.querySelector(`[data-action-button-id="${actionMenuOpen}"]`);
+      if (button) {
+        const rect = button.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const spaceAbove = rect.top;
+        const dropdownHeight = 100; // Approximate dropdown height
+        
+        if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
+          setDropdownDirection('up');
+        } else {
+          setDropdownDirection('down');
+        }
+      }
+    }
+  }, [actionMenuOpen]);
+
+  // Handle click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (actionMenuOpen) {
+        const dropdown = document.querySelector('[data-dropdown-menu]');
+        const button = document.querySelector(`[data-action-button-id="${actionMenuOpen}"]`);
+        
+        if (dropdown && button) {
+          const isClickInsideDropdown = dropdown.contains(event.target);
+          const isClickOnButton = button.contains(event.target);
+          
+          if (!isClickInsideDropdown && !isClickOnButton) {
+            setActionMenuOpen(null);
+          }
+        }
+      }
+    };
+
+    if (actionMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [actionMenuOpen]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -79,6 +148,20 @@ export default function EmployeesPage() {
         const data = await response.json();
         
         if (data.success && data.users) {
+          console.log('[EmployeesPage] Raw API response:', {
+            totalUsers: data.users.length,
+            sampleUser: data.users[0] ? {
+              _id: data.users[0]._id,
+              name: data.users[0].name,
+              email: data.users[0].email,
+              employeeId: data.users[0].employeeId,
+              company: data.users[0].company,
+              phone: data.users[0].phone,
+              jobTitle: data.users[0].jobTitle,
+              department: data.users[0].department,
+            } : null
+          });
+          
           // Transform users to employee format with all fields
           const employeeList = data.users
             .map(user => {
@@ -98,25 +181,65 @@ export default function EmployeesPage() {
                 }
               }
               
-              return {
+              const employee = {
                 id: user.id || user._id,
                 _id: user._id || user.id,
                 name: user.name || 'N/A',
                 email: user.email || '',
                 employeeId: user.employeeId || '',
-                jobTitle: user.jobTitle || user.designation || user.role || 'Employee',
-                department: user.department || 'N/A',
-                location: user.location || 'N/A',
+                jobTitle: user.jobTitle || user.designation || 'Employee',
+                department: user.department || '',
+                location: user.location || '',
                 company: user.company || '',
                 status: user.active !== false ? 'Active' : 'Inactive',
                 tenure: tenure,
-                joiningDate: user.createdAt || user.joiningDate,
+                joiningDate: user.joiningDate || user.createdAt,
                 hasCredentialAccess: user.hasCredentialAccess !== false,
                 hasSubscriptionAccess: user.hasSubscriptionAccess !== false,
                 role: user.role || 'user',
+                
+                // Personal details
+                phone: user.phone || '',
+                dateOfBirth: user.dateOfBirth || '',
+                gender: user.gender || '',
+                address: user.address || '',
+                city: user.city || '',
+                state: user.state || '',
+                zipCode: user.zipCode || '',
+                emergencyContact: user.emergencyContact || '',
+                emergencyPhone: user.emergencyPhone || '',
+                
+                // Work details
+                reportingManager: user.reportingManager || '',
+                
+                // Bank & Insurance
+                bankAccount: user.bankAccount || '',
+                ifsc: user.ifsc || '',
+                pan: user.pan || '',
+                aadhaar: user.aadhaar || '',
+                uan: user.uan || '',
+                esiNo: user.esiNo || '',
+                pfNo: user.pfNo || '',
+                
                 createdAt: user.createdAt,
                 updatedAt: user.updatedAt
               };
+              
+              // Log each employee's data for debugging
+              if (user.employeeId) {
+                console.log(`[EmployeesPage] Mapped employee ${user.employeeId}:`, {
+                  name: employee.name,
+                  email: employee.email,
+                  phone: employee.phone,
+                  employeeId: employee.employeeId,
+                  company: employee.company,
+                  jobTitle: employee.jobTitle,
+                  department: employee.department,
+                  location: employee.location,
+                });
+              }
+              
+              return employee;
             })
             .sort((a, b) => {
               // Sort by name
@@ -125,6 +248,13 @@ export default function EmployeesPage() {
           
           setEmployees(employeeList);
           console.log(`[EmployeesPage] Loaded ${employeeList.length} employees${company ? ` for company: ${company}` : ''}`);
+          console.log('[EmployeesPage] Employee list summary:', employeeList.map(e => ({
+            id: e.id,
+            name: e.name,
+            email: e.email,
+            employeeId: e.employeeId,
+            company: e.company
+          })));
         } else {
           throw new Error(data.error || 'Failed to fetch employees');
         }
@@ -157,50 +287,56 @@ export default function EmployeesPage() {
           apiUrl += `?company=${encodeURIComponent(company)}`;
         }
         
-        // Build update payload with only provided fields
-        const updatePayload = {};
-        
-        // Basic fields
-        if (employeeData.name) updatePayload.name = employeeData.name;
-        if (employeeData.email) updatePayload.email = employeeData.email;
-        if (employeeData.employeeId !== undefined) updatePayload.employeeId = employeeData.employeeId;
-        if (employeeData.department) updatePayload.department = employeeData.department;
-        if (employeeData.company || company) updatePayload.company = employeeData.company || company;
-        if (employeeData.role) updatePayload.role = employeeData.role;
-        if (employeeData.status !== undefined) updatePayload.active = employeeData.status === 'Active';
-        if (employeeData.hasCredentialAccess !== undefined) updatePayload.hasCredentialAccess = employeeData.hasCredentialAccess;
-        if (employeeData.hasSubscriptionAccess !== undefined) updatePayload.hasSubscriptionAccess = employeeData.hasSubscriptionAccess;
-        
-        // Personal details
-        if (employeeData.phone) updatePayload.phone = employeeData.phone;
-        if (employeeData.dateOfBirth) updatePayload.dateOfBirth = employeeData.dateOfBirth;
-        if (employeeData.gender) updatePayload.gender = employeeData.gender;
-        if (employeeData.address) updatePayload.address = employeeData.address;
-        if (employeeData.city) updatePayload.city = employeeData.city;
-        if (employeeData.state) updatePayload.state = employeeData.state;
-        if (employeeData.zipCode) updatePayload.zipCode = employeeData.zipCode;
-        if (employeeData.emergencyContact) updatePayload.emergencyContact = employeeData.emergencyContact;
-        if (employeeData.emergencyPhone) updatePayload.emergencyPhone = employeeData.emergencyPhone;
-        
-        // Work details
-        if (employeeData.jobTitle) updatePayload.jobTitle = employeeData.jobTitle;
-        if (employeeData.location) updatePayload.location = employeeData.location;
-        if (employeeData.reportingManager) updatePayload.reportingManager = employeeData.reportingManager;
-        if (employeeData.joiningDate) updatePayload.joiningDate = employeeData.joiningDate;
-        
-        // Bank & Insurance
-        if (employeeData.bankAccount) updatePayload.bankAccount = employeeData.bankAccount;
-        if (employeeData.ifsc) updatePayload.ifsc = employeeData.ifsc;
-        if (employeeData.pan) updatePayload.pan = employeeData.pan;
-        if (employeeData.aadhaar) updatePayload.aadhaar = employeeData.aadhaar;
-        if (employeeData.uan) updatePayload.uan = employeeData.uan;
-        if (employeeData.esiNo) updatePayload.esiNo = employeeData.esiNo;
-        if (employeeData.pfNo) updatePayload.pfNo = employeeData.pfNo;
+        // Build update payload - include all fields (even empty strings to clear them)
+        const updatePayload = {
+          // Basic fields
+          name: employeeData.name || '',
+          email: employeeData.email || '',
+          employeeId: employeeData.employeeId !== undefined ? employeeData.employeeId : '',
+          department: employeeData.department !== undefined ? employeeData.department : '',
+          company: employeeData.company || company || '',
+          role: employeeData.role || 'user',
+          active: employeeData.status === 'Active',
+          hasCredentialAccess: employeeData.hasCredentialAccess !== undefined ? employeeData.hasCredentialAccess : true,
+          hasSubscriptionAccess: employeeData.hasSubscriptionAccess !== undefined ? employeeData.hasSubscriptionAccess : true,
+          
+          // Personal details
+          phone: employeeData.phone !== undefined ? employeeData.phone : '',
+          dateOfBirth: employeeData.dateOfBirth !== undefined ? employeeData.dateOfBirth : '',
+          gender: employeeData.gender !== undefined ? employeeData.gender : '',
+          address: employeeData.address !== undefined ? employeeData.address : '',
+          city: employeeData.city !== undefined ? employeeData.city : '',
+          state: employeeData.state !== undefined ? employeeData.state : '',
+          zipCode: employeeData.zipCode !== undefined ? employeeData.zipCode : '',
+          emergencyContact: employeeData.emergencyContact !== undefined ? employeeData.emergencyContact : '',
+          emergencyPhone: employeeData.emergencyPhone !== undefined ? employeeData.emergencyPhone : '',
+          
+          // Work details
+          jobTitle: employeeData.jobTitle !== undefined ? employeeData.jobTitle : '',
+          location: employeeData.location !== undefined ? employeeData.location : '',
+          reportingManager: employeeData.reportingManager !== undefined ? employeeData.reportingManager : '',
+          joiningDate: employeeData.joiningDate !== undefined ? employeeData.joiningDate : '',
+          
+          // Bank & Insurance
+          bankAccount: employeeData.bankAccount !== undefined ? employeeData.bankAccount : '',
+          ifsc: employeeData.ifsc !== undefined ? employeeData.ifsc : '',
+          pan: employeeData.pan !== undefined ? employeeData.pan : '',
+          aadhaar: employeeData.aadhaar !== undefined ? employeeData.aadhaar : '',
+          uan: employeeData.uan !== undefined ? employeeData.uan : '',
+          esiNo: employeeData.esiNo !== undefined ? employeeData.esiNo : '',
+          pfNo: employeeData.pfNo !== undefined ? employeeData.pfNo : '',
+        };
         
         // Password (only if provided)
         if (employeeData.password && employeeData.password.trim() !== '') {
           updatePayload.password = employeeData.password;
         }
+        
+        console.log('========================================');
+        console.log('[handleSaveEmployee] UPDATE REQUEST');
+        console.log('[handleSaveEmployee] API URL:', apiUrl);
+        console.log('[handleSaveEmployee] Update payload:', JSON.stringify(updatePayload, null, 2));
+        console.log('[handleSaveEmployee] Payload size:', JSON.stringify(updatePayload).length, 'bytes');
         
         const response = await fetch(apiUrl, {
           method: 'PUT',
@@ -211,36 +347,53 @@ export default function EmployeesPage() {
         });
         
         const data = await response.json();
+        console.log('[handleSaveEmployee] API Response:', JSON.stringify(data, null, 2));
+        
         if (data.success) {
-          alert('Employee updated successfully!');
-          // Refresh employees list
-          window.location.reload();
+          console.log('[handleSaveEmployee] Update successful!');
+          setSuccessDialog({ open: true, message: 'Employee updated successfully!' });
+          // Refresh employees list after dialog closes
+          setTimeout(() => {
+            window.location.reload();
+          }, 1500);
         } else {
+          console.error('[handleSaveEmployee] Update failed:', data.error);
           throw new Error(data.error || 'Failed to update employee');
         }
+        console.log('========================================');
       } else {
-        // Add new employee via API - Send all fields
-        let apiUrl = `${API_BASE_URL}/admin-users`;
-        if (company) {
-          apiUrl += `?company=${encodeURIComponent(company)}`;
+        // Add new employee via API - Send only required fields
+        // Get company from employeeData or sessionStorage (required for determining which table to use)
+        const employeeCompany = employeeData.company || company;
+        
+        if (!employeeCompany) {
+          throw new Error('Company information is required. Please ensure you are logged in with a valid company account.');
         }
         
+        // Password is now optional - if not provided, backend will handle it
+        // No need to throw error if password is missing
+        
+        let apiUrl = `${API_BASE_URL}/admin-users`;
+        if (employeeCompany) {
+          apiUrl += `?company=${encodeURIComponent(employeeCompany)}`;
+        }
+        
+        // Create payload with ALL fields for user creation
         const createPayload = {
+          // Required fields
           name: employeeData.name,
           email: employeeData.email,
-          password: employeeData.password || 'TempPassword123!',
-          employeeId: employeeData.employeeId,
-          department: employeeData.department,
-          company: employeeData.company || company,
+          password: employeeData.password, // Required for new employees
           role: employeeData.role || 'user',
-          active: true,
-          hasCredentialAccess: employeeData.hasCredentialAccess !== false,
-          hasSubscriptionAccess: employeeData.hasSubscriptionAccess !== false,
+          employeeId: employeeData.employeeId || '',
+          company: employeeCompany, // This determines which table (Ecosoul_Employees or Thrive_Employees)
           
-          // Personal details
+          // Basic Details
           phone: employeeData.phone || '',
           dateOfBirth: employeeData.dateOfBirth || '',
           gender: employeeData.gender || '',
+          
+          // Personal Details
           address: employeeData.address || '',
           city: employeeData.city || '',
           state: employeeData.state || '',
@@ -248,11 +401,14 @@ export default function EmployeesPage() {
           emergencyContact: employeeData.emergencyContact || '',
           emergencyPhone: employeeData.emergencyPhone || '',
           
-          // Work details
+          // Work Details
           jobTitle: employeeData.jobTitle || '',
+          department: employeeData.department || '',
           location: employeeData.location || '',
           reportingManager: employeeData.reportingManager || '',
           joiningDate: employeeData.joiningDate || '',
+          hasCredentialAccess: employeeData.hasCredentialAccess !== false,
+          hasSubscriptionAccess: employeeData.hasSubscriptionAccess !== false,
           
           // Bank & Insurance
           bankAccount: employeeData.bankAccount || '',
@@ -264,6 +420,21 @@ export default function EmployeesPage() {
           pfNo: employeeData.pfNo || '',
         };
         
+        console.log('========================================');
+        console.log('[handleSaveEmployee] CREATE REQUEST');
+        console.log('[handleSaveEmployee] API URL:', apiUrl);
+        console.log('[handleSaveEmployee] employeeData received:', JSON.stringify({
+          ...employeeData,
+          password: employeeData.password ? '***hidden***' : undefined
+        }, null, 2));
+        console.log('[handleSaveEmployee] Creating employee with payload:', JSON.stringify({
+          ...createPayload,
+          password: '***hidden***'
+        }, null, 2));
+        console.log('[handleSaveEmployee] Payload field count:', Object.keys(createPayload).length);
+        console.log('[handleSaveEmployee] Company:', employeeCompany, '- Will be saved to:', 
+          employeeCompany.toLowerCase().includes('thrive') ? 'Thrive_Employees' : 'Ecosoul_Employees');
+        
         const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
@@ -272,58 +443,135 @@ export default function EmployeesPage() {
           body: JSON.stringify(createPayload),
         });
         
-        const data = await response.json();
+        const responseText = await response.text();
+        console.log('[handleSaveEmployee] Raw API Response:', responseText);
+        
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (e) {
+          console.error('[handleSaveEmployee] Failed to parse response:', e);
+          throw new Error('Invalid response from server');
+        }
+        
+        console.log('[handleSaveEmployee] Parsed API Response:', JSON.stringify(data, null, 2));
+        
         if (data.success) {
-          alert('Employee created successfully!');
-          // Refresh employees list
-          window.location.reload();
+          const tableName = employeeCompany.toLowerCase().includes('thrive') ? 'Thrive_Employees' : 'Ecosoul_Employees';
+          console.log('[handleSaveEmployee] Create successful! User added to', tableName);
+          console.log('[handleSaveEmployee] Created user ID:', data.user?.id || data.user?._id);
+          setSuccessDialog({ open: true, message: `Employee created successfully! User has been added to ${tableName} table.` });
+          // Refresh employees list after dialog closes
+          setTimeout(() => {
+            window.location.reload();
+          }, 1500);
         } else {
+          console.error('[handleSaveEmployee] Create failed:', data.error);
           throw new Error(data.error || 'Failed to create employee');
         }
+        console.log('========================================');
       }
     } catch (err) {
       console.error('Error saving employee:', err);
-      alert(`Error: ${err.message || 'Failed to save employee'}`);
+      setErrorDialog({ open: true, message: err.message || 'Failed to save employee' });
     }
   };
 
   // Handle edit employee
   const handleEditEmployee = (employee) => {
-    setEmployeeToEdit(employee);
-    setIsAddDialogOpen(true);
+    try {
+      console.log('========================================');
+      console.log('[handleEditEmployee] Edit button clicked!');
+      console.log('[handleEditEmployee] Editing employee - FULL DATA:');
+      console.log(JSON.stringify(employee, null, 2));
+      console.log('[handleEditEmployee] Key fields:', {
+        id: employee.id,
+        _id: employee._id,
+        name: employee.name,
+        email: employee.email,
+        phone: employee.phone,
+        employeeId: employee.employeeId,
+        company: employee.company,
+        jobTitle: employee.jobTitle,
+        department: employee.department,
+        location: employee.location,
+        address: employee.address,
+        city: employee.city,
+        state: employee.state,
+      });
+      
+      // Close action menu first
+      setActionMenuOpen(null);
+      
+      // Create a fresh copy of the employee object to ensure React detects the change
+      // Deep copy to ensure all nested properties are copied
+      const employeeCopy = JSON.parse(JSON.stringify(employee));
+      console.log('[handleEditEmployee] Created employeeCopy:', employeeCopy);
+      console.log('[handleEditEmployee] employeeCopy.id:', employeeCopy.id);
+      console.log('[handleEditEmployee] employeeCopy._id:', employeeCopy._id);
+      
+      // Set employeeToEdit first
+      console.log('[handleEditEmployee] Setting employeeToEdit state...');
+      setEmployeeToEdit(employeeCopy);
+      
+      // Then open dialog - use a small timeout to ensure state is set
+      console.log('[handleEditEmployee] Opening dialog...');
+      setTimeout(() => {
+        setIsAddDialogOpen(true);
+        console.log('[handleEditEmployee] Dialog state set to true');
+        console.log('[handleEditEmployee] Current isAddDialogOpen should be true now');
+      }, 10);
+      
+      console.log('[handleEditEmployee] State update initiated');
+      console.log('========================================');
+    } catch (error) {
+      console.error('[handleEditEmployee] Error:', error);
+      setErrorDialog({ open: true, message: 'Error opening edit form: ' + error.message });
+    }
   };
 
-  // Handle delete employee
-  const handleDeleteEmployee = async (employee) => {
-    if (confirm(`Are you sure you want to delete ${employee.name}?`)) {
-      try {
-        // Get company name
-        let company = null;
-        if (typeof window !== 'undefined') {
-          company = sessionStorage.getItem('selectedCompany') || 
-                    sessionStorage.getItem('adminSelectedCompany');
-        }
-        
-        let apiUrl = `${API_BASE_URL}/admin-users/${employee.id || employee._id}`;
-        if (company) {
-          apiUrl += `?company=${encodeURIComponent(company)}`;
-        }
-        
-        const response = await fetch(apiUrl, {
-          method: 'DELETE',
-        });
-        
-        const data = await response.json();
-        if (data.success) {
-          // Refresh employees list
-          window.location.reload();
-        } else {
-          throw new Error(data.error || 'Failed to delete employee');
-        }
-      } catch (err) {
-        console.error('Error deleting employee:', err);
-        alert(`Error: ${err.message || 'Failed to delete employee'}`);
+  // Handle delete employee - show confirmation dialog
+  const handleDeleteEmployee = (employee) => {
+    setDeleteDialog({ open: true, employee });
+  };
+
+  // Confirm delete employee
+  const confirmDeleteEmployee = async () => {
+    const employee = deleteDialog.employee;
+    if (!employee) return;
+
+    try {
+      // Get company name
+      let company = null;
+      if (typeof window !== 'undefined') {
+        company = sessionStorage.getItem('selectedCompany') || 
+                  sessionStorage.getItem('adminSelectedCompany');
       }
+      
+      let apiUrl = `${API_BASE_URL}/admin-users/${employee.id || employee._id}`;
+      if (company) {
+        apiUrl += `?company=${encodeURIComponent(company)}`;
+      }
+      
+      const response = await fetch(apiUrl, {
+        method: 'DELETE',
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setDeleteDialog({ open: false, employee: null });
+        setSuccessDialog({ open: true, message: `Employee "${employee.name}" has been permanently deleted from the database.` });
+        // Refresh employees list after dialog closes
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      } else {
+        throw new Error(data.error || 'Failed to delete employee');
+      }
+    } catch (err) {
+      console.error('Error deleting employee:', err);
+      setDeleteDialog({ open: false, employee: null });
+      setErrorDialog({ open: true, message: err.message || 'Failed to delete employee' });
     }
   };
 
@@ -434,13 +682,23 @@ export default function EmployeesPage() {
         if (result.employees && result.employees.length > 0) {
           setEmployees((prev) => [...result.employees, ...prev]);
         }
-        alert(`Successfully imported ${result.created || 0} employee(s).${result.errors && result.errors.length > 0 ? `\n\nErrors:\n${result.errors.map(e => `Row ${e.row}: ${e.errors.join(', ')}`).join('\n')}` : ''}`);
+        const errorMessage = result.errors && result.errors.length > 0 
+          ? `\n\nErrors:\n${result.errors.map(e => `Row ${e.row}: ${e.errors.join(', ')}`).join('\n')}`
+          : '';
+        setSuccessDialog({ 
+          open: true, 
+          message: `Successfully imported ${result.created || 0} employee(s).${errorMessage}` 
+        });
+        // Refresh employees list after dialog closes
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
       } else {
-        alert(`Error: ${result.error || 'Failed to upload employees'}`);
+        setErrorDialog({ open: true, message: result.error || 'Failed to upload employees' });
       }
     } catch (error) {
       console.error('Upload error:', error);
-      alert('Failed to upload file. Please try again.');
+      setErrorDialog({ open: true, message: 'Failed to upload file. Please try again.' });
     } finally {
       setIsUploading(false);
       // Reset file input
@@ -782,8 +1040,9 @@ export default function EmployeesPage() {
                       <p className="text-xs text-muted-foreground group-hover:text-white/80 transition-colors">Tenure</p>
                       <p className="text-sm font-medium group-hover:text-white transition-colors">{employee.tenure || '-'}</p>
                     </div>
-                    <div className="relative">
+                    <div className="relative z-10">
                       <button 
+                        data-action-button-id={employee.id || employee._id}
                         onClick={(e) => {
                           e.stopPropagation();
                           const empId = employee.id || employee._id;
@@ -794,28 +1053,52 @@ export default function EmployeesPage() {
                         <MoreVertical className="w-4 h-4" />
                       </button>
                       {actionMenuOpen === (employee.id || employee._id) && (
-                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-neutral-200 z-10">
-                          <div className="py-1">
+                        <div 
+                          data-dropdown-menu
+                          className={`absolute right-0 w-48 bg-white rounded-lg shadow-lg border border-neutral-200 z-[1000] ${
+                            dropdownDirection === 'up' ? 'bottom-full mb-2' : 'top-full mt-2'
+                          }`}
+                          onClick={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => e.stopPropagation()}
+                        >
+                          <div className="py-1" onClick={(e) => e.stopPropagation()}>
                             <button
+                              type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleEditEmployee(employee);
+                                console.log('[Grid View Details Button] Clicked for employee:', employee.id || employee._id);
                                 setActionMenuOpen(null);
+                                setViewDetailsDialog({ open: true, employee });
                               }}
-                              className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
+                              className="w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 flex items-center gap-2 cursor-pointer whitespace-nowrap"
                             >
-                              <Edit className="w-4 h-4" />
+                              <Eye className="w-4 h-4 flex-shrink-0" />
+                              View Details
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                console.log('[Grid Edit Button] Clicked for employee:', employee.id || employee._id);
+                                setActionMenuOpen(null);
+                                handleEditEmployee(employee);
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2 cursor-pointer whitespace-nowrap"
+                            >
+                              <Edit className="w-4 h-4 flex-shrink-0" />
                               Edit Employee
                             </button>
                             <button
+                              type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleDeleteEmployee(employee);
+                                console.log('[Grid Delete Button] Clicked for employee:', employee.id || employee._id);
                                 setActionMenuOpen(null);
+                                handleDeleteEmployee(employee);
                               }}
-                              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 cursor-pointer whitespace-nowrap"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-4 h-4 flex-shrink-0" />
                               Delete Employee
                             </button>
                           </div>
@@ -830,8 +1113,8 @@ export default function EmployeesPage() {
           )}
         </div>
       ) : (
-        <Card className="border-2">
-          <div className="overflow-x-auto">
+        <Card className="border-2 overflow-visible">
+          <div className="overflow-x-auto overflow-y-visible">
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
@@ -930,9 +1213,10 @@ export default function EmployeesPage() {
                     <td className="px-4 py-4 whitespace-nowrap">
                       <div className="text-sm text-slate-600">{employee.tenure || '-'}</div>
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
+                    <td className="px-4 py-4 whitespace-nowrap relative z-10">
                       <div className="relative">
                         <button 
+                          data-action-button-id={employee.id || employee._id}
                           onClick={(e) => {
                             e.stopPropagation();
                             const empId = employee.id || employee._id;
@@ -943,28 +1227,52 @@ export default function EmployeesPage() {
                           <MoreVertical className="w-4 h-4" />
                         </button>
                         {actionMenuOpen === (employee.id || employee._id) && (
-                          <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-neutral-200 z-10">
-                            <div className="py-1">
+                          <div 
+                            data-dropdown-menu
+                            className={`absolute right-0 w-48 bg-white rounded-lg shadow-lg border border-neutral-200 z-[1000] ${
+                              dropdownDirection === 'up' ? 'bottom-full mb-2' : 'top-full mt-2'
+                            }`}
+                            onClick={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => e.stopPropagation()}
+                          >
+                            <div className="py-1" onClick={(e) => e.stopPropagation()}>
                               <button
+                                type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleEditEmployee(employee);
+                                  console.log('[Table View Details Button] Clicked for employee:', employee.id || employee._id);
                                   setActionMenuOpen(null);
+                                  setViewDetailsDialog({ open: true, employee });
                                 }}
-                                className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
+                                className="w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 flex items-center gap-2 cursor-pointer whitespace-nowrap"
                               >
-                                <Edit className="w-4 h-4" />
+                                <Eye className="w-4 h-4 flex-shrink-0" />
+                                View Details
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  console.log('[Table Edit Button] Clicked for employee:', employee.id || employee._id);
+                                  setActionMenuOpen(null);
+                                  handleEditEmployee(employee);
+                                }}
+                                className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2 cursor-pointer whitespace-nowrap"
+                              >
+                                <Edit className="w-4 h-4 flex-shrink-0" />
                                 Edit Employee
                               </button>
                               <button
+                                type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleDeleteEmployee(employee);
+                                  console.log('[Table Delete Button] Clicked for employee:', employee.id || employee._id);
                                   setActionMenuOpen(null);
+                                  handleDeleteEmployee(employee);
                                 }}
-                                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 cursor-pointer whitespace-nowrap"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Trash2 className="w-4 h-4 flex-shrink-0" />
                                 Delete Employee
                               </button>
                             </div>
@@ -989,6 +1297,7 @@ export default function EmployeesPage() {
 
       {/* Add/Edit Employee Dialog */}
       <AddEmployeeDialog
+        key={`${isAddDialogOpen ? 'open' : 'closed'}-${employeeToEdit?.id || employeeToEdit?._id || 'new'}`}
         open={isAddDialogOpen}
         onOpenChange={(open) => {
           setIsAddDialogOpen(open);
@@ -1001,13 +1310,67 @@ export default function EmployeesPage() {
         employeeToEdit={employeeToEdit}
       />
 
-      {/* Click outside to close action menu */}
-      {actionMenuOpen && (
-        <div 
-          className="fixed inset-0 z-10" 
-          onClick={() => setActionMenuOpen(null)}
-        />
-      )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        open={deleteDialog.open}
+        onClose={() => setDeleteDialog({ open: false, employee: null })}
+        onConfirm={confirmDeleteEmployee}
+        title="Delete Employee"
+        message={deleteDialog.employee 
+          ? `Are you sure you want to permanently delete "${deleteDialog.employee.name}"?\n\nThis action cannot be undone. The employee will be completely removed from the database.`
+          : ''}
+        type="danger"
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmButtonClass="bg-red-600 text-white hover:bg-red-700"
+      />
+
+      {/* Success Dialog */}
+      <ConfirmationDialog
+        open={successDialog.open}
+        onClose={() => setSuccessDialog({ open: false, message: '' })}
+        onConfirm={() => setSuccessDialog({ open: false, message: '' })}
+        title="Success"
+        message={successDialog.message}
+        type="success"
+        confirmText="OK"
+        cancelText=""
+        confirmButtonClass="bg-green-600 text-white hover:bg-green-700"
+      />
+
+      {/* Error Dialog */}
+      <ConfirmationDialog
+        open={errorDialog.open}
+        onClose={() => setErrorDialog({ open: false, message: '' })}
+        onConfirm={() => setErrorDialog({ open: false, message: '' })}
+        title="Error"
+        message={errorDialog.message}
+        type="danger"
+        confirmText="OK"
+        cancelText=""
+        confirmButtonClass="bg-red-600 text-white hover:bg-red-700"
+      />
+
+      {/* Info Dialog */}
+      <ConfirmationDialog
+        open={infoDialog.open}
+        onClose={() => setInfoDialog({ open: false, message: '' })}
+        onConfirm={() => setInfoDialog({ open: false, message: '' })}
+        title="Information"
+        message={infoDialog.message}
+        type="info"
+        confirmText="OK"
+        cancelText=""
+        confirmButtonClass="bg-blue-600 text-white hover:bg-blue-700"
+      />
+
+      {/* View Employee Details Dialog */}
+      <ViewEmployeeDetailsDialog
+        open={viewDetailsDialog.open}
+        onClose={() => setViewDetailsDialog({ open: false, employee: null })}
+        employee={viewDetailsDialog.employee}
+      />
     </div>
   );
 }

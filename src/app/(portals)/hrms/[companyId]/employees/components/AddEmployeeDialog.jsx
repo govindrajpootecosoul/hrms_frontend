@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import Modal from '@/components/common/Modal';
 import Button from '@/components/common/Button';
 import Input from '@/components/common/Input';
+import { API_BASE_URL } from '@/lib/utils/constants';
 
 const PHASES = [
   { id: 1, name: 'Basic Details', fields: ['firstName', 'lastName', 'email', 'phone', 'dateOfBirth', 'gender'] },
@@ -15,63 +16,123 @@ const PHASES = [
 
 export default function AddEmployeeDialog({ open, onOpenChange, onSave, existingEmployees = [], employeeToEdit = null }) {
   const [currentPhase, setCurrentPhase] = useState(1);
+  const [departments, setDepartments] = useState([]);
+  const [loadingDepartments, setLoadingDepartments] = useState(false);
+  const [departmentsFromDB, setDepartmentsFromDB] = useState(false);
   
   // Initialize form data - if editing, populate with employee data
-  const getInitialFormData = () => {
-    if (employeeToEdit) {
+  // This function should be called fresh each time to get the latest employeeToEdit
+  const getInitialFormData = (employee = employeeToEdit) => {
+    // Get company from sessionStorage (from logged-in user) - this determines which table to use
+    let defaultCompany = '';
+    if (typeof window !== 'undefined') {
+      defaultCompany = sessionStorage.getItem('selectedCompany') || 
+                      sessionStorage.getItem('adminSelectedCompany') || 
+                      '';
+    }
+    
+    console.log('[getInitialFormData] Called with employee:', employee);
+    console.log('[getInitialFormData] employeeToEdit prop:', employeeToEdit);
+    
+    if (employee) {
       // Split name into first and last name
-      const nameParts = (employeeToEdit.name || '').split(' ');
+      const nameParts = (employee.name || '').split(' ');
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || '';
       
-      return {
+      // Helper function to safely get date value
+      const getDateValue = (dateValue) => {
+        if (!dateValue) return '';
+        if (dateValue instanceof Date) return dateValue.toISOString().split('T')[0];
+        if (typeof dateValue === 'string') {
+          // Handle MongoDB date format: { "$date": "2026-02-13T05:16:16.148Z" }
+          if (dateValue.includes('T')) return dateValue.split('T')[0];
+          // Handle date string format
+          return dateValue;
+        }
+        // Handle MongoDB date object format
+        if (dateValue && typeof dateValue === 'object' && dateValue.$date) {
+          const dateStr = dateValue.$date;
+          if (dateStr.includes('T')) return dateStr.split('T')[0];
+          return dateStr;
+        }
+        return '';
+      };
+      
+      // Helper to safely get field value (preserves empty strings)
+      const getFieldValue = (value, defaultValue = '') => {
+        if (value === null || value === undefined) return defaultValue;
+        return String(value); // Convert to string to ensure consistency
+      };
+      
+      const formData = {
         // Basic Details
         firstName: firstName,
         lastName: lastName,
-        email: employeeToEdit.email || '',
-        phone: employeeToEdit.phone || '',
-        dateOfBirth: (() => {
-          const date = employeeToEdit.dateOfBirth || '';
-          if (!date) return '';
-          if (date instanceof Date) return date.toISOString().split('T')[0];
-          if (typeof date === 'string' && date.includes('T')) return date.split('T')[0];
-          return date;
-        })(),
-        gender: employeeToEdit.gender || '',
+        email: getFieldValue(employee.email),
+        phone: getFieldValue(employee.phone),
+        dateOfBirth: getDateValue(employee.dateOfBirth),
+        gender: getFieldValue(employee.gender),
         // Personal Details
-        address: employeeToEdit.address || '',
-        city: employeeToEdit.city || '',
-        state: employeeToEdit.state || '',
-        zipCode: employeeToEdit.zipCode || '',
-        emergencyContact: employeeToEdit.emergencyContact || '',
-        emergencyPhone: employeeToEdit.emergencyPhone || '',
+        address: getFieldValue(employee.address),
+        city: getFieldValue(employee.city),
+        state: getFieldValue(employee.state),
+        zipCode: getFieldValue(employee.zipCode),
+        emergencyContact: getFieldValue(employee.emergencyContact),
+        emergencyPhone: getFieldValue(employee.emergencyPhone),
         // Work Details
-        employeeId: employeeToEdit.employeeId || '',
-        jobTitle: employeeToEdit.jobTitle || '',
-        department: employeeToEdit.department || '',
-        company: employeeToEdit.company || '',
-        location: employeeToEdit.location || '',
-        reportingManager: employeeToEdit.reportingManager || '',
-        joiningDate: (() => {
-          const date = employeeToEdit.joiningDate || employeeToEdit.createdAt || '';
-          if (!date) return '';
-          if (date instanceof Date) return date.toISOString().split('T')[0];
-          if (typeof date === 'string' && date.includes('T')) return date.split('T')[0];
-          return date;
-        })(),
-        role: employeeToEdit.role || 'user',
-        hasCredentialAccess: employeeToEdit.hasCredentialAccess !== false,
-        hasSubscriptionAccess: employeeToEdit.hasSubscriptionAccess !== false,
+        employeeId: getFieldValue(employee.employeeId),
+        jobTitle: getFieldValue(employee.jobTitle),
+        department: getFieldValue(employee.department),
+        company: getFieldValue(employee.company) || defaultCompany,
+        location: getFieldValue(employee.location),
+        reportingManager: getFieldValue(employee.reportingManager),
+        joiningDate: getDateValue(employee.joiningDate || employee.createdAt),
+        role: getFieldValue(employee.role, 'user'),
+        hasCredentialAccess: employee.hasCredentialAccess !== false,
+        hasSubscriptionAccess: employee.hasSubscriptionAccess !== false,
         password: '', // Don't pre-fill password
         // Bank & Insurance
-        bankAccount: employeeToEdit.bankAccount || '',
-        ifsc: employeeToEdit.ifsc || '',
-        pan: employeeToEdit.pan || '',
-        aadhaar: employeeToEdit.aadhaar || '',
-        uan: employeeToEdit.uan || '',
-        esiNo: employeeToEdit.esiNo || '',
-        pfNo: employeeToEdit.pfNo || '',
+        bankAccount: getFieldValue(employee.bankAccount),
+        ifsc: getFieldValue(employee.ifsc),
+        pan: getFieldValue(employee.pan),
+        aadhaar: getFieldValue(employee.aadhaar),
+        uan: getFieldValue(employee.uan),
+        esiNo: getFieldValue(employee.esiNo),
+        pfNo: getFieldValue(employee.pfNo),
       };
+      
+      console.log('[getInitialFormData] Mapped employee data:', {
+        original: {
+          name: employee.name,
+          email: employee.email,
+          phone: employee.phone,
+          employeeId: employee.employeeId,
+          company: employee.company,
+          jobTitle: employee.jobTitle,
+          department: employee.department,
+          location: employee.location,
+          address: employee.address,
+          city: employee.city,
+          state: employee.state,
+        },
+        mapped: {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          phone: formData.phone,
+          employeeId: formData.employeeId,
+          company: formData.company,
+          jobTitle: formData.jobTitle,
+          department: formData.department,
+          location: formData.location,
+          address: formData.address,
+          city: formData.city,
+          state: formData.state,
+        }
+      });
+      
+      return formData;
     }
     
     return {
@@ -93,7 +154,7 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
       employeeId: '',
       jobTitle: '',
       department: '',
-      company: '',
+      company: defaultCompany, // Auto-populate from logged-in user
       location: '',
       reportingManager: '',
       joiningDate: '',
@@ -112,53 +173,209 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
     };
   };
 
-  const [formData, setFormData] = useState(getInitialFormData());
+  // Initialize with empty form - will be populated by useEffect when dialog opens
+  const [formData, setFormData] = useState(() => {
+    const initial = getInitialFormData();
+    console.log('[AddEmployeeDialog] Component mounted - Initial state formData:', initial);
+    console.log('[AddEmployeeDialog] Component mounted - employeeToEdit at mount:', employeeToEdit);
+    return initial;
+  });
   const [errors, setErrors] = useState({});
+  
+  // Log formData changes
+  useEffect(() => {
+    if (formData.email || formData.firstName) {
+      console.log('[AddEmployeeDialog] formData state changed:', {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        employeeId: formData.employeeId,
+        company: formData.company,
+        jobTitle: formData.jobTitle,
+        department: formData.department,
+        location: formData.location,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+      });
+    }
+  }, [formData]);
 
   // Reset form when dialog opens/closes or employeeToEdit changes
   useEffect(() => {
+    console.log('========================================');
+    console.log('[AddEmployeeDialog] useEffect triggered');
+    console.log('[AddEmployeeDialog] open:', open);
+    console.log('[AddEmployeeDialog] employeeToEdit:', employeeToEdit);
+    console.log('[AddEmployeeDialog] employeeToEdit?.id:', employeeToEdit?.id);
+    console.log('[AddEmployeeDialog] employeeToEdit?._id:', employeeToEdit?._id);
+    
     if (open) {
-      const initialData = getInitialFormData();
+      console.log('[AddEmployeeDialog] Dialog is OPEN - Re-initializing form');
+      
+      // Force re-initialization of form data when dialog opens
+      // Pass employeeToEdit explicitly to ensure we use the latest value
+      const initialData = getInitialFormData(employeeToEdit);
+      
+      console.log('[AddEmployeeDialog] getInitialFormData() returned:');
+      console.log(JSON.stringify(initialData, null, 2));
+      console.log('[AddEmployeeDialog] Key form fields:', {
+        firstName: initialData.firstName,
+        lastName: initialData.lastName,
+        email: initialData.email,
+        phone: initialData.phone,
+        employeeId: initialData.employeeId,
+        company: initialData.company,
+        jobTitle: initialData.jobTitle,
+        department: initialData.department,
+        location: initialData.location,
+        address: initialData.address,
+        city: initialData.city,
+        state: initialData.state,
+      });
+      
+      // Set form data immediately
       setFormData(initialData);
       setCurrentPhase(1);
+      setErrors({}); // Clear all errors - all fields are optional
+      console.log('[AddEmployeeDialog] Form data set, phase reset to 1, all errors cleared');
+      
+      console.log('========================================');
+    } else {
+      // Reset form when dialog closes
+      console.log('[AddEmployeeDialog] Dialog is CLOSED - Resetting form');
+      const emptyData = getInitialFormData();
+      setFormData(emptyData);
+      setCurrentPhase(1);
       setErrors({});
+      console.log('========================================');
+    }
+  }, [open, employeeToEdit]); // Use full employeeToEdit object in dependency array
+
+  // Update company field when dialog opens (in case sessionStorage was updated)
+  useEffect(() => {
+    if (open && !employeeToEdit) {
+      // Get company from sessionStorage
+      if (typeof window !== 'undefined') {
+        const companyFromStorage = sessionStorage.getItem('selectedCompany') || 
+                                   sessionStorage.getItem('adminSelectedCompany') || 
+                                   '';
+        if (companyFromStorage) {
+          setFormData(prev => ({ ...prev, company: companyFromStorage }));
+        }
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, employeeToEdit?.id]);
+  }, [open, employeeToEdit]);
+
+  // Fetch departments from database when dialog opens
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      if (!open) {
+        console.log('[AddEmployeeDialog] Dialog is closed, skipping department fetch');
+        return;
+      }
+      
+      try {
+        setLoadingDepartments(true);
+        console.log('========================================');
+        console.log('[AddEmployeeDialog] Fetching departments from database...');
+        
+        // Get company from sessionStorage (required for determining which table to use)
+        let company = '';
+        if (typeof window !== 'undefined') {
+          company = sessionStorage.getItem('selectedCompany') || 
+                    sessionStorage.getItem('adminSelectedCompany') || 
+                    '';
+        }
+        
+        console.log('[AddEmployeeDialog] Company from sessionStorage:', company);
+        
+        if (!company) {
+          console.warn('[AddEmployeeDialog] No company found in sessionStorage, using fallback departments');
+          const fallbackDepts = ['Engineering', 'Sales', 'Human Resources', 'Marketing', 'Finance', 'Operations', 'IT', 'Thrive Ecom'];
+          setDepartments(fallbackDepts);
+          setDepartmentsFromDB(false); // Mark that these are fallback departments
+          console.log('[AddEmployeeDialog] Set fallback departments:', fallbackDepts);
+          setLoadingDepartments(false);
+          return;
+        }
+        
+        // Call the new departments API endpoint
+        const apiUrl = `${API_BASE_URL}/admin-users/departments/list?company=${encodeURIComponent(company)}`;
+        console.log('[AddEmployeeDialog] Calling departments API:', apiUrl);
+        console.log('[AddEmployeeDialog] API_BASE_URL:', API_BASE_URL);
+        
+        const response = await fetch(apiUrl);
+        console.log('[AddEmployeeDialog] API Response status:', response.status);
+        console.log('[AddEmployeeDialog] API Response ok:', response.ok);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const responseText = await response.text();
+        console.log('[AddEmployeeDialog] Raw API Response:', responseText);
+        
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error('[AddEmployeeDialog] Failed to parse response:', parseError);
+          throw new Error('Invalid JSON response from server');
+        }
+        
+        console.log('[AddEmployeeDialog] Parsed API Response:', JSON.stringify(data, null, 2));
+        
+        if (data.success && data.departments) {
+          console.log('[AddEmployeeDialog] Fetched departments from database:', data.departments);
+          console.log('[AddEmployeeDialog] Total departments:', data.count);
+          console.log('[AddEmployeeDialog] Collection used:', data.collection);
+          setDepartments(data.departments);
+          setDepartmentsFromDB(true); // Mark that departments came from DB
+          console.log('[AddEmployeeDialog] Departments state updated with', data.departments.length, 'departments from database');
+        } else {
+          console.warn('[AddEmployeeDialog] Failed to fetch departments:', data.error || 'Unknown error');
+          console.warn('[AddEmployeeDialog] Response data:', data);
+          // Fallback to default departments if API fails
+          const fallbackDepts = ['Engineering', 'Sales', 'Human Resources', 'Marketing', 'Finance', 'Operations', 'IT', 'Thrive Ecom'];
+          setDepartments(fallbackDepts);
+          setDepartmentsFromDB(false); // Mark that these are fallback departments
+          console.log('[AddEmployeeDialog] Set fallback departments:', fallbackDepts);
+        }
+        console.log('========================================');
+      } catch (error) {
+        console.error('[AddEmployeeDialog] Error fetching departments:', error);
+        console.error('[AddEmployeeDialog] Error details:', {
+          message: error.message,
+          stack: error.stack
+        });
+        // Fallback to default departments on error
+        const fallbackDepts = ['Engineering', 'Sales', 'Human Resources', 'Marketing', 'Finance', 'Operations', 'IT', 'Thrive Ecom'];
+        setDepartments(fallbackDepts);
+        setDepartmentsFromDB(false); // Mark that these are fallback departments
+        console.log('[AddEmployeeDialog] Set fallback departments due to error:', fallbackDepts);
+      } finally {
+        setLoadingDepartments(false);
+        console.log('[AddEmployeeDialog] Department fetch completed, loading set to false');
+      }
+    };
+    
+    fetchDepartments();
+  }, [open]);
 
   const validatePhase = (phase) => {
     const phaseData = PHASES.find(p => p.id === phase);
-    if (!phaseData) return false;
+    if (!phaseData) return true; // Allow proceeding if phase not found
 
     const newErrors = {};
     let isValid = true;
 
-    // Optional fields that don't need validation
-    const optionalFields = ['employeeId', 'company', 'password', 'hasCredentialAccess', 'hasSubscriptionAccess']; // Employee ID is auto-generated if empty, company can be auto-detected
+    // ALL FIELDS ARE NOW OPTIONAL - Only validate format if value is provided
     
-    // Phase 4 (Bank & Insurance) is completely optional - skip validation for this phase
-    if (phase === 4) {
-      setErrors({});
-      return true; // Always allow proceeding from phase 4
-    }
-
-    phaseData.fields.forEach((field) => {
-      // Skip validation for optional fields
-      if (optionalFields.includes(field)) {
-        return;
-      }
-
-      const fieldValue = formData[field];
-      // Check if field is empty (handle both string and other types)
-      if (!fieldValue || (typeof fieldValue === 'string' && fieldValue.trim() === '')) {
-        const fieldName = field.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).trim();
-        newErrors[field] = `${fieldName} is required`;
-        isValid = false;
-      }
-    });
-
-    // Email validation
-    if (phase === 1 && formData.email) {
+    // Email format validation (only if email is provided)
+    if (phase === 1 && formData.email && formData.email.trim() !== '') {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(formData.email)) {
         newErrors.email = 'Invalid email format';
@@ -166,49 +383,37 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
       }
     }
 
-    // Password validation
-    if (phase === 3) {
-      if (!employeeToEdit) {
-        // Required for new employees
-        if (!formData.password || formData.password.trim() === '') {
-          newErrors.password = 'Password is required for new employees';
-          isValid = false;
-        } else if (formData.password.length < 6) {
-          newErrors.password = 'Password must be at least 6 characters long';
-          isValid = false;
-        }
-      } else {
-        // Optional for editing, but if provided, must be at least 6 characters
-        if (formData.password && formData.password.trim() !== '' && formData.password.length < 6) {
-          newErrors.password = 'Password must be at least 6 characters long';
-          isValid = false;
-        }
+    // Password validation (only if password is provided)
+    if (phase === 3 && formData.password && formData.password.trim() !== '') {
+      if (formData.password.length < 6) {
+        newErrors.password = 'Password must be at least 6 characters long';
+        isValid = false;
       }
     }
 
-    // Phone validation
-    if (phase === 1 && formData.phone) {
+    // Phone format validation (only if phone is provided)
+    if (phase === 1 && formData.phone && formData.phone.trim() !== '') {
       const phoneRegex = /^[+]?[(]?[0-9]{1,4}[)]?[-\s.]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,9}$/;
       if (!phoneRegex.test(formData.phone)) {
-        newErrors.phone = 'Invalid phone number';
+        newErrors.phone = 'Invalid phone number format';
         isValid = false;
       }
     }
 
     setErrors(newErrors);
-    return isValid;
+    return isValid; // Always allow proceeding, only show format errors if any
   };
 
   const handleNext = () => {
-    const isValid = validatePhase(currentPhase);
-    if (isValid) {
-      if (currentPhase < PHASES.length) {
-        setCurrentPhase(currentPhase + 1);
-        setErrors({});
-      }
-    } else {
-      // Show validation errors
-      console.log('Validation failed for phase', currentPhase, 'Errors:', errors);
+    // All fields are optional - always allow proceeding
+    // Only validate format if values are provided
+    validatePhase(currentPhase); // This will only set format errors if any
+    
+    // Always allow proceeding to next phase
+    if (currentPhase < PHASES.length) {
+      setCurrentPhase(currentPhase + 1);
+      // Clear errors when moving to next phase (format errors are just warnings)
+      setErrors({});
     }
   };
 
@@ -220,76 +425,116 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
   };
 
   const handleSubmit = () => {
-    // Validate only phases 1-3 (Bank & Insurance is optional)
-    let isValid = true;
-    if (currentPhase < 4) {
-      isValid = validatePhase(currentPhase);
+    // All fields are optional - only validate format if values are provided
+    // Always allow submission, just check format
+    validatePhase(currentPhase); // This will only set format errors if any
+    
+    // Always allow submission - all fields are optional
+    // Only format errors might be shown, but they won't block submission
+    
+    // Auto-generate Employee ID if not provided
+    const finalFormData = { ...formData };
+    if (!finalFormData.employeeId) {
+      const employeeNumbers = existingEmployees
+        .map((emp) => {
+          const match = emp.employeeId?.match(/EMP(\d+)/);
+          return match ? parseInt(match[1]) : 0;
+        })
+        .filter((num) => !isNaN(num));
+
+      const maxNumber = employeeNumbers.length > 0 ? Math.max(...employeeNumbers) : 0;
+      const nextNumber = maxNumber + 1;
+      finalFormData.employeeId = `EMP${String(nextNumber).padStart(3, '0')}`;
     }
 
-    if (isValid) {
-      // Auto-generate Employee ID if not provided
-      const finalFormData = { ...formData };
-      if (!finalFormData.employeeId) {
-        const employeeNumbers = existingEmployees
-          .map((emp) => {
-            const match = emp.employeeId?.match(/EMP(\d+)/);
-            return match ? parseInt(match[1]) : 0;
-          })
-          .filter((num) => !isNaN(num));
+    // Calculate tenure from joining date
+    const joiningDate = finalFormData.joiningDate ? new Date(finalFormData.joiningDate) : new Date();
+    const today = new Date();
+    let years = today.getFullYear() - joiningDate.getFullYear();
+    let months = today.getMonth() - joiningDate.getMonth();
 
-        const maxNumber = employeeNumbers.length > 0 ? Math.max(...employeeNumbers) : 0;
-        const nextNumber = maxNumber + 1;
-        finalFormData.employeeId = `EMP${String(nextNumber).padStart(3, '0')}`;
-      }
+    if (months < 0) {
+      years--;
+      months += 12;
+    }
 
-      // Calculate tenure from joining date
-      const joiningDate = new Date(finalFormData.joiningDate);
-      const today = new Date();
-      let years = today.getFullYear() - joiningDate.getFullYear();
-      let months = today.getMonth() - joiningDate.getMonth();
+    const tenure = `${years} year${years !== 1 ? 's' : ''} ${months} month${months !== 1 ? 's' : ''}`;
 
-      if (months < 0) {
-        years--;
-        months += 12;
-      }
+    // Get company from form or sessionStorage (required for determining which table to use)
+    let company = finalFormData.company;
+    if (!company && typeof window !== 'undefined') {
+      company = sessionStorage.getItem('selectedCompany') || 
+                sessionStorage.getItem('adminSelectedCompany') || 
+                '';
+    }
 
-      const tenure = `${years} year${years !== 1 ? 's' : ''} ${months} month${months !== 1 ? 's' : ''}`;
-
-      // Get company from form or sessionStorage
-      let company = finalFormData.company;
-      if (!company && typeof window !== 'undefined') {
-        company = sessionStorage.getItem('selectedCompany') || 
-                  sessionStorage.getItem('adminSelectedCompany') || 
-                  '';
-      }
-
-      // Prepare employee data
-      const employeeData = {
-        id: employeeToEdit ? (employeeToEdit.id || employeeToEdit._id) : Date.now().toString(),
-        _id: employeeToEdit ? (employeeToEdit._id || employeeToEdit.id) : null,
-        employeeId: finalFormData.employeeId,
-        name: `${finalFormData.firstName} ${finalFormData.lastName}`,
-        jobTitle: finalFormData.jobTitle,
-        department: finalFormData.department,
-        company: company,
-        location: finalFormData.location,
-        status: employeeToEdit ? employeeToEdit.status : 'Active',
+    // Company is optional - proceed even if not set
+    // Prepare employee data with ALL fields (both for new and existing employees)
+    const employeeData = {
+      id: employeeToEdit ? (employeeToEdit.id || employeeToEdit._id) : Date.now().toString(),
+      _id: employeeToEdit ? (employeeToEdit._id || employeeToEdit.id) : null,
+      // Basic fields
+      name: `${finalFormData.firstName || ''} ${finalFormData.lastName || ''}`.trim() || 'Employee',
+      email: finalFormData.email ? finalFormData.email.trim().toLowerCase() : '',
+      password: finalFormData.password || '', // Optional
+      role: finalFormData.role || 'user',
+      employeeId: finalFormData.employeeId || '',
+      company: company || '', // Optional
+      
+      // Include ALL fields for both new and existing employees
+      // Basic Details
+      firstName: finalFormData.firstName || '',
+      lastName: finalFormData.lastName || '',
+      phone: finalFormData.phone || '',
+      dateOfBirth: finalFormData.dateOfBirth || '',
+      gender: finalFormData.gender || '',
+      
+      // Personal Details
+      address: finalFormData.address || '',
+      city: finalFormData.city || '',
+      state: finalFormData.state || '',
+      zipCode: finalFormData.zipCode || '',
+      emergencyContact: finalFormData.emergencyContact || '',
+      emergencyPhone: finalFormData.emergencyPhone || '',
+      
+      // Work Details
+      jobTitle: finalFormData.jobTitle || '',
+      department: finalFormData.department || '',
+      location: finalFormData.location || '',
+      reportingManager: finalFormData.reportingManager || '',
+      joiningDate: finalFormData.joiningDate || '',
+      hasCredentialAccess: finalFormData.hasCredentialAccess !== false,
+      hasSubscriptionAccess: finalFormData.hasSubscriptionAccess !== false,
+      
+      // Bank & Insurance
+      bankAccount: finalFormData.bankAccount || '',
+      ifsc: finalFormData.ifsc || '',
+      pan: finalFormData.pan || '',
+      aadhaar: finalFormData.aadhaar || '',
+      uan: finalFormData.uan || '',
+      esiNo: finalFormData.esiNo || '',
+      pfNo: finalFormData.pfNo || '',
+      
+      // Additional fields for editing
+      ...(employeeToEdit ? {
+        status: employeeToEdit.status,
         tenure,
-        email: finalFormData.email,
-        phone: finalFormData.phone,
-        joiningDate: finalFormData.joiningDate,
-        role: finalFormData.role || 'user',
-        hasCredentialAccess: finalFormData.hasCredentialAccess !== false,
-        hasSubscriptionAccess: finalFormData.hasSubscriptionAccess !== false,
-        password: finalFormData.password || '', // Include password for new employees
-        ...finalFormData,
-      };
+      } : {}),
+    };
 
-      onSave(employeeData);
-      // Don't close the dialog - keep it open for editing
-      // User can continue editing or click Cancel/X to close
-      alert(employeeToEdit ? 'Employee updated successfully! You can continue editing or close the dialog.' : 'Employee saved successfully! You can continue editing or close the dialog.');
-    }
+    console.log('========================================');
+    console.log('[AddEmployeeDialog] handleSubmit - Preparing employeeData:');
+    console.log('[AddEmployeeDialog] finalFormData:', JSON.stringify(finalFormData, null, 2));
+    console.log('[AddEmployeeDialog] employeeData to send:', JSON.stringify({
+      ...employeeData,
+      password: employeeData.password ? '***hidden***' : undefined
+    }, null, 2));
+    console.log('========================================');
+
+    onSave(employeeData);
+    // Don't close the dialog - keep it open for editing
+    // User can continue editing or click Cancel/X to close
+    // Success message is handled by parent component
   };
 
   const handleClose = () => {
@@ -301,60 +546,82 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
 
   const progress = (currentPhase / PHASES.length) * 100;
 
+  // Helper function to log input changes
+  const handleInputChange = (fieldName, value) => {
+    console.log(`[Input] ${fieldName} changed:`, value);
+    console.log(`[Input] Current formData.${fieldName}:`, formData[fieldName]);
+    setFormData({ ...formData, [fieldName]: value });
+    console.log(`[Input] Updated formData.${fieldName}:`, value);
+    console.log(`[Input] Full formData after ${fieldName} change:`, {
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      email: formData.email,
+      phone: formData.phone,
+      employeeId: formData.employeeId,
+      company: formData.company,
+      jobTitle: formData.jobTitle,
+      department: formData.department,
+      location: formData.location,
+      address: formData.address,
+      city: formData.city,
+      state: formData.state,
+    });
+  };
+
   const renderPhaseContent = () => {
     switch (currentPhase) {
       case 1: // Basic Details
         return (
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">First Name *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">First Name</label>
               <Input
                 value={formData.firstName}
-                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                onChange={(e) => handleInputChange('firstName', e.target.value)}
                 className={errors.firstName ? 'border-red-500' : ''}
                 placeholder="Enter first name"
               />
               {errors.firstName && <p className="text-sm text-red-500 mt-1">{errors.firstName}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Last Name *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Last Name</label>
               <Input
                 value={formData.lastName}
-                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                onChange={(e) => handleInputChange('lastName', e.target.value)}
                 className={errors.lastName ? 'border-red-500' : ''}
                 placeholder="Enter last name"
               />
               {errors.lastName && <p className="text-sm text-red-500 mt-1">{errors.lastName}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Email *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
               <Input
                 type="email"
                 value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                onChange={(e) => handleInputChange('email', e.target.value)}
                 className={errors.email ? 'border-red-500' : ''}
                 placeholder="Enter email address"
               />
               {errors.email && <p className="text-sm text-red-500 mt-1">{errors.email}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Phone *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Phone</label>
               <Input
                 type="tel"
                 value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                onChange={(e) => handleInputChange('phone', e.target.value)}
                 className={errors.phone ? 'border-red-500' : ''}
                 placeholder="Enter phone number"
               />
               {errors.phone && <p className="text-sm text-red-500 mt-1">{errors.phone}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Date of Birth *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Date of Birth</label>
               <div className="relative">
                 <Input
                   type="date"
                   value={formData.dateOfBirth}
-                  onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                  onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
                   className={`${errors.dateOfBirth ? 'border-red-500' : ''} pr-10`}
                   data-lpignore="true"
                   data-form-type="other"
@@ -365,10 +632,10 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
               {errors.dateOfBirth && <p className="text-sm text-red-500 mt-1">{errors.dateOfBirth}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Gender *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Gender</label>
               <select
                 value={formData.gender}
-                onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                onChange={(e) => handleInputChange('gender', e.target.value)}
                 className={`w-full px-4 py-3 rounded-xl border transition-all duration-200 ${
                   errors.gender ? 'border-red-500' : 'border-neutral-300'
                 } focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
@@ -387,61 +654,61 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
         return (
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Address *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Address</label>
               <Input
                 value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                onChange={(e) => handleInputChange('address', e.target.value)}
                 className={errors.address ? 'border-red-500' : ''}
                 placeholder="Enter address"
               />
               {errors.address && <p className="text-sm text-red-500 mt-1">{errors.address}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">City *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">City</label>
               <Input
                 value={formData.city}
-                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                onChange={(e) => handleInputChange('city', e.target.value)}
                 className={errors.city ? 'border-red-500' : ''}
                 placeholder="Enter city"
               />
               {errors.city && <p className="text-sm text-red-500 mt-1">{errors.city}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">State *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">State</label>
               <Input
                 value={formData.state}
-                onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                onChange={(e) => handleInputChange('state', e.target.value)}
                 className={errors.state ? 'border-red-500' : ''}
                 placeholder="Enter state"
               />
               {errors.state && <p className="text-sm text-red-500 mt-1">{errors.state}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Zip Code *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Zip Code</label>
               <Input
                 value={formData.zipCode}
-                onChange={(e) => setFormData({ ...formData, zipCode: e.target.value })}
+                onChange={(e) => handleInputChange('zipCode', e.target.value)}
                 className={errors.zipCode ? 'border-red-500' : ''}
                 placeholder="Enter zip code"
               />
               {errors.zipCode && <p className="text-sm text-red-500 mt-1">{errors.zipCode}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Emergency Contact *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Emergency Contact</label>
               <Input
                 value={formData.emergencyContact}
-                onChange={(e) => setFormData({ ...formData, emergencyContact: e.target.value })}
+                onChange={(e) => handleInputChange('emergencyContact', e.target.value)}
                 className={errors.emergencyContact ? 'border-red-500' : ''}
                 placeholder="Enter emergency contact name"
               />
               {errors.emergencyContact && <p className="text-sm text-red-500 mt-1">{errors.emergencyContact}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Emergency Phone *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Emergency Phone</label>
               <Input
                 type="tel"
                 value={formData.emergencyPhone}
-                onChange={(e) => setFormData({ ...formData, emergencyPhone: e.target.value })}
+                onChange={(e) => handleInputChange('emergencyPhone', e.target.value)}
                 className={errors.emergencyPhone ? 'border-red-500' : ''}
                 placeholder="Enter emergency phone"
               />
@@ -457,47 +724,65 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
               <label className="block text-sm font-medium text-slate-700 mb-1">Employee ID</label>
               <Input
                 value={formData.employeeId}
-                onChange={(e) => setFormData({ ...formData, employeeId: e.target.value.toUpperCase() })}
+                onChange={(e) => handleInputChange('employeeId', e.target.value.toUpperCase())}
                 placeholder="Auto-generated if empty"
               />
               <p className="text-xs text-slate-500 mt-1">Leave empty to auto-generate</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Job Title *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Job Title</label>
               <Input
                 value={formData.jobTitle}
-                onChange={(e) => setFormData({ ...formData, jobTitle: e.target.value })}
+                onChange={(e) => handleInputChange('jobTitle', e.target.value)}
                 className={errors.jobTitle ? 'border-red-500' : ''}
                 placeholder="Enter job title"
               />
               {errors.jobTitle && <p className="text-sm text-red-500 mt-1">{errors.jobTitle}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Department *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Department</label>
               <select
                 value={formData.department}
-                onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                onChange={(e) => handleInputChange('department', e.target.value)}
+                disabled={loadingDepartments}
                 className={`w-full px-4 py-3 rounded-xl border transition-all duration-200 ${
                   errors.department ? 'border-red-500' : 'border-neutral-300'
-                } focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
+                } ${loadingDepartments ? 'bg-slate-100 cursor-not-allowed' : ''} focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
               >
-                <option value="">Select Department</option>
-                <option value="Engineering">Engineering</option>
-                <option value="Sales">Sales</option>
-                <option value="Human Resources">Human Resources</option>
-                <option value="Marketing">Marketing</option>
-                <option value="Finance">Finance</option>
-                <option value="Operations">Operations</option>
-                <option value="IT">IT</option>
-                <option value="Thrive Ecom">Thrive Ecom</option>
+                <option value="">
+                  {loadingDepartments ? 'Loading departments...' : 'Select Department'}
+                </option>
+                {departments.length > 0 ? (
+                  departments.map((dept) => (
+                    <option key={dept} value={dept}>
+                      {dept}
+                    </option>
+                  ))
+                ) : (
+                  !loadingDepartments && (
+                    <option value="" disabled>No departments available</option>
+                  )
+                )}
+                {/* Show current department value if it's not in the list (for editing) */}
+                {formData.department && !departments.includes(formData.department) && (
+                  <option value={formData.department}>{formData.department}</option>
+                )}
               </select>
               {errors.department && <p className="text-sm text-red-500 mt-1">{errors.department}</p>}
+              {!loadingDepartments && departments.length === 0 && (
+                <p className="text-xs text-slate-500 mt-1">No departments found in database. You can manually enter a department name.</p>
+              )}
+              {!loadingDepartments && departments.length > 0 && (
+                <p className={`text-xs mt-1 ${departmentsFromDB ? 'text-green-600' : 'text-slate-500'}`}>
+                  {departments.length} department(s) {departmentsFromDB ? 'loaded from database' : 'available (fallback list)'}
+                </p>
+              )}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Location *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Location</label>
               <select
                 value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                onChange={(e) => handleInputChange('location', e.target.value)}
                 className={`w-full px-4 py-3 rounded-xl border transition-all duration-200 ${
                   errors.location ? 'border-red-500' : 'border-neutral-300'
                 } focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
@@ -513,22 +798,22 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
               {errors.location && <p className="text-sm text-red-500 mt-1">{errors.location}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Reporting Manager *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Reporting Manager</label>
               <Input
                 value={formData.reportingManager}
-                onChange={(e) => setFormData({ ...formData, reportingManager: e.target.value })}
+                onChange={(e) => handleInputChange('reportingManager', e.target.value)}
                 className={errors.reportingManager ? 'border-red-500' : ''}
                 placeholder="Enter reporting manager"
               />
               {errors.reportingManager && <p className="text-sm text-red-500 mt-1">{errors.reportingManager}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Joining Date *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Joining Date</label>
               <div className="relative">
                 <Input
                   type="date"
                   value={formData.joiningDate}
-                  onChange={(e) => setFormData({ ...formData, joiningDate: e.target.value })}
+                  onChange={(e) => handleInputChange('joiningDate', e.target.value)}
                   className={`${errors.joiningDate ? 'border-red-500' : ''} pr-10`}
                   data-lpignore="true"
                   data-form-type="other"
@@ -542,16 +827,26 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
               <label className="block text-sm font-medium text-slate-700 mb-1">Company</label>
               <Input
                 value={formData.company}
-                onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                placeholder="e.g., Ecosoul Home, Thrive"
+                readOnly
+                disabled
+                className="bg-slate-100 cursor-not-allowed"
+                placeholder="Company will be auto-detected from your login"
               />
-              <p className="text-xs text-slate-500 mt-1">Leave empty to use default company</p>
+              <p className="text-xs text-slate-500 mt-1">
+                Company is automatically determined from your login. 
+                {formData.company ? ` Current: ${formData.company}` : ' Please ensure you are logged in with a valid company account.'}
+                {formData.company && (
+                  <span className="block mt-1 text-blue-600">
+                    User will be added to {formData.company.toLowerCase().includes('thrive') ? 'Thrive_Employees' : 'Ecosoul_Employees'} table.
+                  </span>
+                )}
+              </p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Role *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Role</label>
               <select
                 value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                onChange={(e) => handleInputChange('role', e.target.value)}
                 className={`w-full px-4 py-3 rounded-xl border transition-all duration-200 ${
                   errors.role ? 'border-red-500' : 'border-neutral-300'
                 } focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
@@ -563,16 +858,16 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
             </div>
             {!employeeToEdit ? (
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Password *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
                 <Input
                   type="password"
                   value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  onChange={(e) => handleInputChange('password', e.target.value)}
                   className={errors.password ? 'border-red-500' : ''}
                   placeholder="Enter password (min 6 characters)"
                 />
                 {errors.password && <p className="text-sm text-red-500 mt-1">{errors.password}</p>}
-                <p className="text-xs text-slate-500 mt-1">Required for new employees</p>
+                <p className="text-xs text-slate-500 mt-1">Optional - Leave blank if not needed</p>
               </div>
             ) : (
               <div>
@@ -580,7 +875,7 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
                 <Input
                   type="password"
                   value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  onChange={(e) => handleInputChange('password', e.target.value)}
                   className={errors.password ? 'border-red-500' : ''}
                   placeholder="Leave blank to keep current password"
                 />
@@ -594,7 +889,10 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
                   <input
                     type="checkbox"
                     checked={formData.hasCredentialAccess}
-                    onChange={(e) => setFormData({ ...formData, hasCredentialAccess: e.target.checked })}
+                    onChange={(e) => {
+                      console.log('[Input] hasCredentialAccess changed:', e.target.checked);
+                      setFormData({ ...formData, hasCredentialAccess: e.target.checked });
+                    }}
                     className="w-4 h-4 text-blue-600 border-neutral-300 rounded focus:ring-blue-500"
                   />
                   <span className="text-sm font-medium text-slate-700">Has Credential Access</span>
@@ -603,7 +901,10 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
                   <input
                     type="checkbox"
                     checked={formData.hasSubscriptionAccess}
-                    onChange={(e) => setFormData({ ...formData, hasSubscriptionAccess: e.target.checked })}
+                    onChange={(e) => {
+                      console.log('[Input] hasSubscriptionAccess changed:', e.target.checked);
+                      setFormData({ ...formData, hasSubscriptionAccess: e.target.checked });
+                    }}
                     className="w-4 h-4 text-blue-600 border-neutral-300 rounded focus:ring-blue-500"
                   />
                   <span className="text-sm font-medium text-slate-700">Has Subscription Access</span>
@@ -626,7 +927,7 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
               <label className="block text-sm font-medium text-slate-700 mb-1">Bank Account Number</label>
               <Input
                 value={formData.bankAccount}
-                onChange={(e) => setFormData({ ...formData, bankAccount: e.target.value })}
+                onChange={(e) => handleInputChange('bankAccount', e.target.value)}
                 placeholder="Enter bank account number (optional)"
               />
             </div>
@@ -634,7 +935,7 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
               <label className="block text-sm font-medium text-slate-700 mb-1">IFSC Code</label>
               <Input
                 value={formData.ifsc}
-                onChange={(e) => setFormData({ ...formData, ifsc: e.target.value.toUpperCase() })}
+                onChange={(e) => handleInputChange('ifsc', e.target.value.toUpperCase())}
                 placeholder="Enter IFSC code (optional)"
                 maxLength={11}
               />
@@ -643,7 +944,7 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
               <label className="block text-sm font-medium text-slate-700 mb-1">PAN Number</label>
               <Input
                 value={formData.pan}
-                onChange={(e) => setFormData({ ...formData, pan: e.target.value.toUpperCase() })}
+                onChange={(e) => handleInputChange('pan', e.target.value.toUpperCase())}
                 placeholder="Enter PAN number (optional)"
                 maxLength={10}
               />
@@ -652,7 +953,7 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
               <label className="block text-sm font-medium text-slate-700 mb-1">Aadhaar Number</label>
               <Input
                 value={formData.aadhaar}
-                onChange={(e) => setFormData({ ...formData, aadhaar: e.target.value.replace(/\D/g, '').slice(0, 12) })}
+                onChange={(e) => handleInputChange('aadhaar', e.target.value.replace(/\D/g, '').slice(0, 12))}
                 placeholder="Enter Aadhaar number (optional)"
                 maxLength={12}
               />
@@ -661,7 +962,7 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
               <label className="block text-sm font-medium text-slate-700 mb-1">UAN Number</label>
               <Input
                 value={formData.uan}
-                onChange={(e) => setFormData({ ...formData, uan: e.target.value })}
+                onChange={(e) => handleInputChange('uan', e.target.value)}
                 placeholder="Enter UAN number (optional)"
               />
             </div>
@@ -669,7 +970,7 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
               <label className="block text-sm font-medium text-slate-700 mb-1">ESI Number</label>
               <Input
                 value={formData.esiNo}
-                onChange={(e) => setFormData({ ...formData, esiNo: e.target.value })}
+                onChange={(e) => handleInputChange('esiNo', e.target.value)}
                 placeholder="Enter ESI number (optional)"
               />
             </div>
@@ -677,7 +978,7 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
               <label className="block text-sm font-medium text-slate-700 mb-1">PF Number</label>
               <Input
                 value={formData.pfNo}
-                onChange={(e) => setFormData({ ...formData, pfNo: e.target.value })}
+                onChange={(e) => handleInputChange('pfNo', e.target.value)}
                 placeholder="Enter PF number (optional)"
               />
             </div>
@@ -825,15 +1126,16 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
           {PHASES.find(p => p.id === currentPhase)?.name}
         </h3>
         
-        {/* Error Summary */}
+        {/* Error Summary - Only show format validation warnings, not required field errors */}
         {Object.keys(errors).length > 0 && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-            <p className="text-sm font-medium text-red-800 mb-2">Please fix the following errors:</p>
-            <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+            <p className="text-sm font-medium text-yellow-800 mb-2">Format validation warnings (optional to fix):</p>
+            <ul className="list-disc list-inside text-sm text-yellow-700 space-y-1">
               {Object.values(errors).map((error, index) => (
                 <li key={index}>{error}</li>
               ))}
             </ul>
+            <p className="text-xs text-yellow-600 mt-2">Note: All fields are optional. These are just format warnings.</p>
           </div>
         )}
         
