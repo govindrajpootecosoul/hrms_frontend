@@ -80,13 +80,31 @@ export default function EmployeeAttendancePage() {
   const [loadingData, setLoadingData] = useState(false);
   const [timeframe, setTimeframe] = useState('7d');
   const [selectedMonth, setSelectedMonth] = useState(() => format(subMonths(new Date(), 1), 'yyyy-MM'));
-  const [requestTab, setRequestTab] = useState('time-off');
+  const [requestTab, setRequestTab] = useState('regularization');
   const currentMonthDate = startOfMonth(new Date());
   const thisMonthKey = format(currentMonthDate, 'yyyy-MM');
   const previousMonthDate = useMemo(() => parseMonthValue(selectedMonth), [selectedMonth]);
 
   // Get company from sessionStorage
   const [selectedCompany, setSelectedCompany] = useState(null);
+
+  // Form states for attendance requests
+  const [regularizationForm, setRegularizationForm] = useState({
+    date: '',
+    timeWindow: '',
+    notes: ''
+  });
+  const [onDutyForm, setOnDutyForm] = useState({
+    date: '',
+    location: '',
+    details: ''
+  });
+  const [timeOffForm, setTimeOffForm] = useState({
+    dateRange: '',
+    reason: ''
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState({ type: '', text: '' });
   
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -132,6 +150,105 @@ export default function EmployeeAttendancePage() {
     };
     fetchAttendance();
   }, [user, timeframe, selectedMonth, selectedCompany]);
+
+  // Handle attendance request submission
+  const handleSubmitRequest = async (type) => {
+    if (!user?.employeeId) {
+      setSubmitMessage({ type: 'error', text: 'Employee ID not found. Please log in again.' });
+      return;
+    }
+
+    setSubmitting(true);
+    setSubmitMessage({ type: '', text: '' });
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const company = selectedCompany || (typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null);
+      
+      let requestData = {
+        employeeId: user.employeeId,
+        type
+      };
+
+      if (type === 'regularization') {
+        if (!regularizationForm.date || !regularizationForm.timeWindow) {
+          setSubmitMessage({ type: 'error', text: 'Please fill in all required fields' });
+          setSubmitting(false);
+          return;
+        }
+        requestData = {
+          ...requestData,
+          date: regularizationForm.date,
+          timeWindow: regularizationForm.timeWindow,
+          notes: regularizationForm.notes
+        };
+      } else if (type === 'on-duty') {
+        if (!onDutyForm.date || !onDutyForm.location) {
+          setSubmitMessage({ type: 'error', text: 'Please fill in all required fields' });
+          setSubmitting(false);
+          return;
+        }
+        requestData = {
+          ...requestData,
+          date: onDutyForm.date,
+          location: onDutyForm.location,
+          details: onDutyForm.details
+        };
+      } else if (type === 'time-off') {
+        if (!timeOffForm.dateRange || !timeOffForm.reason) {
+          setSubmitMessage({ type: 'error', text: 'Please fill in all required fields' });
+          setSubmitting(false);
+          return;
+        }
+        requestData = {
+          ...requestData,
+          dateRange: timeOffForm.dateRange,
+          reason: timeOffForm.reason
+        };
+      }
+
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      };
+      if (company) {
+        headers['x-company'] = company;
+      }
+
+      const res = await fetch('/api/employee-portal/attendance-request', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(requestData)
+      });
+
+      const json = await res.json();
+
+      if (res.ok && json.success) {
+        setSubmitMessage({ type: 'success', text: 'Request submitted successfully!' });
+        
+        // Reset form
+        if (type === 'regularization') {
+          setRegularizationForm({ date: '', timeWindow: '', notes: '' });
+        } else if (type === 'on-duty') {
+          setOnDutyForm({ date: '', location: '', details: '' });
+        } else if (type === 'time-off') {
+          setTimeOffForm({ dateRange: '', reason: '' });
+        }
+
+        // Clear message after 3 seconds
+        setTimeout(() => {
+          setSubmitMessage({ type: '', text: '' });
+        }, 3000);
+      } else {
+        setSubmitMessage({ type: 'error', text: json.error || 'Failed to submit request' });
+      }
+    } catch (err) {
+      console.error('Submit request error:', err);
+      setSubmitMessage({ type: 'error', text: 'An error occurred. Please try again.' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   // Get attendance data based on timeframe
   const attendance = useMemo(() => {
@@ -410,55 +527,142 @@ export default function EmployeeAttendancePage() {
               </TabsList>
 
               <TabsContent value="regularization" className="space-y-4 rounded-2xl border border-emerald-200/50 bg-white/90 p-4 shadow-sm">
+                {submitMessage.text && (
+                  <div className={`p-3 rounded-lg text-sm ${
+                    submitMessage.type === 'success' 
+                      ? 'bg-green-50 text-green-800 border border-green-200' 
+                      : 'bg-red-50 text-red-800 border border-red-200'
+                  }`}>
+                    {submitMessage.text}
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="regularization-date">Date to adjust</Label>
-                  <Input id="regularization-date" type="date" className="rounded-xl" />
+                  <Input 
+                    id="regularization-date" 
+                    type="date" 
+                    className="rounded-xl" 
+                    value={regularizationForm.date}
+                    onChange={(e) => setRegularizationForm({ ...regularizationForm, date: e.target.value })}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="regularization-window">Time window</Label>
-                  <Input id="regularization-window" type="text" placeholder="e.g. 09:30 AM – 06:30 PM" />
+                  <Input 
+                    id="regularization-window" 
+                    type="text" 
+                    placeholder="e.g. 09:30 AM – 06:30 PM" 
+                    value={regularizationForm.timeWindow}
+                    onChange={(e) => setRegularizationForm({ ...regularizationForm, timeWindow: e.target.value })}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="regularization-notes">Notes</Label>
-                  <Textarea id="regularization-notes" rows={4} placeholder="Explain the missing punch or discrepancy" />
+                  <Textarea 
+                    id="regularization-notes" 
+                    rows={4} 
+                    placeholder="Explain the missing punch or discrepancy" 
+                    value={regularizationForm.notes}
+                    onChange={(e) => setRegularizationForm({ ...regularizationForm, notes: e.target.value })}
+                  />
                 </div>
-                <Button className="w-full">
+                <Button 
+                  className="w-full" 
+                  onClick={() => handleSubmitRequest('regularization')}
+                  disabled={submitting}
+                >
                   <Send className="mr-2 h-4 w-4" />
-                  Send regularization
+                  {submitting ? 'Submitting...' : 'Send regularization'}
                 </Button>
               </TabsContent>
 
               <TabsContent value="on-duty" className="space-y-4 rounded-2xl border border-emerald-200/50 bg-white/90 p-4 shadow-sm">
+                {submitMessage.text && (
+                  <div className={`p-3 rounded-lg text-sm ${
+                    submitMessage.type === 'success' 
+                      ? 'bg-green-50 text-green-800 border border-green-200' 
+                      : 'bg-red-50 text-red-800 border border-red-200'
+                  }`}>
+                    {submitMessage.text}
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="on-duty-date">Duty date</Label>
-                  <Input id="on-duty-date" type="date" className="rounded-xl" />
+                  <Input 
+                    id="on-duty-date" 
+                    type="date" 
+                    className="rounded-xl" 
+                    value={onDutyForm.date}
+                    onChange={(e) => setOnDutyForm({ ...onDutyForm, date: e.target.value })}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="on-duty-location">Location / client</Label>
-                  <Input id="on-duty-location" type="text" placeholder="e.g. Client HQ, Mumbai" />
+                  <Input 
+                    id="on-duty-location" 
+                    type="text" 
+                    placeholder="e.g. Client HQ, Mumbai" 
+                    value={onDutyForm.location}
+                    onChange={(e) => setOnDutyForm({ ...onDutyForm, location: e.target.value })}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="on-duty-details">Details</Label>
-                  <Textarea id="on-duty-details" rows={4} placeholder="Share agenda, travel plan or approvals needed" />
+                  <Textarea 
+                    id="on-duty-details" 
+                    rows={4} 
+                    placeholder="Share agenda, travel plan or approvals needed" 
+                    value={onDutyForm.details}
+                    onChange={(e) => setOnDutyForm({ ...onDutyForm, details: e.target.value })}
+                  />
                 </div>
-                <Button className="w-full">
+                <Button 
+                  className="w-full" 
+                  onClick={() => handleSubmitRequest('on-duty')}
+                  disabled={submitting}
+                >
                   <Send className="mr-2 h-4 w-4" />
-                  Submit on-duty request
+                  {submitting ? 'Submitting...' : 'Submit on-duty request'}
                 </Button>
               </TabsContent>
 
               <TabsContent value="time-off" className="space-y-4 rounded-2xl border border-emerald-200/50 bg-white/90 p-4 shadow-sm">
+                {submitMessage.text && (
+                  <div className={`p-3 rounded-lg text-sm ${
+                    submitMessage.type === 'success' 
+                      ? 'bg-green-50 text-green-800 border border-green-200' 
+                      : 'bg-red-50 text-red-800 border border-red-200'
+                  }`}>
+                    {submitMessage.text}
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="range">Date range</Label>
-                  <Input id="range" type="text" placeholder="e.g. 22 Jan - 24 Jan" />
+                  <Input 
+                    id="range" 
+                    type="text" 
+                    placeholder="e.g. 22 Jan - 24 Jan" 
+                    value={timeOffForm.dateRange}
+                    onChange={(e) => setTimeOffForm({ ...timeOffForm, dateRange: e.target.value })}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="reason">Reason</Label>
-                  <Textarea id="reason" placeholder="Short note for your manager" rows={4} />
+                  <Textarea 
+                    id="reason" 
+                    placeholder="Short note for your manager" 
+                    rows={4} 
+                    value={timeOffForm.reason}
+                    onChange={(e) => setTimeOffForm({ ...timeOffForm, reason: e.target.value })}
+                  />
                 </div>
-                <Button className="w-full">
+                <Button 
+                  className="w-full" 
+                  onClick={() => handleSubmitRequest('time-off')}
+                  disabled={submitting}
+                >
                   <Send className="mr-2 h-4 w-4" />
-                  Submit request
+                  {submitting ? 'Submitting...' : 'Submit request'}
                 </Button>
               </TabsContent>
             </Tabs>

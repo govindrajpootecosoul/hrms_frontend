@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { useCompany } from '@/lib/context/CompanyContext';
 import { useToast } from '@/components/common/Toast';
@@ -12,7 +12,6 @@ import AttendanceUploadForm from '@/components/hrms/AttendanceUploadForm';
 import Modal from '@/components/common/Modal';
 import Button from '@/components/common/Button';
 import { Users, UserCheck, UserX, CalendarDays, Home, Clock3, CheckCircle2, Edit, Trash2, Plus, Search } from 'lucide-react';
-import { mockEmployees } from '@/lib/utils/hrmsMockData';
 
 const AttendanceOverviewPage = () => {
   const params = useParams();
@@ -25,102 +24,119 @@ const AttendanceOverviewPage = () => {
   const [filterDepartment, setFilterDepartment] = useState('all');
   const [filterLocation, setFilterLocation] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  
-  // Generate mock data for last 7 days
-  const generateMockAttendance = () => {
-    const mockData = [];
-    const today = new Date();
-    const employees = [
-      { biometricId: 'EMP001', employeeName: 'John Doe', department: 'Engineering' },
-      { biometricId: 'EMP002', employeeName: 'Jane Smith', department: 'Sales' },
-      { biometricId: 'EMP003', employeeName: 'Mike Johnson', department: 'Finance' },
-      { biometricId: 'EMP004', employeeName: 'Sarah Williams', department: 'Marketing' },
-      { biometricId: 'EMP005', employeeName: 'David Brown', department: 'Sales' },
-      { biometricId: 'EMP006', employeeName: 'Emily Davis', department: 'Engineering' },
-      { biometricId: 'EMP007', employeeName: 'Robert Wilson', department: 'Sales' },
-      { biometricId: 'EMP008', employeeName: 'Lisa Anderson', department: 'Marketing' },
-      { biometricId: 'EMP009', employeeName: 'Alex Kumar', department: 'Engineering' },
-      { biometricId: 'EMP010', employeeName: 'Priya Sharma', department: 'Sales' },
-      { biometricId: 'EMP011', employeeName: 'Rajesh Patel', department: 'Finance' },
-      { biometricId: 'EMP012', employeeName: 'Sneha Reddy', department: 'Sales' },
-      { biometricId: 'EMP013', employeeName: 'Vikram Singh', department: 'Engineering' },
-      { biometricId: 'EMP014', employeeName: 'Anita Desai', department: 'Marketing' },
-      { biometricId: 'EMP015', employeeName: 'Rahul Mehta', department: 'Sales' },
-      { biometricId: 'EMP016', employeeName: 'Arjun Menon', department: 'Sales' },
-      { biometricId: 'EMP017', employeeName: 'Kavita Nair', department: 'Finance' },
-      { biometricId: 'EMP018', employeeName: 'Nikhil Agarwal', department: 'Engineering' },
-      { biometricId: 'EMP019', employeeName: 'Suresh Kumar', department: 'Sales' },
-      { biometricId: 'EMP020', employeeName: 'Meera Joshi', department: 'Marketing' }
-    ];
-    
-    // Generate data for last 7 days
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
-      
-      employees.forEach((emp, empIndex) => {
-        let status = 'present';
-        let timeIn = '09:00';
-        let timeOut = '18:00';
-        let isLate = false;
+  const [attendance, setAttendance] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [stats, setStats] = useState({
+    totalEmployees: 0,
+    presentToday: 0,
+    absentToday: 0,
+    onLeaveToday: 0,
+    onWFHToday: 0,
+    lateCheckIns: 0,
+    leaveApprovals: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  // Fetch employees list
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        const company = currentCompany?.name || companyId;
         
-        // Create varied attendance patterns
-        if (i === 0) {
-          // Today
-          if (empIndex === 0) { status = 'present'; timeIn = '09:05'; timeOut = '18:30'; }
-          else if (empIndex === 1) { status = 'present'; timeIn = '09:00'; timeOut = '18:05'; isLate = true; }
-          else if (empIndex === 2) { status = 'on-leave'; timeIn = null; timeOut = null; }
-          else if (empIndex === 4) { status = 'present'; timeIn = '09:20'; timeOut = '18:45'; }
-          else if (empIndex === 6) { status = 'present'; timeIn = '09:25'; timeOut = '18:20'; }
-          else if (empIndex === 7) { status = 'present'; timeIn = '09:15'; timeOut = '18:30'; }
-          else if (empIndex === 11) { status = 'present'; timeIn = '09:25'; timeOut = '18:20'; }
-          else if (empIndex === 15) { status = 'present'; timeIn = '09:15'; timeOut = '18:30'; }
-          else { status = 'present'; }
-        } else {
-          // Past days - create varied patterns
-          const dayPattern = i % 4;
-          if (dayPattern === 0) {
-            if (empIndex % 3 === 0) status = 'present';
-            else if (empIndex % 3 === 1) status = 'wfh';
-            else status = 'present';
-          } else if (dayPattern === 1) {
-            if (empIndex % 4 === 0) status = 'on-leave';
-            else status = 'present';
-          } else if (dayPattern === 2) {
-            if (empIndex % 5 === 0) status = 'absent';
-            else status = 'present';
-          } else {
-            status = 'present';
+        const params = new URLSearchParams();
+        if (company) {
+          params.append('company', company);
+        }
+
+        const headers = {
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        };
+        if (company) {
+          headers['x-company'] = company;
+        }
+
+        const res = await fetch(`/api/hrms-portal/employees?${params.toString()}`, { headers });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success) {
+            setEmployees(json.data.employees || []);
+          }
+        }
+      } catch (err) {
+        console.error('Fetch employees error:', err);
+      }
+    };
+
+    fetchEmployees();
+  }, [companyId, currentCompany]);
+
+  // Fetch attendance data
+  useEffect(() => {
+    const fetchAttendance = async () => {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem('auth_token');
+        
+        // Get company name from multiple sources
+        let company = currentCompany?.name;
+        if (!company && typeof window !== 'undefined') {
+          company = sessionStorage.getItem('selectedCompany') || 
+                   sessionStorage.getItem('adminSelectedCompany');
+        }
+        // If still no company and companyId is a number, try to map it
+        if (!company && companyId && companyId !== 'undefined') {
+          // Try to get from sessionStorage with companyId key
+          if (typeof window !== 'undefined') {
+            company = sessionStorage.getItem(`company_${companyId}`);
           }
         }
         
-        if (status === 'on-leave' || status === 'absent') {
-          timeIn = null;
-          timeOut = null;
-        } else if (status === 'wfh') {
-          timeIn = '09:30';
-          timeOut = '18:30';
+        const today = new Date().toISOString().split('T')[0];
+        
+        const params = new URLSearchParams();
+        params.append('date', today);
+        if (company) {
+          params.append('company', company);
+        }
+
+        const headers = {
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        };
+        if (company) {
+          headers['x-company'] = company;
         }
         
-        mockData.push({
-          id: `${emp.biometricId}-${dateStr}`,
-          date: dateStr,
-          biometricId: emp.biometricId,
-          employeeName: emp.employeeName,
-          department: emp.department,
-          status: status,
-          timeIn: timeIn,
-          timeOut: timeOut,
-          isLate: isLate
-        });
-      });
-    }
-    
-    return mockData;
-  };
-  
-  const [attendance, setAttendance] = useState(generateMockAttendance());
+        console.log('[Attendance Overview] Fetching with company:', company);
+
+        const [attendanceRes, statsRes] = await Promise.all([
+          fetch(`/api/hrms-portal/attendance?${params.toString()}`, { headers }),
+          fetch(`/api/hrms-portal/attendance/stats?${params.toString()}`, { headers })
+        ]);
+
+        if (attendanceRes.ok) {
+          const attendanceJson = await attendanceRes.json();
+          if (attendanceJson.success) {
+            setAttendance(attendanceJson.data.records || []);
+          }
+        }
+
+        if (statsRes.ok) {
+          const statsJson = await statsRes.json();
+          if (statsJson.success) {
+            setStats(statsJson.data);
+          }
+        }
+      } catch (err) {
+        console.error('Fetch attendance error:', err);
+        toast.error('Failed to load attendance data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAttendance();
+  }, [companyId, currentCompany, toast]);
 
   const handleUploadAttendance = () => {
     setShowUploadForm(true);
@@ -155,50 +171,15 @@ const AttendanceOverviewPage = () => {
     toast.success('Attendance data exported successfully');
   };
 
-  // Calculate statistics from attendance data
-  const stats = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
-    const todayRecords = attendance.filter(record => record.date === today);
-    
-    const uniqueEmployees = new Set(attendance.map(record => record.biometricId));
-    const totalEmployees = uniqueEmployees.size;
-    
-    const presentToday = todayRecords.filter(r => r.status === 'present').length;
-    const absentToday = todayRecords.filter(r => r.status === 'absent').length;
-    const onLeaveToday = todayRecords.filter(r => r.status === 'on-leave').length;
-    const onWFHToday = todayRecords.filter(r => r.status === 'wfh' || r.status === 'work-from-home').length;
-    
-    const lateCheckIns = todayRecords.filter(r => {
-      if (!r.timeIn || r.status !== 'present') return false;
-      const [hours, minutes] = r.timeIn.split(':').map(Number);
-      return hours > 9 || (hours === 9 && minutes > 0);
-    }).length;
-    
-    const leaveApprovals = 12;
-    
-    return {
-      totalEmployees,
-      presentToday,
-      absentToday,
-      onLeaveToday,
-      onWFHToday,
-      lateCheckIns,
-      leaveApprovals
-    };
-  }, [attendance]);
+  // Stats are now fetched from backend, no need to calculate
 
   // Calculate attendance distribution for chart
   const attendanceDistribution = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
-    const todayRecords = attendance.filter(record => record.date === today);
-    
-    const uniqueEmployees = new Set(attendance.map(record => record.biometricId));
-    const totalEmployees = uniqueEmployees.size || 1;
-    
-    const presentCount = todayRecords.filter(r => r.status === 'present').length;
-    const absentCount = todayRecords.filter(r => r.status === 'absent').length;
-    const onLeaveCount = todayRecords.filter(r => r.status === 'on-leave').length;
-    const wfhCount = todayRecords.filter(r => r.status === 'wfh' || r.status === 'work-from-home').length;
+    const totalEmployees = stats.totalEmployees || 1;
+    const presentCount = stats.presentToday;
+    const absentCount = stats.absentToday;
+    const onLeaveCount = stats.onLeaveToday;
+    const wfhCount = stats.onWFHToday;
     
     const presentPercent = Math.round((presentCount / totalEmployees) * 100);
     const absentPercent = Math.round((absentCount / totalEmployees) * 100);
@@ -210,17 +191,13 @@ const AttendanceOverviewPage = () => {
       categories: ['Present', 'Absent', 'On Leave', 'WFH'],
       colors: ['#10b981', '#ef4444', '#f59e0b', '#3b82f6']
     };
-  }, [attendance]);
+  }, [stats]);
 
-  // Generate last 7 days trends data
+  // Generate last 7 days trends data (simplified - showing only today's data)
   const last7DaysTrends = useMemo(() => {
-    const dates = [];
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      dates.push(date.toISOString().split('T')[0]);
-    }
-
+    const today = new Date().toISOString().split('T')[0];
+    const dates = [today];
+    
     const formatDate = (dateStr) => {
       const date = new Date(dateStr);
       const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -231,11 +208,10 @@ const AttendanceOverviewPage = () => {
     const employeeMap = new Map();
     attendance.forEach(record => {
       if (!employeeMap.has(record.biometricId)) {
-        const employee = mockEmployees.find(emp => emp.biometricId === record.biometricId);
         employeeMap.set(record.biometricId, {
           biometricId: record.biometricId,
           name: record.employeeName,
-          department: record.department || employee?.department || 'General'
+          department: record.department || 'General'
         });
       }
     });
@@ -288,9 +264,7 @@ const AttendanceOverviewPage = () => {
 
   // Sales Person Attendance data
   const salesPersonAttendance = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
     const salesTeam = attendance.filter(record => 
-      record.date === today && 
       record.department === 'Sales' &&
       record.status === 'present'
     );
@@ -306,13 +280,7 @@ const AttendanceOverviewPage = () => {
 
   // Filtered attendance for main table
   const filteredAttendance = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
-    let filtered = attendance.filter(record => {
-      if (filterPeriod === 'daily') {
-        return record.date === today;
-      }
-      return true;
-    });
+    let filtered = [...attendance];
 
     if (filterDepartment !== 'all') {
       filtered = filtered.filter(record => record.department === filterDepartment);
@@ -320,14 +288,14 @@ const AttendanceOverviewPage = () => {
 
     if (searchQuery) {
       filtered = filtered.filter(record =>
-        record.employeeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        record.biometricId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        record.department.toLowerCase().includes(searchQuery.toLowerCase())
+        record.employeeName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        record.biometricId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        record.department?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
     return filtered;
-  }, [attendance, filterPeriod, filterDepartment, searchQuery]);
+  }, [attendance, filterDepartment, searchQuery]);
 
   // Format date for display
   const formatDate = (dateStr) => {
@@ -635,10 +603,9 @@ const AttendanceOverviewPage = () => {
               className="px-4 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Departments</option>
-              <option value="Engineering">Engineering</option>
-              <option value="Sales">Sales</option>
-              <option value="Finance">Finance</option>
-              <option value="Marketing">Marketing</option>
+              {Array.from(new Set(employees.map(emp => emp.department).filter(Boolean))).sort().map(dept => (
+                <option key={dept} value={dept}>{dept}</option>
+              ))}
             </select>
             <select
               value={filterLocation}

@@ -1,6 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
+import { useCompany } from '@/lib/context/CompanyContext';
+import { useToast } from '@/components/common/Toast';
 import { Users, AlertCircle, CheckCircle2, XCircle, Calendar, Settings, Users as UsersIcon, FileText, Plus, Search, Check, X, Edit, Trash2 } from 'lucide-react';
 import Card from '@/components/common/Card';
 import Button from '@/components/common/Button';
@@ -8,136 +11,276 @@ import Table from '@/components/common/Table';
 import Input from '@/components/common/Input';
 
 const LeavesManagePage = () => {
+  const params = useParams();
+  const companyId = params.companyId;
+  const { currentCompany } = useCompany();
+  const toast = useToast();
+  
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-
-  // Mock data
-  const leaveStats = {
+  const [leaveRequests, setLeaveRequests] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [leavePolicy, setLeavePolicy] = useState({
+    '0-6months': { casualLeave: 0, sickLeave: 3, earnedLeave: 0, compOff: 0 },
+    '6-12months': { casualLeave: 6, sickLeave: 6, earnedLeave: 0, compOff: 0 },
+    '1year+': { casualLeave: 12, sickLeave: 6, earnedLeave: 10, compOff: 0 }
+  });
+  const [leaveStats, setLeaveStats] = useState({
     totalOnLeave: 0,
-    leaveForApproval: 18,
-    approvedThisMonth: 4,
-    rejectedThisMonth: 3
+    leaveForApproval: 0,
+    approvedThisMonth: 0,
+    rejectedThisMonth: 0
+  });
+  const [loading, setLoading] = useState(true);
+  const [policyLoading, setPolicyLoading] = useState(true);
+
+  // Function to get company name
+  const getCompanyName = () => {
+    let company = currentCompany?.name;
+    if (!company && typeof window !== 'undefined') {
+      company = sessionStorage.getItem('selectedCompany') || 
+               sessionStorage.getItem('adminSelectedCompany');
+    }
+    if (!company && companyId && companyId !== 'undefined') {
+      if (typeof window !== 'undefined') {
+        company = sessionStorage.getItem(`company_${companyId}`);
+      }
+    }
+    return company;
   };
 
-  // Mock leave requests data
-  const leaveRequests = [
-    {
-      id: 1,
-      employeeName: 'John Doe',
-      leaveType: 'Sick Leave',
-      from: '2026-04-04',
-      to: '2026-04-08',
-      duration: 5,
-      reason: 'Recovery from surgery',
-      status: 'Pending'
-    },
-    {
-      id: 2,
-      employeeName: 'Kavita Nair',
-      leaveType: 'LOP',
-      from: '2026-04-03',
-      to: '2026-04-07',
-      duration: 5,
-      reason: 'Family emergency',
-      status: 'Approved'
-    },
-    {
-      id: 3,
-      employeeName: 'Priya Sharma',
-      leaveType: 'Earned Leave',
-      from: '2026-04-02',
-      to: '2026-04-02',
-      duration: 1,
-      reason: 'Wedding',
-      status: 'Rejected'
-    },
-    {
-      id: 4,
-      employeeName: 'Nikhil Agarwal',
-      leaveType: 'Sick Leave',
-      from: '2026-04-01',
-      to: '2026-04-04',
-      duration: 4,
-      reason: 'Mental health day',
-      status: 'Pending'
-    },
-    {
-      id: 5,
-      employeeName: 'Rajesh Patel',
-      leaveType: 'Casual Leave',
-      from: '2026-04-01',
-      to: '2026-04-04',
-      duration: 4,
-      reason: 'Moving to new house',
-      status: 'Approved'
-    },
-    {
-      id: 6,
-      employeeName: 'Sneha Reddy',
-      leaveType: 'Earned Leave',
-      from: '2026-03-31',
-      to: '2026-04-04',
-      duration: 5,
-      reason: 'Dental appointment',
-      status: 'Rejected'
-    },
-    {
-      id: 7,
-      employeeName: 'Robert Wilson',
-      leaveType: 'Earned Leave',
-      from: '2026-03-31',
-      to: '2026-04-04',
-      duration: 5,
-      reason: 'Home renovation',
-      status: 'Pending'
-    },
-    {
-      id: 8,
-      employeeName: 'Arjun Menon',
-      leaveType: 'Compensatory Off',
-      from: '2026-03-31',
-      to: '2026-04-04',
-      duration: 5,
-      reason: 'Recovery from surgery',
-      status: 'Rejected'
-    },
-    {
-      id: 9,
-      employeeName: 'Arjun Menon',
-      leaveType: 'Sick Leave',
-      from: '2026-03-29',
-      to: '2026-03-30',
-      duration: 2,
-      reason: 'Home renovation',
-      status: 'Approved'
-    },
-    {
-      id: 10,
-      employeeName: 'Jane Smith',
-      leaveType: 'Earned Leave',
-      from: '2026-03-28',
-      to: '2026-04-01',
-      duration: 5,
-      reason: 'Home renovation',
-      status: 'Approved'
+  // Fetch employees list for employee names
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        const company = getCompanyName();
+        
+        const params = new URLSearchParams();
+        if (company) {
+          params.append('company', company);
+        }
+
+        const headers = {
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        };
+        if (company) {
+          headers['x-company'] = company;
+        }
+
+        const res = await fetch(`/api/hrms-portal/employees?${params.toString()}`, { headers });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success) {
+            setEmployees(json.data.employees || []);
+          }
+        }
+      } catch (err) {
+        console.error('Fetch employees error:', err);
+      }
+    };
+
+    fetchEmployees();
+  }, [companyId, currentCompany]);
+
+  // Fetch leave policy
+  useEffect(() => {
+    const fetchLeavePolicy = async () => {
+      try {
+        setPolicyLoading(true);
+        const token = localStorage.getItem('auth_token');
+        const company = getCompanyName();
+        
+        const params = new URLSearchParams();
+        if (company) {
+          params.append('company', company);
+        }
+
+        const headers = {
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        };
+        if (company) {
+          headers['x-company'] = company;
+        }
+
+        const res = await fetch(`/api/hrms-portal/leave-policy?${params.toString()}`, { headers });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success) {
+            setLeavePolicy(json.data);
+          }
+        }
+      } catch (err) {
+        console.error('Fetch leave policy error:', err);
+      } finally {
+        setPolicyLoading(false);
+      }
+    };
+
+    fetchLeavePolicy();
+  }, [companyId, currentCompany]);
+
+  // Function to fetch and process leave requests
+  const fetchLeaveRequests = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('auth_token');
+      const company = getCompanyName();
+      
+      const params = new URLSearchParams();
+      params.append('type', 'time-off');
+      params.append('status', statusFilter === 'all' ? 'all' : statusFilter);
+      if (company) {
+        params.append('company', company);
+      }
+
+      const headers = {
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      };
+      if (company) {
+        headers['x-company'] = company;
+      }
+
+      const res = await fetch(`/api/hrms-portal/attendance-requests?${params.toString()}`, {
+        headers
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success) {
+          // Transform attendance requests to leave requests format
+          const originalRequests = json.data.requests || [];
+          
+          // Create employee map for name lookup
+          const employeeMap = new Map();
+          employees.forEach(emp => {
+            const empId = emp.employeeId || emp.email?.split('@')[0] || '';
+            if (empId) {
+              employeeMap.set(empId, emp.name || 'Unknown');
+            }
+          });
+          
+          const requests = originalRequests.map(req => {
+            // Parse date range (e.g., "22 Jan - 24 Jan" or "2026-01-22 - 2026-01-24")
+            let from = '';
+            let to = '';
+            let duration = 0;
+            
+            if (req.dateRange) {
+              const parts = req.dateRange.split(' - ');
+              if (parts.length === 2) {
+                from = parts[0].trim();
+                to = parts[1].trim();
+                // Try to parse dates and calculate duration
+                try {
+                  const fromDate = new Date(from);
+                  const toDate = new Date(to);
+                  if (!isNaN(fromDate.getTime()) && !isNaN(toDate.getTime())) {
+                    const diffTime = Math.abs(toDate - fromDate);
+                    duration = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                  }
+                } catch (e) {
+                  // If parsing fails, try to extract from string
+                  duration = 1; // Default to 1 day
+                }
+              }
+            }
+
+            // Get employee name from map
+            const employeeName = employeeMap.get(req.employeeId) || req.employeeId || 'Unknown';
+
+            return {
+              id: req.id,
+              employeeName: employeeName,
+              employeeId: req.employeeId,
+              leaveType: 'Time Off', // All time-off requests
+              from: from,
+              to: to,
+              duration: duration || 1,
+              reason: req.reason || '',
+              status: req.status === 'pending' ? 'Pending' : 
+                      req.status === 'approved' ? 'Approved' : 
+                      req.status === 'rejected' ? 'Rejected' : 'Pending',
+              dateRange: req.dateRange,
+              approvedAt: req.approvedAt,
+              rejectedAt: req.rejectedAt
+            };
+          });
+          
+          setLeaveRequests(requests);
+
+          // Calculate stats
+          const now = new Date();
+          const currentMonth = now.getMonth();
+          const currentYear = now.getFullYear();
+
+          const totalOnLeave = requests.filter(r => 
+            r.status === 'Approved' && 
+            r.from && r.to &&
+            new Date(r.from) <= now && new Date(r.to) >= now
+          ).length;
+
+          const leaveForApproval = requests.filter(r => r.status === 'Pending').length;
+          
+          const approvedThisMonth = requests.filter(r => {
+            if (r.status !== 'Approved' || !r.approvedAt) return false;
+            const approvedDate = new Date(r.approvedAt);
+            return approvedDate.getMonth() === currentMonth && 
+                   approvedDate.getFullYear() === currentYear;
+          }).length;
+
+          const rejectedThisMonth = requests.filter(r => {
+            if (r.status !== 'Rejected' || !r.rejectedAt) return false;
+            const rejectedDate = new Date(r.rejectedAt);
+            return rejectedDate.getMonth() === currentMonth && 
+                   rejectedDate.getFullYear() === currentYear;
+          }).length;
+
+          setLeaveStats({
+            totalOnLeave,
+            leaveForApproval,
+            approvedThisMonth,
+            rejectedThisMonth
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Fetch leave requests error:', err);
+      toast.error('Failed to load leave requests');
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  // Fetch leave requests (time-off requests from attendance requests)
+  useEffect(() => {
+    fetchLeaveRequests();
+  }, [statusFilter, companyId, currentCompany, employees, toast]);
 
   // Filter leave requests
   const filteredRequests = leaveRequests.filter(request => {
     const matchesStatus = statusFilter === 'all' || request.status.toLowerCase() === statusFilter.toLowerCase();
-    const matchesType = typeFilter === 'all' || request.leaveType.toLowerCase() === typeFilter.toLowerCase();
+    const matchesType = typeFilter === 'all' || request.leaveType.toLowerCase().includes(typeFilter.toLowerCase());
     const matchesSearch = !searchQuery || 
-      request.employeeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      request.leaveType.toLowerCase().includes(searchQuery.toLowerCase());
+      request.employeeName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      request.leaveType?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesType && matchesSearch;
   });
 
   const formatDate = (dateStr) => {
-    const date = new Date(dateStr);
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return `${months[date.getMonth()]} ${date.getDate().toString().padStart(2, '0')}, ${date.getFullYear()}`;
+    if (!dateStr) return '-';
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) {
+        // If it's not a valid date, try to parse as string format
+        return dateStr;
+      }
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return `${months[date.getMonth()]} ${date.getDate().toString().padStart(2, '0')}, ${date.getFullYear()}`;
+    } catch (e) {
+      return dateStr; // Return as-is if parsing fails
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -217,6 +360,81 @@ const LeavesManagePage = () => {
     }
   ];
 
+  // Handle approve/reject actions
+  const handleApprove = async (requestId) => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      const company = getCompanyName();
+      
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      };
+      if (company) {
+        headers['x-company'] = company;
+      }
+
+      const res = await fetch(`/api/hrms-portal/attendance-requests/${requestId}/approve`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ approvedBy: 'Admin' })
+      });
+
+      const json = await res.json();
+
+      if (res.ok && json.success) {
+        toast.success('Leave request approved successfully');
+        // Refresh data by refetching
+        await fetchLeaveRequests();
+      } else {
+        toast.error(json.error || 'Failed to approve request');
+      }
+    } catch (err) {
+      console.error('Approve request error:', err);
+      toast.error('An error occurred. Please try again.');
+    }
+  };
+
+  const handleReject = async (requestId) => {
+    const rejectionReason = prompt('Please provide a reason for rejection:');
+    if (!rejectionReason) return;
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const company = getCompanyName();
+      
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      };
+      if (company) {
+        headers['x-company'] = company;
+      }
+
+      const res = await fetch(`/api/hrms-portal/attendance-requests/${requestId}/reject`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ 
+          rejectedBy: 'Admin',
+          rejectionReason 
+        })
+      });
+
+      const json = await res.json();
+
+      if (res.ok && json.success) {
+        toast.success('Leave request rejected');
+        // Refresh data by refetching
+        await fetchLeaveRequests();
+      } else {
+        toast.error(json.error || 'Failed to reject request');
+      }
+    } catch (err) {
+      console.error('Reject request error:', err);
+      toast.error('An error occurred. Please try again.');
+    }
+  };
+
   // Generate actions for each row
   const getRowActions = (row) => {
     const actions = [];
@@ -224,12 +442,12 @@ const LeavesManagePage = () => {
       actions.push(
         {
           icon: <Check className="w-4 h-4" />,
-          onClick: () => alert(`Approve leave for ${row.employeeName}`),
+          onClick: () => handleApprove(row.id),
           title: 'Approve'
         },
         {
           icon: <X className="w-4 h-4" />,
-          onClick: () => alert(`Reject leave for ${row.employeeName}`),
+          onClick: () => handleReject(row.id),
           title: 'Reject',
           variant: 'danger'
         }
@@ -238,12 +456,12 @@ const LeavesManagePage = () => {
     actions.push(
       {
         icon: <Edit className="w-4 h-4" />,
-        onClick: () => alert(`Edit leave for ${row.employeeName}`),
+        onClick: () => toast.info('Edit functionality coming soon'),
         title: 'Edit'
       },
       {
         icon: <Trash2 className="w-4 h-4" />,
-        onClick: () => alert(`Delete leave for ${row.employeeName}`),
+        onClick: () => toast.info('Delete functionality coming soon'),
         title: 'Delete',
         variant: 'danger'
       }
@@ -317,41 +535,46 @@ const LeavesManagePage = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[
+          {policyLoading ? (
+            <div className="col-span-3 text-center py-8 text-slate-600">Loading leave policy...</div>
+          ) : [
             {
               tenure: '0-6 Months',
+              key: '0-6months',
               borderColor: 'border-blue-200',
               bgColor: 'bg-blue-50',
               iconColor: 'text-blue-600',
               policies: [
-                { type: 'Casual Leave', days: 0 },
-                { type: 'Sick Leave', days: 3 },
-                { type: 'Earned Leave', days: 0 },
-                { type: 'Compensatory Off', days: 0 }
+                { type: 'Casual Leave', days: leavePolicy['0-6months']?.casualLeave || 0 },
+                { type: 'Sick Leave', days: leavePolicy['0-6months']?.sickLeave || 3 },
+                { type: 'Earned Leave', days: leavePolicy['0-6months']?.earnedLeave || 0 },
+                { type: 'Compensatory Off', days: leavePolicy['0-6months']?.compOff || 0 }
               ]
             },
             {
               tenure: '6-12 Months',
+              key: '6-12months',
               borderColor: 'border-green-200',
               bgColor: 'bg-green-50',
               iconColor: 'text-green-600',
               policies: [
-                { type: 'Casual Leave', days: 6 },
-                { type: 'Sick Leave', days: 6 },
-                { type: 'Earned Leave', days: 0 },
-                { type: 'Compensatory Off', days: 0 }
+                { type: 'Casual Leave', days: leavePolicy['6-12months']?.casualLeave || 6 },
+                { type: 'Sick Leave', days: leavePolicy['6-12months']?.sickLeave || 6 },
+                { type: 'Earned Leave', days: leavePolicy['6-12months']?.earnedLeave || 0 },
+                { type: 'Compensatory Off', days: leavePolicy['6-12months']?.compOff || 0 }
               ]
             },
             {
               tenure: '1 Year+',
+              key: '1year+',
               borderColor: 'border-purple-200',
               bgColor: 'bg-purple-50',
               iconColor: 'text-purple-600',
               policies: [
-                { type: 'Casual Leave', days: 12 },
-                { type: 'Sick Leave', days: 6 },
-                { type: 'Earned Leave', days: 10 },
-                { type: 'Compensatory Off', days: 0 }
+                { type: 'Casual Leave', days: leavePolicy['1year+']?.casualLeave || 12 },
+                { type: 'Sick Leave', days: leavePolicy['1year+']?.sickLeave || 6 },
+                { type: 'Earned Leave', days: leavePolicy['1year+']?.earnedLeave || 10 },
+                { type: 'Compensatory Off', days: leavePolicy['1year+']?.compOff || 0 }
               ]
             }
           ].map((tenure, index) => (
@@ -447,14 +670,18 @@ const LeavesManagePage = () => {
         </div>
 
         {/* Table */}
-        <Table
-          columns={tableColumns}
-          data={filteredRequests}
-          pagination={true}
-          currentPage={1}
-          totalPages={Math.ceil(filteredRequests.length / 10)}
-          emptyMessage="No leave requests found"
-        />
+        {loading ? (
+          <div className="text-center py-8 text-slate-600">Loading leave requests...</div>
+        ) : (
+          <Table
+            columns={tableColumns}
+            data={filteredRequests}
+            pagination={true}
+            currentPage={1}
+            totalPages={Math.ceil(filteredRequests.length / 10)}
+            emptyMessage="No leave requests found"
+          />
+        )}
 
         {/* Pagination Info */}
         <div className="flex items-center justify-between mt-4 text-sm text-slate-600">

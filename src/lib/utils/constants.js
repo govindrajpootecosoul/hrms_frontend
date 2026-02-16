@@ -103,6 +103,6 @@ export const FILE_LIMITS = {
 };
 
 // API Configuration
-// Uses NEXT_PUBLIC_API_URL from next.config.mjs which gets it from network.config.js
+// Uses NEXT_PUBLIC_API_URL from .env.local file
 // This ensures the API URL is always in sync with the network configuration
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://192.168.50.107:5008/api';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;

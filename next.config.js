@@ -5,7 +5,7 @@ const { getApiUrl } = require('./config/network.config');
 const nextConfig = {
   reactStrictMode: true,
   env: {
-    // Use API URL from network.config.js (can be overridden by env var)
+    // Use API URL from .env.local file (must be set)
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || getApiUrl(),
   },
 };

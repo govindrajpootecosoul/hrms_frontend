@@ -3,8 +3,87 @@ import { writeFile, mkdir, readFile } from 'fs/promises';
 import { join } from 'path';
 import { spawn } from 'child_process';
 import { tmpdir } from 'os';
+import * as XLSX from 'xlsx';
 
 const sanitizeName = (name) => name.replace(/[<>:"|?*]/g, '_');
+
+/**
+ * Check if a file path contains a 'B2B' worksheet (indicating it's a GST file)
+ */
+function hasB2BWorksheet(filePath) {
+  try {
+    const workbook = XLSX.readFile(filePath, { sheetStubs: true });
+    const sheetNames = workbook.SheetNames.map(name => name.toLowerCase());
+    return sheetNames.includes('b2b');
+  } catch (error) {
+    return false;
+  }
+}
+
+/**
+ * Check filename patterns to guess file type
+ */
+function guessFileTypeFromName(fileName) {
+  const name = fileName?.toLowerCase() || '';
+  const gstKeywords = ['gstr', 'gst', 'b2b'];
+  const booksKeywords = ['book', 'books', 'bookkeeping', 'accounting'];
+  
+  const hasGSTKeyword = gstKeywords.some(keyword => name.includes(keyword));
+  const hasBooksKeyword = booksKeywords.some(keyword => name.includes(keyword));
+  
+  if (hasGSTKeyword && !hasBooksKeyword) return 'gst';
+  if (hasBooksKeyword && !hasGSTKeyword) return 'books';
+  return null;
+}
+
+/**
+ * Automatically detect which file is GST and which is books
+ * Returns indices: { gstIndex: 0 or 1, booksIndex: 0 or 1 }
+ */
+async function detectFileTypes(files, savedPaths) {
+  if (files.length !== 2 || savedPaths.length !== 2) {
+    return { gstIndex: 0, booksIndex: 1 };
+  }
+  
+  const [file1, file2] = files;
+  const [path1, path2] = savedPaths;
+  
+  // First, try filename-based detection
+  const file1Type = guessFileTypeFromName(file1.name);
+  const file2Type = guessFileTypeFromName(file2.name);
+  
+  if (file1Type === 'gst' && file2Type === 'books') {
+    return { gstIndex: 0, booksIndex: 1 };
+  }
+  if (file1Type === 'books' && file2Type === 'gst') {
+    return { gstIndex: 1, booksIndex: 0 };
+  }
+  
+  // If filename detection is ambiguous, check file content for B2B worksheet
+  const getExt = (path) => {
+    const idx = path.toLowerCase().lastIndexOf('.');
+    return idx >= 0 ? path.toLowerCase().substring(idx) : '';
+  };
+  
+  const path1Ext = getExt(path1);
+  const path2Ext = getExt(path2);
+  
+  // Check which file has B2B worksheet (only for Excel files)
+  if (['.xlsx', '.xls'].includes(path1Ext)) {
+    if (hasB2BWorksheet(path1)) {
+      return { gstIndex: 0, booksIndex: 1 };
+    }
+  }
+  
+  if (['.xlsx', '.xls'].includes(path2Ext)) {
+    if (hasB2BWorksheet(path2)) {
+      return { gstIndex: 1, booksIndex: 0 };
+    }
+  }
+  
+  // If still ambiguous, default to original order
+  return { gstIndex: 0, booksIndex: 1 };
+}
 
 export async function POST(request) {
   try {
@@ -22,22 +101,46 @@ export async function POST(request) {
       return NextResponse.json(
         {
           message:
-            'Please upload exactly 2 files: 1 GST Excel file (B2B) and 1 bookkeeping CSV/Excel file, in that order.',
+            'Please upload exactly 2 files: 1 GST Excel file (B2B) and 1 bookkeeping CSV/Excel file.',
         },
         { status: 400 }
       );
     }
 
-    const [gstFile, booksFile] = files;
+    // Create temp directory
+    const tempDir = join(tmpdir(), `books-vs-gst-${Date.now()}`);
+    await mkdir(tempDir, { recursive: true });
 
-    const getExt = (file) => {
-      const name = file.name?.split(/[/\\]/).pop() || '';
-      const idx = name.lastIndexOf('.');
-      return idx >= 0 ? name.toLowerCase().substring(idx) : '';
+    // Save both files first
+    const saveUploadedFile = async (file, fallbackName) => {
+      const bytes = await file.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+      const originalName = file.name?.split(/[/\\]/).pop() || fallbackName;
+      const sanitizedName = sanitizeName(originalName);
+      const filePath = join(tempDir, sanitizedName);
+      await writeFile(filePath, buffer);
+      return filePath;
     };
 
-    const gstExt = getExt(gstFile);
-    const booksExt = getExt(booksFile);
+    const savedPaths = [];
+    for (const file of files) {
+      const path = await saveUploadedFile(file, `file_${savedPaths.length}`);
+      savedPaths.push(path);
+    }
+
+    // Automatically detect which file is GST and which is books
+    const { gstIndex, booksIndex } = await detectFileTypes(files, savedPaths);
+    const gstPath = savedPaths[gstIndex];
+    const booksPath = savedPaths[booksIndex];
+
+    // Validate file extensions
+    const getExt = (path) => {
+      const idx = path.toLowerCase().lastIndexOf('.');
+      return idx >= 0 ? path.toLowerCase().substring(idx) : '';
+    };
+
+    const gstExt = getExt(gstPath);
+    const booksExt = getExt(booksPath);
 
     const excelExts = ['.xlsx', '.xls'];
     const allowedBooksExts = ['.csv', '.xlsx', '.xls'];
@@ -61,24 +164,6 @@ export async function POST(request) {
         { status: 400 }
       );
     }
-
-    // Create temp directory
-    const tempDir = join(tmpdir(), `books-vs-gst-${Date.now()}`);
-    await mkdir(tempDir, { recursive: true });
-
-    // Save GST and Books files
-    const saveUploadedFile = async (file, fallbackName) => {
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-      const originalName = file.name?.split(/[/\\]/).pop() || fallbackName;
-      const sanitizedName = sanitizeName(originalName);
-      const filePath = join(tempDir, sanitizedName);
-      await writeFile(filePath, buffer);
-      return filePath;
-    };
-
-    const gstPath = await saveUploadedFile(gstFile, 'gst_input.xlsx');
-    const booksPath = await saveUploadedFile(booksFile, 'books_input.csv');
 
     const scriptPath = join(
       process.cwd(),
@@ -123,12 +208,32 @@ export async function POST(request) {
           if (code !== 0) {
             console.error('Books vs GST Reconciliation stderr:', stderr);
             console.error('Books vs GST Reconciliation stdout:', stdout);
+            
+            // Extract meaningful error message from stdout/stderr
+            let errorMessage = 'Unknown error occurred';
+            
+            // Check for common errors in stdout
+            if (stdout.includes("Worksheet named 'B2B' not found")) {
+              errorMessage = 'The GST file does not contain a "B2B" worksheet. Please ensure you upload a valid GST Excel file exported from the GST portal with a B2B sheet.';
+            } else if (stdout.includes("No GST files processed successfully")) {
+              errorMessage = 'No GST files could be processed. Please check:\n- First file is a valid GST Excel file (.xlsx, .xls) with a "B2B" worksheet\n- Second file is a valid bookkeeping CSV/Excel file (.csv, .xlsx, .xls)\n- Python and required packages are installed';
+            } else if (stderr) {
+              errorMessage = `Processing error: ${stderr.substring(0, 500)}`;
+            } else if (stdout) {
+              // Try to extract error from stdout
+              const errorMatch = stdout.match(/Error[:\s]+(.+?)(?:\n|$)/i);
+              if (errorMatch) {
+                errorMessage = errorMatch[1].trim();
+              } else {
+                errorMessage = stdout.substring(0, 500);
+              }
+            }
+            
             return reject(
               NextResponse.json(
                 {
-                  message: `Python script failed: ${
-                    stderr || 'Unknown error'
-                  }`,
+                  message: errorMessage,
+                  details: stdout || stderr,
                 },
                 { status: 500 }
               )

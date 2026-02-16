@@ -1,0 +1,182 @@
+{
+  "project": "HRMS Admin Portal - Additional Tasks",
+  "totalTasks": 15,
+  "tasks": [
+    {
+      "id": 1,
+      "category": "Payroll",
+      "title": "Payroll Management System",
+      "description": "Build comprehensive payroll management system including salary calculation, payslip generation, tax deductions, and payroll processing workflow",
+      "priority": "High",
+      "storyPoints": 21,
+      "status": "To Do",
+      "dependencies": []
+    },
+    {
+      "id": 2,
+      "category": "Finance",
+      "title": "Expense Management & Approval",
+      "description": "Create expense submission, approval workflow, and reimbursement management system for employees",
+      "priority": "High",
+      "storyPoints": 13,
+      "status": "To Do",
+      "dependencies": []
+    },
+    {
+      "id": 3,
+      "category": "Performance Management",
+      "title": "Performance Review System",
+      "description": "Implement performance review cycles, goal setting, 360-degree feedback, and performance rating system",
+      "priority": "Medium",
+      "storyPoints": 13,
+      "status": "To Do",
+      "dependencies": []
+    },
+    {
+      "id": 4,
+      "category": "Asset Management",
+      "title": "Asset Allocation & Tracking",
+      "description": "Create asset allocation system to assign and track company assets (laptops, phones, etc.) to employees",
+      "priority": "Medium",
+      "storyPoints": 13,
+      "status": "To Do",
+      "dependencies": []
+    },
+    {
+      "id": 5,
+      "category": "Learning & Development",
+      "title": "Training & Development Management",
+      "description": "Build training program management, course assignment, progress tracking, and certification management",
+      "priority": "Medium",
+      "storyPoints": 13,
+      "status": "To Do",
+      "dependencies": []
+    },
+    {
+      "id": 6,
+      "category": "Employee Lifecycle",
+      "title": "Employee Exit Management",
+      "description": "Create exit interview process, clearance workflow, asset return tracking, and final settlement calculation",
+      "priority": "Medium",
+      "storyPoints": 8,
+      "status": "To Do",
+      "dependencies": [4]
+    },
+    {
+      "id": 7,
+      "category": "Compliance",
+      "title": "Compliance & Policy Management",
+      "description": "Build policy document management, employee acknowledgment tracking, and compliance reporting system",
+      "priority": "High",
+      "storyPoints": 8,
+      "status": "To Do",
+      "dependencies": []
+    },
+    {
+      "id": 8,
+      "category": "Organization Structure",
+      "title": "Department & Team Management",
+      "description": "Create department hierarchy management, team creation, reporting structure, and org chart visualization",
+      "priority": "High",
+      "storyPoints": 8,
+      "status": "To Do",
+      "dependencies": []
+    },
+    {
+      "id": 9,
+      "category": "Security & Permissions",
+      "title": "Employee Self-Service Portal Access Control",
+      "description": "Implement role-based access control (RBAC) for employee portal features and data visibility",
+      "priority": "High",
+      "storyPoints": 8,
+      "status": "To Do",
+      "dependencies": []
+    },
+    {
+      "id": 10,
+      "category": "Communication",
+      "title": "Notification Center & Alerts",
+      "description": "Build centralized notification system for admin actions, approvals, alerts, and system notifications",
+      "priority": "Medium",
+      "storyPoints": 8,
+      "status": "To Do",
+      "dependencies": []
+    },
+    {
+      "id": 11,
+      "category": "System Administration",
+      "title": "Data Backup & Recovery System",
+      "description": "Implement automated data backup, recovery procedures, and data retention policies",
+      "priority": "High",
+      "storyPoints": 13,
+      "status": "To Do",
+      "dependencies": []
+    },
+    {
+      "id": 12,
+      "category": "Security & Compliance",
+      "title": "Audit Trail & Activity Logging",
+      "description": "Create comprehensive audit trail system logging all admin actions, data changes, and system events",
+      "priority": "High",
+      "storyPoints": 8,
+      "status": "To Do",
+      "dependencies": []
+    },
+    {
+      "id": 13,
+      "category": "Operations",
+      "title": "Bulk Operations Dashboard",
+      "description": "Build dashboard for bulk operations (bulk leave approval, bulk attendance marking, bulk notifications)",
+      "priority": "Medium",
+      "storyPoints": 8,
+      "status": "To Do",
+      "dependencies": [12]
+    },
+    {
+      "id": 14,
+      "category": "Configuration",
+      "title": "Custom Field Management",
+      "description": "Allow admins to add custom fields to employee profiles, forms, and data collection",
+      "priority": "Low",
+      "storyPoints": 8,
+      "status": "To Do",
+      "dependencies": []
+    },
+    {
+      "id": 15,
+      "category": "Integration",
+      "title": "Integration Hub & API Management",
+      "description": "Create API management system, third-party integrations (Slack, email, calendar), and webhook configuration",
+      "priority": "Medium",
+      "storyPoints": 13,
+      "status": "To Do",
+      "dependencies": []
+    }
+  ],
+  "summary": {
+    "totalStoryPoints": 165,
+    "highPriority": 7,
+    "mediumPriority": 6,
+    "lowPriority": 1,
+    "niceToHave": 1,
+    "categories": {
+      "Payroll": 1,
+      "Finance": 1,
+      "Performance Management": 1,
+      "Asset Management": 1,
+      "Learning & Development": 1,
+      "Employee Lifecycle": 1,
+      "Compliance": 1,
+      "Organization Structure": 1,
+      "Security & Permissions": 1,
+      "Communication": 1,
+      "System Administration": 1,
+      "Security & Compliance": 1,
+      "Operations": 1,
+      "Configuration": 1,
+      "Integration": 1
+    }
+  }
+}
+
+

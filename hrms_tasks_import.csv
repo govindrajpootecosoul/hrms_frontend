@@ -1,0 +1,53 @@
+Task ID,Portal,Category,Title,Description,Priority,Story Points,Status,Dependencies
+1,HRMS Admin,Dashboard,"Dashboard Performance Optimization","Optimize dashboard loading time by implementing lazy loading and caching for non-critical data",High,8,To Do,
+2,HRMS Admin,Dashboard,"Real-time Attendance Widget","Add real-time attendance counter widget that updates every 30 seconds without full page refresh",High,5,To Do,
+3,HRMS Admin,Dashboard,"Dashboard Export Functionality","Add export to PDF/Excel for dashboard reports and KPIs",Medium,8,To Do,
+4,HRMS Admin,Dashboard,"Custom Dashboard Widgets","Allow admins to customize dashboard layout and add/remove widgets",Low,13,To Do,
+5,HRMS Admin,Dashboard,"Attendance Trend Charts","Implement interactive charts showing attendance trends over time (line charts, bar charts)",Nice to Have,13,To Do,
+6,HRMS Admin,Employee Management,"Bulk Employee Import","Create CSV/Excel import functionality for adding multiple employees at once",High,8,To Do,
+7,HRMS Admin,Employee Management,"Employee Profile Photo Upload","Add profile photo upload and management for employees",Medium,5,To Do,6
+8,HRMS Admin,Employee Management,"Employee Document Management","Create document upload and management system for employee files (contracts, certificates, etc.)",Low,13,To Do,6
+9,HRMS Admin,Employee Management,"Employee Search & Filters","Enhance employee search with advanced filters (department, status, date joined, etc.)",Nice to Have,3,To Do,
+10,HRMS Admin,Employee Management,"Employee Export","Add export functionality to export employee data to CSV/Excel/PDF",Medium,8,To Do,
+11,HRMS Admin,Attendance Management,"Attendance Regularization Approval","Build approval workflow for attendance regularization requests from employees",High,8,To Do,2
+12,HRMS Admin,Attendance Management,"Bulk Attendance Marking","Allow admins to mark attendance for multiple employees at once",Medium,5,To Do,2
+13,HRMS Admin,Attendance Management,"Attendance Reports Generation","Create comprehensive attendance reports (daily, weekly, monthly) with filters",Low,13,To Do,2
+14,HRMS Admin,Attendance Management,"Shift Management","Implement shift creation, assignment, and management system",Nice to Have,13,To Do,
+15,HRMS Admin,Attendance Management,"Holiday Calendar Management","Create holiday calendar with ability to add/edit/delete holidays",Medium,8,To Do,
+16,HRMS Admin,Leave Management,"Leave Balance Management","Add manual leave balance adjustment functionality for admins",High,5,To Do,15
+17,HRMS Admin,Leave Management,"Leave Policy Configuration","Create leave policy configuration page (leave types, accrual rules, etc.)",Medium,8,To Do,15
+18,HRMS Admin,Leave Management,"Leave Approval Workflow","Implement multi-level leave approval workflow",Low,13,To Do,15
+19,HRMS Admin,Leave Management,"Leave Reports","Generate leave reports with analytics (leave utilization, pending approvals, etc.)",Nice to Have,13,To Do,15
+20,HRMS Admin,Leave Management,"Leave Calendar View","Add calendar view showing all employee leaves for better planning",Medium,8,To Do,15
+21,HRMS Admin,Recruitment,"Job Posting Management","Create job posting creation and management system",Medium,8,To Do,
+22,HRMS Admin,Recruitment,"Candidate Application Tracking","Build candidate application tracking and status management",Low,13,To Do,21
+23,HRMS Admin,Recruitment,"Interview Scheduling","Implement interview scheduling system with calendar integration",Nice to Have,13,To Do,21
+24,HRMS Admin,Recruitment,"Employee Onboarding Checklist","Create onboarding checklist and workflow for new employees",Medium,13,To Do,21
+25,HRMS Admin,Recruitment,"Offer Letter Generation","Add offer letter template and generation functionality",Medium,8,To Do,21
+26,Employee Portal,Dashboard,"Personal Dashboard Widgets","Allow employees to customize their dashboard widgets",High,8,To Do,
+27,Employee Portal,Dashboard,"Quick Actions Panel","Add quick actions panel for common tasks (check-in, leave request, etc.)",Medium,3,To Do,
+28,Employee Portal,Dashboard,"Announcements Feed","Create announcements feed showing company-wide updates",Low,3,To Do,
+29,Employee Portal,Dashboard,"Upcoming Events Calendar","Display upcoming company events, holidays, and important dates",Nice to Have,3,To Do,
+30,Employee Portal,Dashboard,"Performance Metrics Widget","Show personal performance metrics and achievements",Medium,8,To Do,
+31,Employee Portal,Attendance,"Check-in/Check-out Location Tracking","Add GPS location tracking for check-in/check-out",High,8,To Do,
+32,Employee Portal,Attendance,"Break Time Management","Implement break time tracking (lunch breaks, tea breaks)",Medium,5,To Do,30
+33,Employee Portal,Attendance,"Overtime Request","Create overtime request and approval workflow",Low,13,To Do,30
+34,Employee Portal,Attendance,"Attendance History Export","Allow employees to export their attendance history",Nice to Have,3,To Do,
+35,Employee Portal,Attendance,"Time Sheet Submission","Add time sheet submission and approval workflow",Medium,13,To Do,
+36,Employee Portal,Leave Management,"Leave Balance Display","Show detailed leave balance breakdown (earned, used, pending, available)",High,5,To Do,35
+37,Employee Portal,Leave Management,"Leave Request Drafts","Allow saving leave requests as drafts before submission",Medium,5,To Do,35
+38,Employee Portal,Leave Management,"Leave Calendar Integration","Show personal leave calendar with team members' leaves",Low,13,To Do,35
+39,Employee Portal,Leave Management,"Leave Request History","Display complete leave request history with status tracking",Nice to Have,3,To Do,35
+40,Employee Portal,Leave Management,"Emergency Leave Request","Create quick emergency leave request flow",Medium,8,To Do,35
+41,Employee Portal,Requests,"Request Status Tracking","Real-time status tracking for all submitted requests",High,5,To Do,
+42,Employee Portal,Requests,"Request Templates","Create reusable request templates for common requests",Medium,5,To Do,
+43,Employee Portal,Requests,"Request Reminders","Send reminders for pending approvals and requests",Low,8,To Do,
+44,Employee Portal,Requests,"Request History Export","Export request history to PDF/Excel",Nice to Have,3,To Do,
+45,Employee Portal,Requests,"Bulk Request Submission","Allow submitting multiple requests at once",Medium,13,To Do,
+46,Employee Portal,Profile,"Profile Completion Progress","Show profile completion progress with checklist",High,5,To Do,
+47,Employee Portal,Profile,"Emergency Contact Management","Add emergency contact information management",Medium,5,To Do,
+48,Employee Portal,Profile,"Bank Account Details","Secure bank account details management",Low,8,To Do,
+49,Employee Portal,Profile,"Notification Preferences","Allow employees to configure notification preferences",Nice to Have,3,To Do,
+50,Employee Portal,Profile,"Password Change","Implement secure password change functionality",Medium,5,To Do,
+
+

@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://192.168.50.107:5008/api/query-tracker';
+// API URL must be set in .env.local file as NEXT_PUBLIC_QUERY_TRACKER_API_URL
+// For React apps, use REACT_APP_API_URL or NEXT_PUBLIC_QUERY_TRACKER_API_URL
+const API_URL = process.env.REACT_APP_API_URL || process.env.NEXT_PUBLIC_QUERY_TRACKER_API_URL;
 
 const api = axios.create({
   baseURL: API_URL,

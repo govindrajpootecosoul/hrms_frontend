@@ -1,43 +1,107 @@
 'use client';
 
+import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
+import { useCompany } from '@/lib/context/CompanyContext';
+import { useToast } from '@/components/common/Toast';
 import { Users, AlertCircle, CheckCircle2, XCircle, Calendar, Stethoscope, Star, FileText, Home, Ban } from 'lucide-react';
 import BarGraph from '@/components/charts/BarGraph';
 import Card from '@/components/common/Card';
 import Button from '@/components/common/Button';
 
 const AttendanceLeaveOverviewPage = () => {
-  // Mock data for statistics cards
-  const leaveStats = {
+  const params = useParams();
+  const companyId = params.companyId;
+  const { currentCompany } = useCompany();
+  const toast = useToast();
+  
+  const [leaveStats, setLeaveStats] = useState({
     totalOnLeave: 0,
-    leaveForApproval: 18,
-    approvedThisMonth: 4,
-    rejectedThisMonth: 3
-  };
+    leaveForApproval: 0,
+    approvedThisMonth: 0,
+    rejectedThisMonth: 0
+  });
+  
+  const [leaveUtilizationData, setLeaveUtilizationData] = useState([
+    { name: 'Utilized', data: [] },
+    { name: 'Remaining', data: [] }
+  ]);
+  
+  const [employeeNames, setEmployeeNames] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data for yearly leave utilization
-  const employeeNames = [
-    'John Doe',
-    'Jane Smith',
-    'Mike Johnson',
-    'Sarah Williams',
-    'David Brown',
-    'Emily Davis',
-    'Robert Wilson',
-    'Lisa Anderson',
-    'Alex Kumar',
-    'Priya Sharma',
-    'Rajesh Patel',
-    'Sneha Reddy',
-    'Vikram Singh',
-    'Anita Desai',
-    'Rahul Mehta'
-  ];
+  // Fetch leave overview data
+  useEffect(() => {
+    const fetchLeaveOverview = async () => {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem('auth_token');
+        
+        // Get company name from multiple sources
+        let company = currentCompany?.name;
+        if (!company && typeof window !== 'undefined') {
+          company = sessionStorage.getItem('selectedCompany') || 
+                   sessionStorage.getItem('adminSelectedCompany');
+        }
+        // If still no company and companyId is a number, try to map it
+        if (!company && companyId && companyId !== 'undefined') {
+          // Try to get from sessionStorage with companyId key
+          if (typeof window !== 'undefined') {
+            company = sessionStorage.getItem(`company_${companyId}`);
+          }
+        }
+        
+        const params = new URLSearchParams();
+        if (company) {
+          params.append('company', company);
+        }
 
-  // Mock data: utilized and remaining leave days for each employee
-  const leaveUtilizationData = [
-    { name: 'Utilized', data: [5, 12, 8, 3, 7, 15, 4, 2, 9, 6, 11, 13, 14, 5, 1] },
-    { name: 'Remaining', data: [7, 0, 4, 9, 5, 0, 8, 10, 3, 6, 1, 0, 0, 7, 11] }
-  ];
+        const headers = {
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        };
+        if (company) {
+          headers['x-company'] = company;
+        }
+        
+        console.log('[Leave Overview] Fetching with company:', company);
+
+        const [statsRes, utilizationRes] = await Promise.all([
+          fetch(`/api/hrms-portal/leaves/overview/stats?${params.toString()}`, { headers }),
+          fetch(`/api/hrms-portal/leaves/overview/utilization?${params.toString()}`, { headers })
+        ]);
+
+        if (statsRes.ok) {
+          const statsJson = await statsRes.json();
+          if (statsJson.success) {
+            setLeaveStats(statsJson.data);
+          }
+        }
+
+        if (utilizationRes.ok) {
+          const utilJson = await utilizationRes.json();
+          if (utilJson.success && utilJson.data.utilization) {
+            const utilization = utilJson.data.utilization;
+            const names = utilization.map(item => item.employee);
+            const utilized = utilization.map(item => item.utilized);
+            const remaining = utilization.map(item => item.remaining);
+            
+            setEmployeeNames(names);
+            setLeaveUtilizationData([
+              { name: 'Utilized', data: utilized },
+              { name: 'Remaining', data: remaining }
+            ]);
+          }
+        }
+      } catch (err) {
+        console.error('Fetch leave overview error:', err);
+        toast.error('Failed to load leave overview data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLeaveOverview();
+  }, [companyId, currentCompany, toast]);
 
   // Leave Policy items
   const leavePolicyItems = [
@@ -188,22 +252,32 @@ const AttendanceLeaveOverviewPage = () => {
         {/* Bar Chart - Right */}
         <div className="lg:col-span-2">
           <Card className="border-2 p-6">
-            <BarGraph
-              title="Yearly Leave Utilization"
-              subtitle="Leave utilization per employee for current year"
-              data={leaveUtilizationData}
-              categories={employeeNames}
-              seriesName="Days"
-              height={460}
-              colors={['#ef4444', '#10b981']}
-              showGrid={true}
-              showLegend={true}
-              stacked={true}
-              horizontal={false}
-              dataLabels={false}
-              yAxisTitle="Days"
-              xAxisTitle=""
-            />
+            {loading ? (
+              <div className="flex items-center justify-center h-[460px]">
+                <div className="text-slate-600">Loading leave utilization data...</div>
+              </div>
+            ) : employeeNames.length === 0 ? (
+              <div className="flex items-center justify-center h-[460px]">
+                <div className="text-slate-600">No leave utilization data available</div>
+              </div>
+            ) : (
+              <BarGraph
+                title="Yearly Leave Utilization"
+                subtitle="Leave utilization per employee for current year"
+                data={leaveUtilizationData}
+                categories={employeeNames}
+                seriesName="Days"
+                height={460}
+                colors={['#ef4444', '#10b981']}
+                showGrid={true}
+                showLegend={true}
+                stacked={true}
+                horizontal={false}
+                dataLabels={false}
+                yAxisTitle="Days"
+                xAxisTitle=""
+              />
+            )}
           </Card>
         </div>
       </div>
@@ -212,6 +286,7 @@ const AttendanceLeaveOverviewPage = () => {
 };
 
 export default AttendanceLeaveOverviewPage;
+
 
 
 

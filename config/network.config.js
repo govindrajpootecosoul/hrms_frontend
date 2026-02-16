@@ -1,24 +1,33 @@
 /**
  * Network Configuration for Main Frontend
  * 
- * ⚠️ IMPORTANT: Update only this file to change network settings
- * This is the SINGLE SOURCE OF TRUTH for main frontend network configuration
+ * ⚠️ IMPORTANT: Update .env.local file to change network settings
+ * This file reads from environment variables only
  * 
  * To change network settings:
- * 1. Update SERVER_IP, FRONTEND_PORT, and BACKEND_PORT below
- * 2. Or set environment variables: SERVER_IP, FRONTEND_PORT, BACKEND_PORT
+ * Update SERVER_IP, FRONTEND_PORT, and BACKEND_PORT in .env.local file
  */
 
+// Validate required environment variables
+if (!process.env.SERVER_IP) {
+  throw new Error('SERVER_IP must be set in .env.local file');
+}
+if (!process.env.FRONTEND_PORT) {
+  throw new Error('FRONTEND_PORT must be set in .env.local file');
+}
+if (!process.env.BACKEND_PORT) {
+  throw new Error('BACKEND_PORT must be set in .env.local file');
+}
+
 const networkConfig = {
-  // Server IP Address (change this to your network IP)
-  // Examples: '192.168.50.107', '192.168.1.100', 'localhost'
-  serverIp: process.env.SERVER_IP || '192.168.50.107',
+  // Server IP Address (must be set in .env.local file)
+  serverIp: process.env.SERVER_IP,
   
-  // Frontend Port (change this to your desired port)
-  frontendPort: parseInt(process.env.FRONTEND_PORT) || 3000,
+  // Frontend Port (must be set in .env.local file)
+  frontendPort: parseInt(process.env.FRONTEND_PORT),
   
-  // Backend Port (must match backend network.config.js)
-  backendPort: parseInt(process.env.BACKEND_PORT) || 5008,
+  // Backend Port (must be set in .env.local file)
+  backendPort: parseInt(process.env.BACKEND_PORT),
 };
 
 // Helper function to get frontend URL
