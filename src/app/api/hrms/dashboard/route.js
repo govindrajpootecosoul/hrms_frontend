@@ -27,13 +27,13 @@ export async function GET(request) {
     };
 
     const [
-      statsResponse,
+      attendanceStatsResponse,
       employeesResponse,
       attendanceResponse,
       leavesResponse,
     ] = await Promise.all([
-      // Stats endpoint (critical - 5 second timeout)
-      fetchWithTimeout(`${baseUrl}/stats${queryString ? `?${queryString}` : ''}`, 5000),
+      // Attendance stats endpoint (critical - 5 second timeout) - includes Present, Absent, WFH
+      fetchWithTimeout(`${API_BASE_URL}/hrms/attendance/stats${queryString ? `?${queryString}` : ''}`, 5000),
       // Employees for headcount calculation (critical - 5 second timeout)
       fetchWithTimeout(`${API_BASE_URL}/admin-users${queryString ? `?${queryString}` : ''}`, 5000),
       // Today's attendance (less critical - 3 second timeout)
@@ -42,22 +42,49 @@ export async function GET(request) {
       fetchWithTimeout(`${API_BASE_URL}/attendance/leaves?status=Pending${queryString ? `&${queryString}` : ''}`, 3000),
     ]);
 
-    // Process stats
+    // Process stats - now includes Present, Absent, and WFH
     let stats = {
       totalEmployees: 0,
       activeEmployees: 0,
-      todayAttendance: 0,
+      presentToday: 0,
+      absentToday: 0,
+      wfhToday: 0,
+      todayAttendance: 0, // Keep for backward compatibility
       pendingLeaves: 0,
       upcomingBirthdays: 0,
     };
 
-    if (statsResponse && statsResponse.ok) {
-      const statsData = await statsResponse.json();
-      if (statsData.success && statsData.data) {
-        stats = { ...stats, ...statsData.data };
-      } else if (statsData.totalEmployees !== undefined) {
-        stats = { ...stats, ...statsData };
+    // Process attendance stats (includes Present, Absent, WFH)
+    if (attendanceStatsResponse && attendanceStatsResponse.ok) {
+      try {
+        const attendanceStatsData = await attendanceStatsResponse.json();
+        console.log('[Dashboard API] Attendance stats response:', JSON.stringify(attendanceStatsData, null, 2));
+        
+        if (attendanceStatsData.success && attendanceStatsData.data) {
+          stats.totalEmployees = attendanceStatsData.data.totalEmployees || 0;
+          stats.presentToday = attendanceStatsData.data.presentToday || 0;
+          stats.absentToday = attendanceStatsData.data.absentToday || 0;
+          stats.wfhToday = attendanceStatsData.data.onWFHToday || 0;
+          stats.todayAttendance = attendanceStatsData.data.presentToday || 0; // For backward compatibility
+          
+          console.log('[Dashboard API] Processed stats:', {
+            totalEmployees: stats.totalEmployees,
+            presentToday: stats.presentToday,
+            absentToday: stats.absentToday,
+            wfhToday: stats.wfhToday
+          });
+        } else {
+          console.warn('[Dashboard API] Attendance stats response missing success or data:', attendanceStatsData);
+        }
+      } catch (err) {
+        console.error('[Dashboard API] Error parsing attendance stats response:', err);
       }
+    } else {
+      console.warn('[Dashboard API] Attendance stats response not OK:', {
+        ok: attendanceStatsResponse?.ok,
+        status: attendanceStatsResponse?.status,
+        statusText: attendanceStatsResponse?.statusText
+      });
     }
 
     // Calculate from employees if stats endpoint doesn't provide all data
@@ -66,7 +93,10 @@ export async function GET(request) {
       const employeesData = await employeesResponse.json();
       if (employeesData.success && employeesData.users) {
         employees = employeesData.users;
-        stats.totalEmployees = employees.length;
+        // Only update totalEmployees if not already set from attendance stats
+        if (!stats.totalEmployees || stats.totalEmployees === 0) {
+          stats.totalEmployees = employees.length;
+        }
         stats.activeEmployees = employees.filter(e => e.active !== false).length;
 
         // Calculate upcoming birthdays (next 30 days)
@@ -148,17 +178,52 @@ export async function GET(request) {
       }
     }
 
-    // Fallback to attendance endpoint if check-ins not available
-    if (stats.todayAttendance === 0 && attendanceResponse && attendanceResponse.ok) {
-      const attendanceData = await attendanceResponse.json();
-      if (attendanceData.success && attendanceData.attendance) {
-        stats.todayAttendance = attendanceData.attendance.filter(
-          a => a.status === 'Present' || a.status === 'present'
-        ).length;
-      } else if (Array.isArray(attendanceData)) {
-        stats.todayAttendance = attendanceData.filter(
-          a => a.status === 'Present' || a.status === 'present'
-        ).length;
+    // Fallback: If attendance stats didn't provide present/absent/wfh, try to calculate from attendance data
+    // Only use this if presentToday wasn't already set from attendance stats
+    if ((stats.presentToday === 0 && stats.absentToday === 0 && stats.wfhToday === 0) && attendanceResponse && attendanceResponse.ok) {
+      try {
+        const attendanceData = await attendanceResponse.json();
+        console.log('[Dashboard API] Fallback: Using attendance data:', attendanceData);
+        
+        let attendanceRecords = [];
+        if (attendanceData.success && attendanceData.data && attendanceData.data.records) {
+          attendanceRecords = attendanceData.data.records;
+        } else if (attendanceData.success && attendanceData.attendance) {
+          attendanceRecords = attendanceData.attendance;
+        } else if (Array.isArray(attendanceData)) {
+          attendanceRecords = attendanceData;
+        }
+        
+        if (attendanceRecords.length > 0) {
+          const presentCount = attendanceRecords.filter(
+            a => (a.status === 'Present' || a.status === 'present') && 
+                 a.status !== 'wfh' && a.status !== 'WFH'
+          ).length;
+          
+          const wfhCount = attendanceRecords.filter(
+            a => a.status === 'wfh' || a.status === 'WFH' || 
+                 a.location === 'remote' || a.location === 'WFH' || a.location === 'wfh'
+          ).length;
+          
+          // Calculate absent if we have total employees
+          const absentCount = stats.totalEmployees > 0 
+            ? Math.max(0, stats.totalEmployees - presentCount - wfhCount - (stats.pendingLeaves || 0))
+            : 0;
+          
+          stats.presentToday = presentCount;
+          stats.absentToday = absentCount;
+          stats.wfhToday = wfhCount;
+          stats.todayAttendance = presentCount; // For backward compatibility
+          
+          console.log('[Dashboard API] Fallback calculated stats:', {
+            presentToday: stats.presentToday,
+            absentToday: stats.absentToday,
+            wfhToday: stats.wfhToday,
+            totalEmployees: stats.totalEmployees
+          });
+        }
+      } catch (err) {
+        console.error('[Dashboard API] Error in fallback calculation:', err);
       }
     }
 

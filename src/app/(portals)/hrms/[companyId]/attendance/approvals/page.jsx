@@ -11,6 +11,7 @@ import Input from '@/components/common/Input';
 import Select from '@/components/common/Select';
 import Button from '@/components/common/Button';
 import Badge from '@/components/common/Badge';
+import RejectionReasonDialog from '@/components/hrms/RejectionReasonDialog';
 
 const AttendanceApprovalsPage = () => {
   const params = useParams();
@@ -31,6 +32,10 @@ const AttendanceApprovalsPage = () => {
     rejectedToday: 0,
     total: 0
   });
+
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectingRequestId, setRejectingRequestId] = useState(null);
+  const [rejectLoading, setRejectLoading] = useState(false);
 
   // Fetch attendance requests
   const fetchRequests = async () => {
@@ -138,11 +143,17 @@ const AttendanceApprovalsPage = () => {
     }
   };
 
-  const handleReject = async (requestId) => {
-    const rejectionReason = prompt('Please provide a reason for rejection:');
-    if (!rejectionReason) return;
+  const openRejectDialog = (requestId) => {
+    setRejectingRequestId(requestId);
+    setRejectDialogOpen(true);
+  };
+
+  const handleRejectConfirm = async (rejectionReason) => {
+    const requestId = rejectingRequestId;
+    if (!requestId) return;
 
     try {
+      setRejectLoading(true);
       const token = localStorage.getItem('auth_token');
       const company = currentCompany?.name || companyId;
       
@@ -167,6 +178,8 @@ const AttendanceApprovalsPage = () => {
 
       if (res.ok && json.success) {
         toast.success('Request rejected');
+        setRejectDialogOpen(false);
+        setRejectingRequestId(null);
         fetchRequests();
         fetchStats();
       } else {
@@ -175,6 +188,8 @@ const AttendanceApprovalsPage = () => {
     } catch (err) {
       console.error('Reject request error:', err);
       toast.error('An error occurred. Please try again.');
+    } finally {
+      setRejectLoading(false);
     }
   };
 
@@ -320,7 +335,7 @@ const AttendanceApprovalsPage = () => {
             </Button>
             <Button
               size="sm"
-              onClick={() => handleReject(row.id)}
+              onClick={() => openRejectDialog(row.id)}
               className="bg-red-600 hover:bg-red-700 text-white"
             >
               Reject
@@ -396,6 +411,19 @@ const AttendanceApprovalsPage = () => {
         loading={loading}
         pagination={true}
         emptyMessage="No attendance requests found."
+      />
+
+      <RejectionReasonDialog
+        open={rejectDialogOpen}
+        title="Reject Attendance Request"
+        description="Please provide a reason for rejection. This will be saved with the request."
+        loading={rejectLoading}
+        onCancel={() => {
+          if (rejectLoading) return;
+          setRejectDialogOpen(false);
+          setRejectingRequestId(null);
+        }}
+        onConfirm={handleRejectConfirm}
       />
     </div>
   );

@@ -62,6 +62,7 @@ const EmployeePortalHome = () => {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [now, setNow] = useState(new Date());
   const [selectedCompany, setSelectedCompany] = useState(null);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
 
   // Auto-detect company from user email
   useEffect(() => {
@@ -264,6 +265,55 @@ const EmployeePortalHome = () => {
     };
     
     fetchCheckInHistory();
+  }, [user?.employeeId, selectedCompany]);
+
+  // Fetch pending leave requests count
+  useEffect(() => {
+    const fetchPendingRequestsCount = async () => {
+      if (!user?.employeeId) return;
+      try {
+        const token = localStorage.getItem('auth_token');
+        const company = selectedCompany || (typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null);
+        
+        const params = new URLSearchParams();
+        params.append('employeeId', user.employeeId);
+        if (company) {
+          params.append('company', company);
+        }
+
+        const headers = {
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        };
+        if (company) {
+          headers['x-company'] = company;
+        }
+
+        // Use Next.js API proxy route
+        const res = await fetch(
+          `/api/employee-portal/attendance-requests?${params.toString()}`,
+          { headers }
+        );
+        if (res.ok) {
+          const json = await res.json();
+          if (json?.success && json?.data) {
+            // Count pending time-off requests
+            const pendingCount = (json.data.requests || [])
+              .filter(req => req.type === 'time-off' && req.status?.toLowerCase() === 'pending')
+              .length;
+            setPendingRequestsCount(pendingCount);
+            console.log('[Employee Portal Dashboard] Pending requests count:', pendingCount);
+          }
+        }
+      } catch (err) {
+        console.error('[Employee Portal Dashboard] Failed to fetch pending requests count', err);
+      }
+    };
+    
+    fetchPendingRequestsCount();
+    
+    // Refresh every 30 seconds to get latest count
+    const interval = setInterval(fetchPendingRequestsCount, 30000);
+    return () => clearInterval(interval);
   }, [user?.employeeId, selectedCompany]);
 
   const greeting = useMemo(() => {
@@ -544,11 +594,13 @@ const EmployeePortalHome = () => {
   // Use live data from backend, show empty arrays if data not loaded yet
   const announcements = dashboardData?.announcements || [];
   const attendanceTrend = dashboardData?.attendanceTrend || [];
-  const quickStats = dashboardData?.quickStats || {
-    leaveBalance: 0,
-    upcomingShift: 'Not scheduled',
-    pendingRequests: 0,
-    lastPayout: 'N/A',
+  const quickStats = {
+    ...(dashboardData?.quickStats || {
+      leaveBalance: 0,
+      upcomingShift: 'Not scheduled',
+      lastPayout: 'N/A',
+    }),
+    pendingRequests: pendingRequestsCount, // Use real-time pending requests count
   };
   const requestHistory = dashboardData?.requestHistory || [];
   const assets = dashboardData?.assets || [];

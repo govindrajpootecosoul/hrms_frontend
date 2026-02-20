@@ -1,12 +1,15 @@
 'use client';
 
-import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Check, User, Briefcase, DollarSign, MessageSquare } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { ChevronLeft, ChevronRight, Check, User, Briefcase, DollarSign, MessageSquare, Settings, Upload, FileSpreadsheet } from 'lucide-react';
 import Modal from '@/components/common/Modal';
 import Button from '@/components/common/Button';
 import Input from '@/components/common/Input';
 import Select from '@/components/common/Select';
 import Textarea from '@/components/common/Textarea';
+import RecruiterManagementDialog from './RecruiterManagementDialog';
+import { useCompany } from '@/lib/context/CompanyContext';
+import { useParams } from 'next/navigation';
 
 const PHASES = [
   {
@@ -39,17 +42,12 @@ const statusOptions = [
   { value: 'New', label: 'New' },
   { value: 'Shortlisted', label: 'Shortlisted' },
   { value: 'In Interview', label: 'In Interview' },
-  { value: 'Feedback Call', label: 'Feedback Call' },
-  { value: 'Finalized', label: 'Finalized' },
+  { value: 'Interview Scheduled', label: 'Interview Scheduled' },
   { value: 'Hired', label: 'Hired' },
   { value: 'On Hold', label: 'On Hold' },
 ];
 
-const recruiterOptions = [
-  { value: 'Sarah Johnson', label: 'Sarah Johnson' },
-  { value: 'Mike Wilson', label: 'Mike Wilson' },
-  { value: 'David Lee', label: 'David Lee' },
-];
+// recruiterOptions will be fetched dynamically
 
 const communicationSkillsOptions = [
   { value: 'Excellent', label: 'Excellent' },
@@ -64,8 +62,16 @@ const yesNoOptions = [
   { value: 'No', label: 'No' },
 ];
 
-export default function AddCandidateDialog({ open, onOpenChange, onSave, existingCandidates = [] }) {
+export default function AddCandidateDialog({ open, onOpenChange, onSave, existingCandidates = [], candidateToEdit = null }) {
+  const params = useParams();
+  const companyId = params.companyId;
+  const { currentCompany } = useCompany();
   const [currentPhase, setCurrentPhase] = useState(1);
+  const [recruiterOptions, setRecruiterOptions] = useState([]);
+  const [isRecruiterDialogOpen, setIsRecruiterDialogOpen] = useState(false);
+  const [uploadMode, setUploadMode] = useState('single'); // 'single' or 'bulk'
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef(null);
   const [formData, setFormData] = useState({
     // Basic Information
     candidateName: '',
@@ -93,9 +99,119 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
     recruiterFeedback: '',
     interviewerFeedback: '',
     remark: '',
+    folderName: '',
   });
 
   const [errors, setErrors] = useState({});
+
+  // Get company name helper
+  const getCompanyName = () => {
+    let company = currentCompany?.name;
+    if (!company && typeof window !== 'undefined') {
+      company = sessionStorage.getItem('selectedCompany') || 
+               sessionStorage.getItem('adminSelectedCompany');
+    }
+    if (!company && companyId && companyId !== 'undefined') {
+      if (typeof window !== 'undefined') {
+        company = sessionStorage.getItem(`company_${companyId}`);
+      }
+    }
+    return company;
+  };
+
+  // Fetch recruiters
+  useEffect(() => {
+    if (open) {
+      fetchRecruiters();
+    }
+  }, [open]);
+
+  const fetchRecruiters = async () => {
+    try {
+      const company = getCompanyName();
+      const token = localStorage.getItem('auth_token');
+      const headers = {
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      };
+      if (company) {
+        // For HRMS Admin Portal - don't send company header to allow all data access
+        // headers['x-company'] = company;
+      }
+
+      const res = await fetch('/api/hrms-portal/recruitment/recruiters', { headers });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success) {
+          const options = (json.data || []).map(recruiter => ({
+            value: recruiter.name,
+            label: recruiter.name
+          }));
+          setRecruiterOptions(options);
+        }
+      }
+    } catch (error) {
+      console.error('Fetch recruiters error:', error);
+    }
+  };
+
+  const handleRecruitersUpdated = () => {
+    fetchRecruiters();
+  };
+
+  // Populate form data when editing
+  useEffect(() => {
+    if (candidateToEdit && open) {
+      const candidateData = candidateToEdit.candidateData || candidateToEdit;
+      setFormData({
+        candidateName: candidateData.candidateName || candidateToEdit.name || '',
+        contactNumber: candidateData.contactNumber || candidateToEdit.contact || '',
+        email: candidateData.email || candidateToEdit.email || '',
+        currentLocation: candidateData.currentLocation || candidateToEdit.location || '',
+        callingDate: candidateData.callingDate || candidateToEdit.callingDate || new Date().toISOString().split('T')[0],
+        currentOrganisation: candidateData.currentOrganisation || candidateToEdit.organisation || '',
+        education: candidateData.education || candidateToEdit.education || '',
+        totalExperience: candidateData.totalExperience || candidateToEdit.experience || '',
+        assignedTo: candidateData.assignedTo || candidateToEdit.assignedTo || '',
+        status: candidateData.status || candidateToEdit.status || 'New',
+        currentCTCFixed: candidateData.currentCTCFixed || candidateToEdit.currentCTCFixed || '',
+        currentCTCInHand: candidateData.currentCTCInHand || candidateToEdit.currentCTCInHand || '',
+        expectedCTC: candidateData.expectedCTC || candidateToEdit.expectedCTC || '',
+        noticePeriod: candidateData.noticePeriod || candidateToEdit.noticePeriod || '',
+        willingToWorkInStartup: candidateData.willingToWorkInStartup || candidateToEdit.willingToWorkInStartup || 'Yes',
+        communicationSkills: candidateData.communicationSkills || candidateToEdit.communicationSkills || '',
+        recruiterFeedback: candidateData.recruiterFeedback || candidateToEdit.recruiterFeedback || '',
+        interviewerFeedback: candidateData.interviewerFeedback || candidateToEdit.interviewerFeedback || '',
+        remark: candidateData.remark || candidateToEdit.remark || '',
+        folderName: candidateData.folderName || candidateToEdit.folderName || '',
+      });
+      setCurrentPhase(1);
+    } else if (!candidateToEdit && open) {
+      // Reset form when adding new candidate
+      setFormData({
+        candidateName: '',
+        contactNumber: '',
+        email: '',
+        currentLocation: '',
+        callingDate: new Date().toISOString().split('T')[0],
+        currentOrganisation: '',
+        education: '',
+        totalExperience: '',
+        assignedTo: '',
+        status: 'New',
+        currentCTCFixed: '',
+        currentCTCInHand: '',
+        expectedCTC: '',
+        noticePeriod: '',
+        willingToWorkInStartup: 'Yes',
+        communicationSkills: '',
+        recruiterFeedback: '',
+        interviewerFeedback: '',
+        remark: '',
+        folderName: '',
+      });
+      setCurrentPhase(1);
+    }
+  }, [candidateToEdit, open]);
 
   const progress = (currentPhase / PHASES.length) * 100;
 
@@ -173,9 +289,9 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
   const handleSubmit = () => {
     if (validatePhase(currentPhase)) {
       const candidateData = {
-        id: String(Date.now()),
+        ...(candidateToEdit?.id ? { id: candidateToEdit.id } : {}),
         ...formData,
-        assignDate: new Date().toISOString().split('T')[0],
+        assignDate: candidateToEdit?.assignDate || new Date().toISOString().split('T')[0],
         currentCTCFixed: parseFloat(formData.currentCTCFixed) || 0,
         currentCTCInHand: parseFloat(formData.currentCTCInHand) || 0,
         expectedCTC: parseFloat(formData.expectedCTC) || 0,
@@ -187,6 +303,7 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
 
   const handleClose = () => {
     setCurrentPhase(1);
+    setUploadMode('single');
     setFormData({
       candidateName: '',
       contactNumber: '',
@@ -207,9 +324,76 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
       recruiterFeedback: '',
       interviewerFeedback: '',
       remark: '',
+      folderName: '',
     });
     setErrors({});
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
     onOpenChange(false);
+  };
+
+  const handleBulkUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
+    if (!['xlsx', 'xls'].includes(fileExtension)) {
+      alert('Please upload a valid Excel file (.xlsx or .xls)');
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const company = getCompanyName();
+      const token = localStorage.getItem('auth_token');
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('companyId', companyId || '');
+      if (company) {
+        formData.append('company', company);
+      }
+
+      const headers = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch('/api/hrms-portal/recruitment/candidates/bulk-upload', {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        const successMessage = `Successfully imported ${result.created || 0} candidate(s).`;
+        const errorMessage = result.errors && result.errors.length > 0 
+          ? `\n\nErrors:\n${result.errors.map(e => `Row ${e.row}: ${e.errors.join(', ')}`).join('\n')}`
+          : '';
+        alert(successMessage + errorMessage);
+        handleClose();
+        // Trigger refresh in parent component
+        if (typeof window !== 'undefined') {
+          window.location.reload();
+        }
+      } else {
+        alert(result.error || 'Failed to upload candidates');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Failed to upload file. Please try again.');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
   };
 
   const renderPhaseContent = () => {
@@ -311,7 +495,18 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
               {errors.totalExperience && <p className="text-sm text-red-500 mt-1">{errors.totalExperience}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Assigned To *</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium text-slate-700">Assigned To *</label>
+                <button
+                  type="button"
+                  onClick={() => setIsRecruiterDialogOpen(true)}
+                  className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                  title="Manage Recruiters"
+                >
+                  <Settings className="w-3 h-3" />
+                  Manage
+                </button>
+              </div>
               <Select
                 options={recruiterOptions}
                 value={formData.assignedTo}
@@ -435,6 +630,15 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
                 className="border border-neutral-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-200 focus:border-primary-300"
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Folder Name</label>
+              <Input
+                value={formData.folderName}
+                onChange={(e) => setFormData({ ...formData, folderName: e.target.value })}
+                placeholder="Folder_Example"
+                className="border border-neutral-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-200 focus:border-primary-300"
+              />
+            </div>
           </div>
         );
 
@@ -476,9 +680,40 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
     <Modal
       isOpen={open}
       onClose={handleClose}
-      title="Add New Candidate"
+      title={candidateToEdit ? "Edit Candidate" : "Add New Candidate"}
       size="lg"
       footer={
+        uploadMode === 'bulk' ? (
+          <div className="flex justify-end gap-2">
+            <Button
+              onClick={() => {
+                setUploadMode('single');
+                if (fileInputRef.current) {
+                  fileInputRef.current.value = '';
+                }
+              }}
+              className="bg-white border border-neutral-300 text-neutral-700 hover:bg-neutral-50"
+            >
+              Back to Single Entry
+            </Button>
+            <Button
+              onClick={() => fileInputRef.current?.click()}
+              className="bg-blue-600 text-white hover:bg-blue-700"
+              icon={<Upload className="h-4 w-4" />}
+              iconPosition="left"
+              disabled={isUploading}
+            >
+              {isUploading ? 'Uploading...' : 'Upload Excel File'}
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleBulkUpload}
+              className="hidden"
+            />
+          </div>
+        ) : (
         <div className="flex justify-between w-full">
           <div>
             {currentPhase > 1 && (
@@ -520,8 +755,64 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
             )}
           </div>
         </div>
+        )
       }
     >
+      {/* Upload Mode Toggle - Only show when adding new candidate (not editing) */}
+      {!candidateToEdit && (
+        <div className="mb-4 flex gap-2 border-b border-slate-200 pb-4">
+          <button
+            onClick={() => setUploadMode('single')}
+            className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              uploadMode === 'single'
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            Single Entry
+          </button>
+          <button
+            onClick={() => setUploadMode('bulk')}
+            className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              uploadMode === 'bulk'
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            Bulk Upload (Excel)
+          </button>
+        </div>
+      )}
+
+      {/* Bulk Upload Content */}
+      {uploadMode === 'bulk' && !candidateToEdit ? (
+        <div className="space-y-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <FileSpreadsheet className="w-5 h-5 text-blue-600 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-semibold text-blue-900 mb-1">Bulk Upload Instructions</h4>
+                <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+                  <li>Download the Excel template using the "Download Template" button</li>
+                  <li>Fill in the candidate details in the template</li>
+                  <li>Upload the completed Excel file here</li>
+                  <li>Make sure all required fields are filled correctly</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center">
+            <FileSpreadsheet className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+            <p className="text-sm text-slate-600 mb-4">
+              Click the "Upload Excel File" button below to select your file
+            </p>
+            <p className="text-xs text-slate-500">
+              Supported formats: .xlsx, .xls
+            </p>
+          </div>
+        </div>
+      ) : (
+        <>
       {/* Progress Bar */}
       <div className="space-y-2 py-4 mb-6">
         <div className="flex justify-between text-sm text-slate-600">
@@ -582,7 +873,16 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
 
         {renderPhaseContent()}
       </div>
+      </>
+      )}
     </Modal>
+
+    {/* Recruiter Management Dialog */}
+    <RecruiterManagementDialog
+      open={isRecruiterDialogOpen}
+      onOpenChange={setIsRecruiterDialogOpen}
+      onRecruitersUpdated={handleRecruitersUpdated}
+    />
     </>
   );
 }

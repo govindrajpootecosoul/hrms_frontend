@@ -2,13 +2,17 @@
 
 import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Users, Clock, Calendar, Cake, Plus, BarChart3, FileText, Sparkles } from 'lucide-react';
+import { Users, Clock, Calendar, Cake, Plus, BarChart3, FileText, Sparkles, CheckCircle, XCircle, Home, UserCheck, UserX, CalendarDays, Download } from 'lucide-react';
 import Card from '@/components/common/Card';
 import Button from '@/components/common/Button';
 import LineChart from '@/components/charts/LineChart';
 import Modal from '@/components/common/Modal';
 import Input from '@/components/common/Input';
 import Textarea from '@/components/common/Textarea';
+import Table from '@/components/common/Table';
+import { useCompany } from '@/lib/context/CompanyContext';
+import { useToast } from '@/components/common/Toast';
+import * as XLSX from 'xlsx';
 
 // Memoized KPI Card component - only re-renders when its value changes
 const KPICard = memo(({ kpi, index }) => {
@@ -61,6 +65,8 @@ const Dashboard = () => {
   const params = useParams();
   const router = useRouter();
   const companyId = params.companyId;
+  const { currentCompany } = useCompany();
+  const toast = useToast();
 
   const [showBroadcastDialog, setShowBroadcastDialog] = useState(false);
   const [broadcastData, setBroadcastData] = useState({
@@ -72,10 +78,29 @@ const Dashboard = () => {
   });
 
   const [dashboardData, setDashboardData] = useState(null);
-  const [stats, setStats] = useState(null);
+  const [stats, setStats] = useState({
+    totalEmployees: 0,
+    activeEmployees: 0,
+    presentToday: 0,
+    absentToday: 0,
+    onLeaveToday: 0,
+    wfhToday: 0,
+    lateCheckIns: 0,
+    leaveApprovals: 0,
+    todayAttendance: 0,
+    pendingLeaves: 0,
+    upcomingBirthdays: 0,
+  });
   const [recentCheckIns, setRecentCheckIns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Employee modal state
+  const [showEmployeeModal, setShowEmployeeModal] = useState(false);
+  const [modalFilterType, setModalFilterType] = useState(null);
+  const [modalTitle, setModalTitle] = useState('');
+  const [employees, setEmployees] = useState([]);
+  const [attendance, setAttendance] = useState([]);
 
   useEffect(() => {
     // Fetch live data from API
@@ -93,19 +118,54 @@ const Dashboard = () => {
         if (company) params.append('company', company);
         const queryString = params.toString();
 
-        // Fetch critical dashboard data first (stats is most important)
-        const statsRes = await fetch(`/api/hrms/dashboard${queryString ? `?${queryString}` : ''}`);
+        // Fetch attendance stats directly (same as Attendance Overview)
+        // Add cache-busting timestamp to ensure fresh data
+        const today = new Date().toISOString().split('T')[0];
+        const timestamp = Date.now();
+        const attendanceStatsParams = new URLSearchParams();
+        attendanceStatsParams.append('date', today);
+        attendanceStatsParams.append('_t', timestamp.toString()); // Cache-busting
+        if (company) attendanceStatsParams.append('company', company);
+        if (companyId) attendanceStatsParams.append('companyId', companyId);
+        
+        const statsRes = await fetch(`/api/hrms-portal/attendance/stats?${attendanceStatsParams.toString()}`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+          },
+        });
         
         // Process stats immediately to show dashboard faster
         const statsData = statsRes.ok ? await statsRes.json() : null;
         
-        // Set initial stats (will be updated with check-ins data later)
-        if (statsData && statsData.success && statsData.data && statsData.data.stats) {
-          setStats(statsData.data.stats);
+        // Set initial stats from attendance stats endpoint
+        if (statsData && statsData.success && statsData.data) {
+          console.log('[Dashboard] Attendance stats response:', statsData.data);
+          setStats({
+            totalEmployees: statsData.data.totalEmployees || 0,
+            activeEmployees: statsData.data.totalEmployees || 0, // Use totalEmployees as active for now
+            presentToday: statsData.data.presentToday || 0,
+            absentToday: statsData.data.absentToday || 0,
+            onLeaveToday: statsData.data.onLeaveToday || 0,
+            wfhToday: statsData.data.onWFHToday || 0,
+            lateCheckIns: statsData.data.lateCheckIns || 0,
+            leaveApprovals: statsData.data.leaveApprovals || 0,
+            todayAttendance: statsData.data.presentToday || 0, // For backward compatibility
+            pendingLeaves: statsData.data.leaveApprovals || 0, // Map leaveApprovals to pendingLeaves
+            upcomingBirthdays: 0, // Will be fetched separately if needed
+          });
         } else {
+          console.warn('[Dashboard] Stats response missing success or data:', statsData);
           setStats({
             totalEmployees: 0,
             activeEmployees: 0,
+            presentToday: 0,
+            absentToday: 0,
+            onLeaveToday: 0,
+            wfhToday: 0,
+            lateCheckIns: 0,
+            leaveApprovals: 0,
             todayAttendance: 0,
             pendingLeaves: 0,
             upcomingBirthdays: 0,
@@ -166,9 +226,15 @@ const Dashboard = () => {
 
         // Set dashboard data (stats already set above)
         setDashboardData({
-          stats: statsData?.success && statsData?.data?.stats ? statsData.data.stats : {
+          stats: stats || {
             totalEmployees: 0,
             activeEmployees: 0,
+            presentToday: 0,
+            absentToday: 0,
+            onLeaveToday: 0,
+            wfhToday: 0,
+            lateCheckIns: 0,
+            leaveApprovals: 0,
             todayAttendance: 0,
             pendingLeaves: 0,
             upcomingBirthdays: 0,
@@ -205,7 +271,7 @@ const Dashboard = () => {
         setError(err.message);
         // Fallback to minimal data
         setDashboardData({
-          stats: { totalEmployees: 0, activeEmployees: 0, todayAttendance: 0, pendingLeaves: 0, upcomingBirthdays: 0 },
+          stats: { totalEmployees: 0, activeEmployees: 0, presentToday: 0, absentToday: 0, onLeaveToday: 0, wfhToday: 0, lateCheckIns: 0, leaveApprovals: 0, todayAttendance: 0, pendingLeaves: 0, upcomingBirthdays: 0 },
           monthlyHeadcounts: [],
           recentActivities: [],
           upcomingEvents: [],
@@ -214,7 +280,7 @@ const Dashboard = () => {
           workAnniversaryCalendar: [],
           complianceReminders: [],
         });
-        setStats({ totalEmployees: 0, activeEmployees: 0, todayAttendance: 0, pendingLeaves: 0, upcomingBirthdays: 0 });
+        setStats({ totalEmployees: 0, activeEmployees: 0, presentToday: 0, absentToday: 0, onLeaveToday: 0, wfhToday: 0, lateCheckIns: 0, leaveApprovals: 0, todayAttendance: 0, pendingLeaves: 0, upcomingBirthdays: 0 });
       } finally {
         setLoading(false);
       }
@@ -223,7 +289,7 @@ const Dashboard = () => {
     // Initial load
     loadData();
     
-    // Set up auto-refresh for attendance count only (not full reload)
+    // Set up auto-refresh for attendance stats (Present, Absent, WFH)
     const refreshAttendanceOnly = async () => {
       try {
         const company = typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null;
@@ -232,26 +298,62 @@ const Dashboard = () => {
         if (company) params.append('company', company);
         const queryString = params.toString();
         
-        // Only fetch check-ins data to update attendance count
-        const checkInsRes = await fetch(`/api/hrms/dashboard/checkins${queryString ? `?${queryString}` : ''}`);
-        if (checkInsRes.ok) {
-          const checkInsData = await checkInsRes.json();
-          if (checkInsData?.success && checkInsData?.data?.totalCheckedIn !== undefined) {
-            // Update only the attendance count, not the entire stats object
+        // Fetch attendance stats to get updated Present, Absent, WFH, etc.
+        // Add cache-busting timestamp to ensure fresh data
+        const today = new Date().toISOString().split('T')[0];
+        const timestamp = Date.now();
+        const attendanceStatsParams = new URLSearchParams();
+        attendanceStatsParams.append('date', today);
+        attendanceStatsParams.append('_t', timestamp.toString()); // Cache-busting
+        if (company) attendanceStatsParams.append('company', company);
+        if (companyId) attendanceStatsParams.append('companyId', companyId);
+        
+        const statsRes = await fetch(`/api/hrms-portal/attendance/stats?${attendanceStatsParams.toString()}`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+          },
+        });
+        if (statsRes.ok) {
+          const statsData = await statsRes.json();
+          if (statsData?.success && statsData?.data) {
+            // Update attendance stats (Present, Absent, WFH, etc.)
             setStats(prevStats => {
-              if (prevStats && prevStats.todayAttendance !== checkInsData.data.totalCheckedIn) {
+              const newStats = statsData.data;
+              if (prevStats && (
+                prevStats.presentToday !== newStats.presentToday ||
+                prevStats.absentToday !== newStats.absentToday ||
+                prevStats.wfhToday !== newStats.onWFHToday ||
+                prevStats.onLeaveToday !== newStats.onLeaveToday ||
+                prevStats.lateCheckIns !== newStats.lateCheckIns ||
+                prevStats.leaveApprovals !== newStats.leaveApprovals
+              )) {
                 return {
                   ...prevStats,
-                  todayAttendance: checkInsData.data.totalCheckedIn,
+                  totalEmployees: newStats.totalEmployees || prevStats.totalEmployees || 0,
+                  activeEmployees: newStats.totalEmployees || prevStats.activeEmployees || 0,
+                  presentToday: newStats.presentToday || 0,
+                  absentToday: newStats.absentToday || 0,
+                  onLeaveToday: newStats.onLeaveToday || 0,
+                  wfhToday: newStats.onWFHToday || 0,
+                  lateCheckIns: newStats.lateCheckIns || 0,
+                  leaveApprovals: newStats.leaveApprovals || 0,
+                  todayAttendance: newStats.presentToday || 0,
+                  pendingLeaves: newStats.leaveApprovals || 0,
                 };
               }
               return prevStats;
             });
-            
-            // Update recent check-ins if available
-            if (checkInsData?.data?.checkIns) {
-              setRecentCheckIns(checkInsData.data.checkIns.slice(0, 10));
-            }
+          }
+        }
+        
+        // Also fetch check-ins for recent check-ins list
+        const checkInsRes = await fetch(`/api/hrms/dashboard/checkins${queryString ? `?${queryString}` : ''}`);
+        if (checkInsRes.ok) {
+          const checkInsData = await checkInsRes.json();
+          if (checkInsData?.success && checkInsData?.data?.checkIns) {
+            setRecentCheckIns(checkInsData.data.checkIns.slice(0, 10));
           }
         }
       } catch (err) {
@@ -266,6 +368,234 @@ const Dashboard = () => {
     return () => clearInterval(refreshInterval);
   }, [companyId]);
 
+  // Fetch employees list
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        const company = currentCompany?.name || companyId;
+        
+        const params = new URLSearchParams();
+        if (company) {
+          params.append('company', company);
+        }
+
+        const headers = {
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        };
+        if (company) {
+          headers['x-company'] = company;
+        }
+
+        const res = await fetch(`/api/hrms-portal/employees?${params.toString()}`, { headers });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success) {
+            setEmployees(json.data.employees || []);
+          }
+        }
+      } catch (err) {
+        console.error('Fetch employees error:', err);
+      }
+    };
+
+    fetchEmployees();
+  }, [companyId, currentCompany]);
+
+  // Fetch attendance data for employee modal
+  useEffect(() => {
+    const fetchAttendance = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        
+        // Get company name from multiple sources
+        let company = currentCompany?.name;
+        if (!company && typeof window !== 'undefined') {
+          company = sessionStorage.getItem('selectedCompany') || 
+                   sessionStorage.getItem('adminSelectedCompany');
+        }
+        if (!company && companyId && companyId !== 'undefined') {
+          if (typeof window !== 'undefined') {
+            company = sessionStorage.getItem(`company_${companyId}`);
+          }
+        }
+        
+        const today = new Date().toISOString().split('T')[0];
+        const timestamp = Date.now();
+        
+        const params = new URLSearchParams();
+        params.append('date', today);
+        params.append('_t', timestamp.toString());
+        if (company) {
+          params.append('company', company);
+        }
+
+        const headers = {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+        };
+        if (company) {
+          headers['x-company'] = company;
+        }
+
+        const attendanceRes = await fetch(`/api/hrms-portal/attendance?${params.toString()}`, { 
+          headers,
+          cache: 'no-store',
+        });
+
+        if (attendanceRes.ok) {
+          const attendanceJson = await attendanceRes.json();
+          if (attendanceJson.success) {
+            const records = attendanceJson.data.records || [];
+            setAttendance(records);
+          }
+        }
+      } catch (err) {
+        console.error('Fetch attendance error:', err);
+      }
+    };
+
+    fetchAttendance();
+  }, [companyId, currentCompany]);
+
+  // Filter employees by status
+  const getFilteredEmployees = (filterType) => {
+    const today = new Date().toISOString().split('T')[0];
+    
+    switch (filterType) {
+      case 'present':
+        const presentRecords = attendance.filter(a => {
+          const matchesStatus = a.status === 'present';
+          const matchesDate = a.date === today;
+          return matchesStatus && matchesDate;
+        });
+        return presentRecords.map(a => ({
+          employeeCode: a.biometricId,
+          employeeName: a.employeeName,
+          department: a.department || 'General',
+          status: 'present',
+          checkIn: a.timeIn || '--',
+          checkOut: a.timeOut || '--',
+          isLate: a.isLate || false
+        }));
+      
+      case 'absent':
+        // Get all employees and find those not present today
+        const presentIds = new Set(
+          attendance
+            .filter(a => a.status === 'present' && a.date === today)
+            .map(a => a.biometricId)
+        );
+        const onLeaveIds = new Set(
+          attendance
+            .filter(a => a.status === 'on-leave' && a.date === today)
+            .map(a => a.biometricId)
+        );
+        const wfhIds = new Set(
+          attendance
+            .filter(a => (a.status === 'wfh' || a.status === 'work-from-home') && a.date === today)
+            .map(a => a.biometricId)
+        );
+        
+        return employees
+          .filter(emp => {
+            const empId = emp.biometricId || emp.employeeCode || emp.id;
+            return !presentIds.has(empId) && !onLeaveIds.has(empId) && !wfhIds.has(empId);
+          })
+          .map(emp => ({
+            employeeCode: emp.biometricId || emp.employeeCode || emp.id,
+            employeeName: emp.name || emp.employeeName,
+            department: emp.department || 'General',
+            status: 'absent',
+            checkIn: '--',
+            checkOut: '--',
+            isLate: false
+          }));
+      
+      case 'wfh':
+        return attendance
+          .filter(a => (a.status === 'wfh' || a.status === 'work-from-home') && a.date === today)
+          .map(a => ({
+            employeeCode: a.biometricId,
+            employeeName: a.employeeName,
+            department: a.department || 'General',
+            status: 'wfh',
+            checkIn: a.timeIn || '--',
+            checkOut: a.timeOut || '--',
+            isLate: a.isLate || false
+          }));
+      
+      default:
+        return [];
+    }
+  };
+
+  // Handle card click to show employee modal
+  const handleCardClick = useCallback((filterType, title) => {
+    setModalFilterType(filterType);
+    setModalTitle(title);
+    setShowEmployeeModal(true);
+  }, []);
+
+  // Get status badge styling
+  const getStatusBadge = (status, isLate) => {
+    if (isLate) {
+      return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+    }
+    switch (status) {
+      case 'present':
+        return 'bg-green-100 text-green-800 border-green-300';
+      case 'absent':
+        return 'bg-red-100 text-red-800 border-red-300';
+      case 'on-leave':
+        return 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'wfh':
+        return 'bg-purple-100 text-purple-800 border-purple-300';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-300';
+    }
+  };
+
+  // Export to Excel
+  const handleExportToExcel = useCallback(() => {
+    try {
+      const filteredData = getFilteredEmployees(modalFilterType);
+      
+      if (filteredData.length === 0) {
+        toast.error('No data to export');
+        return;
+      }
+
+      // Prepare data for Excel
+      const excelData = filteredData.map((emp, index) => ({
+        'S.No': index + 1,
+        'Employee Code': emp.employeeCode || '--',
+        'Employee Name': emp.employeeName || '--',
+        'Department': emp.department || '--',
+        'Check-in': emp.checkIn || '--',
+        'Check-out': emp.checkOut || '--',
+        'Status': emp.isLate ? 'Late' : (emp.status === 'present' ? 'Present' : emp.status === 'absent' ? 'Absent' : emp.status === 'on-leave' ? 'On Leave' : emp.status === 'wfh' ? 'WFH' : emp.status || '--')
+      }));
+
+      // Create workbook and worksheet
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(excelData);
+      XLSX.utils.book_append_sheet(wb, ws, 'Employees');
+
+      // Generate filename with current date
+      const today = new Date().toISOString().split('T')[0];
+      const filename = `${modalTitle}_${today}.xlsx`;
+
+      // Write file
+      XLSX.writeFile(wb, filename);
+      toast.success('Excel file downloaded successfully');
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export to Excel');
+    }
+  }, [modalFilterType, modalTitle, toast]);
+
   // Memoize KPI Cards data to prevent unnecessary re-renders
   // Only re-compute when stats actually change
   // IMPORTANT: This hook must be called before any conditional returns
@@ -274,6 +604,12 @@ const Dashboard = () => {
     const currentStats = stats || {
       totalEmployees: 0,
       activeEmployees: 0,
+      presentToday: 0,
+      absentToday: 0,
+      onLeaveToday: 0,
+      wfhToday: 0,
+      lateCheckIns: 0,
+      leaveApprovals: 0,
       todayAttendance: 0,
       pendingLeaves: 0,
       upcomingBirthdays: 0,
@@ -292,30 +628,37 @@ const Dashboard = () => {
       onClick: () => router.push(`/hrms/${companyId}/employees`),
     },
     {
-      title: 'Today Attendance',
-      value: currentStats.todayAttendance,
+      title: 'Present',
+      value: currentStats.presentToday || currentStats.todayAttendance || 0,
+      gradient: 'from-green-600 via-emerald-600 to-green-700',
+      shadow: 'shadow-green-500/30',
+      icon: CheckCircle,
+      clickable: true,
+      filterType: 'present',
+      onClick: () => handleCardClick('present', 'Present Employees'),
+    },
+    {
+      title: 'Absent',
+      value: currentStats.absentToday || 0,
+      gradient: 'from-red-600 via-rose-600 to-red-700',
+      shadow: 'shadow-red-500/30',
+      icon: XCircle,
+      clickable: true,
+      filterType: 'absent',
+      onClick: () => handleCardClick('absent', 'Absent Employees'),
+    },
+    {
+      title: 'WFH',
+      value: currentStats.wfhToday || 0,
       gradient: 'from-purple-600 via-violet-600 to-purple-700',
       shadow: 'shadow-purple-500/30',
-      icon: Clock,
-    },
-    {
-      title: 'Pending Leaves',
-      value: currentStats.pendingLeaves,
-      gradient: 'from-orange-600 via-amber-600 to-orange-700',
-      shadow: 'shadow-orange-500/30',
-      icon: Calendar,
+      icon: Home,
       clickable: true,
-      onClick: () => router.push(`/hrms/${companyId}/leaves`),
-    },
-    {
-      title: 'Upcoming Birthdays',
-      value: currentStats.upcomingBirthdays,
-      gradient: 'from-pink-600 via-rose-600 to-pink-700',
-      shadow: 'shadow-pink-500/30',
-      icon: Cake,
+      filterType: 'wfh',
+      onClick: () => handleCardClick('wfh', 'WFH Employees'),
     },
     ];
-  }, [stats, companyId, router]);
+  }, [stats, companyId, router, handleCardClick]);
 
   if (loading) {
     return (
@@ -339,7 +682,7 @@ const Dashboard = () => {
     );
   }
 
-  if (!dashboardData || !stats) {
+  if (!dashboardData) {
     return <div className="p-6">No data available</div>;
   }
 
@@ -763,6 +1106,87 @@ const Dashboard = () => {
               />
               <span className="text-sm">Send in-app push</span>
             </label>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Employee List Modal */}
+      <Modal
+        isOpen={showEmployeeModal}
+        onClose={() => setShowEmployeeModal(false)}
+        title={modalTitle}
+        size="xl"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-sm text-slate-600">
+              Showing {getFilteredEmployees(modalFilterType).length} employee(s)
+            </div>
+            <Button
+              onClick={handleExportToExcel}
+              className="bg-green-600 text-white hover:bg-green-700 flex items-center gap-2"
+              icon={<Download className="w-4 h-4" />}
+            >
+              Export to Excel
+            </Button>
+          </div>
+          <div className="max-h-[500px] overflow-y-auto">
+            <Table
+              columns={[
+                {
+                  key: 'employeeCode',
+                  title: 'Employee Code',
+                  render: (value) => <span className="font-mono text-sm font-medium text-slate-900">{value}</span>
+                },
+                {
+                  key: 'employeeName',
+                  title: 'Employee Name',
+                  render: (value, row) => (
+                    <div>
+                      <div className="font-medium text-slate-900">{value}</div>
+                      <div className="text-xs text-slate-600">{row.department}</div>
+                    </div>
+                  )
+                },
+                {
+                  key: 'department',
+                  title: 'Department',
+                  render: (value) => <span className="text-slate-700">{value}</span>
+                },
+                {
+                  key: 'checkIn',
+                  title: 'Check-in',
+                  render: (value) => <span className="text-slate-700">{value}</span>
+                },
+                {
+                  key: 'checkOut',
+                  title: 'Check-out',
+                  render: (value) => <span className="text-slate-700">{value}</span>
+                },
+                {
+                  key: 'status',
+                  title: 'Status',
+                  render: (value, row) => {
+                    const displayStatus = row.isLate ? 'Late' : (value === 'present' ? 'Present' : value === 'absent' ? 'Absent' : value === 'on-leave' ? 'On Leave' : value === 'wfh' ? 'WFH' : value);
+                    return (
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusBadge(value, row.isLate)}`}>
+                        {displayStatus}
+                      </span>
+                    );
+                  }
+                }
+              ]}
+              data={getFilteredEmployees(modalFilterType)}
+              emptyMessage="No employees found"
+            />
+          </div>
+          <div className="flex justify-end pt-4 border-t">
+            <Button
+              onClick={() => setShowEmployeeModal(false)}
+              className="bg-blue-600 text-white hover:bg-blue-700"
+            >
+              Close
+            </Button>
           </div>
         </div>
       </Modal>

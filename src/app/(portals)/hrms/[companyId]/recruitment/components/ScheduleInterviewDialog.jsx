@@ -1,20 +1,32 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Calendar, Clock, Video, X } from 'lucide-react';
 import Modal from '@/components/common/Modal';
 import Button from '@/components/common/Button';
 import Input from '@/components/common/Input';
 
-export default function ScheduleInterviewDialog({ open, onOpenChange, onSchedule, candidateName = '' }) {
+export default function ScheduleInterviewDialog({ open, onOpenChange, onSchedule, candidateName = '', initialData = null }) {
   const [formData, setFormData] = useState({
-    interviewer: '',
-    date: '',
-    time: '',
-    meetingLink: '',
+    interviewer: initialData?.interviewer || '',
+    date: initialData?.date || '',
+    time: initialData?.time || '',
+    meetingLink: initialData?.meetingLink || '',
   });
 
   const [errors, setErrors] = useState({});
+
+  // Update form data when initialData changes (for edit mode)
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        interviewer: initialData.interviewer || '',
+        date: initialData.date || '',
+        time: initialData.time || '',
+        meetingLink: initialData.meetingLink || '',
+      });
+    }
+  }, [initialData]);
 
   const generateMeetingLink = () => {
     // Generate a random meeting link (in real app, this would call an API)
@@ -112,7 +124,7 @@ export default function ScheduleInterviewDialog({ open, onOpenChange, onSchedule
     <Modal
       isOpen={open}
       onClose={handleClose}
-      title="Schedule Interview"
+      title={initialData ? "Edit Interview" : "Schedule Interview"}
       size="md"
       footer={
         <div className="flex justify-end gap-3 w-full">
@@ -126,7 +138,7 @@ export default function ScheduleInterviewDialog({ open, onOpenChange, onSchedule
             onClick={handleSchedule}
             className="bg-blue-600 text-white hover:bg-blue-700"
           >
-            Schedule Interview
+            {initialData ? "Update Interview" : "Schedule Interview"}
           </Button>
         </div>
       }

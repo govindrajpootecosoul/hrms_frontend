@@ -23,7 +23,7 @@ const Navbar = ({ onMenuToggle, isMenuOpen, menuItems = [] }) => {
   const profileButtonRef = useRef(null);
   const pathname = usePathname();
   const router = useRouter();
-  const isActive = (path) => {
+  const isActive = (path, exactMatchOnly = false) => {
     if (!path || !pathname) return false;
     
     // Normalize paths (remove trailing slashes for comparison)
@@ -32,6 +32,9 @@ const Navbar = ({ onMenuToggle, isMenuOpen, menuItems = [] }) => {
     
     // Exact match
     if (normalizedPathname === normalizedPath) return true;
+    
+    // If exact match only is requested, return false here
+    if (exactMatchOnly) return false;
     
     // For base paths that should only match exactly (not sub-paths)
     const basePaths = ['/employee-portal', '/hrms', '/finance', '/asset-tracker', '/query-tracker'];
@@ -119,7 +122,7 @@ const Navbar = ({ onMenuToggle, isMenuOpen, menuItems = [] }) => {
         const rect = profileButtonRef.current.getBoundingClientRect();
         setProfileMenuPosition({
           top: rect.bottom + 8,
-          left: rect.right - 200 // Align dropdown to the right edge
+          left: rect.right - 220 // Align dropdown to the right edge
         });
       }
     };
@@ -318,15 +321,20 @@ const Navbar = ({ onMenuToggle, isMenuOpen, menuItems = [] }) => {
                     const rect = profileButtonRef.current.getBoundingClientRect();
                     setProfileMenuPosition({
                       top: rect.bottom + 8,
-                      left: rect.right - 200
+                      left: rect.right - 220
                     });
                   }
                   setIsProfileMenuOpen(!isProfileMenuOpen);
                 }}
-                className="h-10 w-10 rounded-full bg-blue-500/20 hover:bg-blue-500/30 border border-blue-400/30 text-white backdrop-blur-sm transition-colors flex items-center justify-center"
+                className="h-10 px-3 rounded-full bg-blue-500/20 hover:bg-blue-500/30 border border-blue-400/30 text-white backdrop-blur-sm transition-colors flex items-center justify-center gap-2"
                 title="Profile Menu"
               >
-                <User className="h-5 w-5" />
+                <User className="h-5 w-5 flex-shrink-0" />
+                {user && (
+                  <span className="text-sm font-medium whitespace-nowrap">
+                    {user.name || 'Admin User'}
+                  </span>
+                )}
               </button>
               
               {/* Profile Dropdown Menu */}
@@ -471,7 +479,7 @@ const Navbar = ({ onMenuToggle, isMenuOpen, menuItems = [] }) => {
                           }}
                         >
                           {item.children.map((child) => {
-                            const isChildActive = isActive(child.path);
+                            const isChildActive = isActive(child.path, true); // Use exact match only for child items
                             return (
                               <button
                                 key={child.id}

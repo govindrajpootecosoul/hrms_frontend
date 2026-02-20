@@ -35,9 +35,12 @@ export default function AttendanceLeaveLayout({ children }) {
     setCompanyId(validCompanyId);
 
     // Redirect to overview if on base leave path or undefined path
-    if (pathname === `/hrms/${validCompanyId}/attendance/leave` || 
-        pathname === `/hrms/undefined/attendance/leave` ||
-        pathname?.includes('/hrms/undefined/attendance/leave')) {
+    // Only redirect if NOT already on overview or manage page
+    const isOnBasePath = pathname === `/hrms/${validCompanyId}/attendance/leave` || 
+                         pathname === `/hrms/undefined/attendance/leave` ||
+                         (pathname && pathname.endsWith('/attendance/leave') && !pathname.includes('/overview') && !pathname.includes('/manage'));
+    
+    if (isOnBasePath && validCompanyId && validCompanyId !== 'undefined') {
       router.replace(`/hrms/${validCompanyId}/attendance/leave/overview`);
     }
   }, [pathname, params?.companyId, router]);

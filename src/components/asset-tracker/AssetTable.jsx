@@ -672,7 +672,7 @@ const AssetTable = ({
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="flex-1">
           <Input
-            placeholder="Search by tag ID, model, brand, assigned to, department, location, site, or any field..."
+            placeholder="Search by tag ID, model, brand, assigned to, department, serial number, or any field..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             icon={<Search className="w-3.5 h-3.5" />}
@@ -915,16 +915,13 @@ const AssetTable = ({
                   MODEL
                 </th>
                 <th className="px-3 py-2 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">
+                  SERIAL NUMBER
+                </th>
+                <th className="px-3 py-2 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">
                   CATEGORY
                 </th>
                 <th className="px-3 py-2 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">
                   SUB CATEGORY
-                </th>
-                <th className="px-3 py-2 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">
-                  LOCATION
-                </th>
-                <th className="px-3 py-2 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">
-                  SITE
                 </th>
                 <th className="px-2 py-2 text-right text-xs font-semibold text-neutral-500 uppercase tracking-wider w-32">
                   ACTIONS
@@ -934,13 +931,13 @@ const AssetTable = ({
             <tbody className="bg-white divide-y divide-neutral-200">
               {loading ? (
                 <tr>
-                  <td colSpan={11} className="px-4 py-8 text-center text-neutral-500">
+                  <td colSpan={10} className="px-4 py-8 text-center text-neutral-500">
                     Loading assets...
                   </td>
                 </tr>
               ) : filteredAssets.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-4 py-12 text-center text-neutral-500">
+                  <td colSpan={10} className="px-4 py-12 text-center text-neutral-500">
                     <div className="flex flex-col items-center gap-2">
                       <p>No assets found</p>
                       <p className="text-sm text-neutral-400">Try adjusting your search or filters</p>
@@ -981,17 +978,14 @@ const AssetTable = ({
                     <td className="px-3 py-2 text-sm text-neutral-900">
                       {asset.model}
                     </td>
+                    <td className="px-3 py-2 text-sm text-neutral-700 font-mono">
+                      {asset.serialNumber || '—'}
+                    </td>
                     <td className="px-3 py-2 text-sm text-neutral-700">
                       {asset.category}
                     </td>
                     <td className="px-3 py-2 text-sm text-neutral-700">
                       {asset.subcategory}
-                    </td>
-                    <td className="px-3 py-2 text-sm text-neutral-700">
-                      {asset.location}
-                    </td>
-                    <td className="px-3 py-2 text-sm text-neutral-700">
-                      {asset.site}
                     </td>
                     <td className="px-2 py-4">
                       <div className="flex items-center justify-end gap-2">

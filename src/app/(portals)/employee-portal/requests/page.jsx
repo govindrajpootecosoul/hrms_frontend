@@ -13,9 +13,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { ClipboardSignature, Receipt, Headphones, Calendar as CalendarIcon } from 'lucide-react';
+import { ClipboardSignature, Receipt, Headphones, Calendar as CalendarIcon, RefreshCw } from 'lucide-react';
 import { API_BASE_URL } from '@/lib/utils/constants';
 import { useAuth } from '@/lib/context/AuthContext';
+import { useToast } from '@/components/common/Toast';
 
 const expenseTemplates = [
   { id: 'meal', label: 'Meal', amount: '₹750', hint: 'Dinner with client' },
@@ -27,11 +28,16 @@ const LEAVE_TYPES = ['Casual Leave', 'Sick Leave', 'Earned Leave', 'Work From Ho
 
 export default function EmployeeRequestsPage() {
   const { user } = useAuth();
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState('leave');
   const [leaveType, setLeaveType] = useState(undefined);
   const [dateRange, setDateRange] = useState({ from: new Date(), to: addDays(new Date(), 1) });
+  const [reason, setReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const [requestsData, setRequestsData] = useState(null);
   const [loadingData, setLoadingData] = useState(false);
+  const [leaveRequests, setLeaveRequests] = useState([]);
+  const [loadingLeaveRequests, setLoadingLeaveRequests] = useState(false);
   const requests = requestsData?.recentRequests || mockData.employeePortal.recentRequests;
   const leaveBalances = requestsData?.leaveBalances || mockData.employeePortal.leaveBalances;
 
@@ -60,6 +66,141 @@ export default function EmployeeRequestsPage() {
     fetchRequests();
   }, [user]);
 
+  // Fetch leave requests
+  const fetchLeaveRequests = async () => {
+    if (!user?.employeeId) return;
+    try {
+      setLoadingLeaveRequests(true);
+      const token = localStorage.getItem('auth_token');
+      const company = typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null;
+      
+      const params = new URLSearchParams();
+      params.append('employeeId', user.employeeId);
+      if (company) {
+        params.append('company', company);
+      }
+
+      const headers = {
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      };
+      if (company) {
+        headers['x-company'] = company;
+      }
+
+      console.log('[Employee Portal] Fetching leave requests for:', user.employeeId, 'company:', company);
+
+      // Use Next.js API proxy route
+      const res = await fetch(
+        `/api/employee-portal/attendance-requests?${params.toString()}`,
+        { headers }
+      );
+      if (res.ok) {
+        const json = await res.json();
+        if (json?.success && json?.data) {
+          // Filter only time-off requests and sort by submittedAt
+          const timeOffRequests = (json.data.requests || [])
+            .filter(req => req.type === 'time-off')
+            .sort((a, b) => {
+              const dateA = new Date(a.submittedAt || 0);
+              const dateB = new Date(b.submittedAt || 0);
+              return dateB - dateA; // Most recent first
+            });
+          console.log('[Employee Portal] Fetched leave requests:', timeOffRequests.length, timeOffRequests);
+          setLeaveRequests(timeOffRequests);
+        }
+      } else {
+        console.error('[Employee Portal] Failed to fetch leave requests:', res.status, res.statusText);
+      }
+    } catch (err) {
+      console.error('[Employee Portal] Leave requests fetch failed', err);
+    } finally {
+      setLoadingLeaveRequests(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLeaveRequests();
+  }, [user]);
+
+  // Refresh leave requests periodically (every 30 seconds) to get latest status
+  useEffect(() => {
+    if (!user?.employeeId) return;
+    
+    const interval = setInterval(() => {
+      fetchLeaveRequests();
+    }, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [user]);
+
+  const handleLeaveSubmit = async () => {
+    // Validation
+    if (!leaveType) {
+      toast.error('Please select a leave type');
+      return;
+    }
+
+    if (!dateRange.from || !dateRange.to) {
+      toast.error('Please select a date range');
+      return;
+    }
+
+    if (!reason.trim()) {
+      toast.error('Please provide a reason for your leave request');
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const company = typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null;
+
+      const requestData = {
+        employeeId: user?.employeeId || 'default',
+        type: 'time-off',
+        leaveType: leaveType,
+        dateRange: `${format(dateRange.from, 'yyyy-MM-dd')} to ${format(dateRange.to, 'yyyy-MM-dd')}`,
+        reason: reason.trim()
+      };
+
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      };
+      if (company) {
+        headers['x-company'] = company;
+      }
+
+      const res = await fetch('/api/employee-portal/attendance-request', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(requestData)
+      });
+
+      const json = await res.json();
+
+      if (res.ok && json.success) {
+        toast.success('Leave request submitted successfully! Your manager will be notified.');
+        
+        // Reset form
+        setLeaveType(undefined);
+        setDateRange({ from: new Date(), to: addDays(new Date(), 1) });
+        setReason('');
+        
+        // Refresh leave requests list
+        await fetchLeaveRequests();
+      } else {
+        toast.error(json.error || 'Failed to submit leave request. Please try again.');
+      }
+    } catch (err) {
+      console.error('Submit leave request error:', err);
+      toast.error('An error occurred while submitting your request. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -75,25 +216,25 @@ export default function EmployeeRequestsPage() {
         </TabsList>
 
         <TabsContent value="leave">
-          <Card className="border-none bg-gradient-to-br from-rose-50 via-pink-50 to-fuchsia-50 shadow-lg shadow-rose-100/70">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-rose-900">Leave request</CardTitle>
-                <CardDescription>Send time-off notifications and capture approvals</CardDescription>
+          <Card className="border border-slate-200 bg-white shadow-lg">
+            <CardHeader className="flex flex-row items-start justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <CardTitle className="text-slate-900 text-2xl font-bold mb-1">Leave request</CardTitle>
+                <CardDescription className="text-sm text-slate-600">Send time-off notifications and capture approvals</CardDescription>
               </div>
-              <Badge variant="secondary" className="flex items-center gap-2">
+              <Badge variant="secondary" className="flex items-center gap-2 flex-shrink-0 bg-slate-100 text-slate-700">
                 <ClipboardSignature className="h-4 w-4" /> Balance: 12 days
               </Badge>
             </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-3">
+            <CardContent className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="leave-type">Leave type</Label>
+                  <Label htmlFor="leave-type" className="text-sm font-medium text-slate-700">Leave type</Label>
                   <Select value={leaveType} onValueChange={(value) => setLeaveType(value)}>
-                    <SelectTrigger id="leave-type">
+                    <SelectTrigger id="leave-type" className="w-full h-10 bg-white">
                       <SelectValue placeholder="Select leave type" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-[100]">
                       {LEAVE_TYPES.map((type) => (
                         <SelectItem key={type} value={type}>
                           {type}
@@ -103,34 +244,55 @@ export default function EmployeeRequestsPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Date range</Label>
+                  <Label htmlFor="date-range" className="text-sm font-medium text-slate-700">Date range</Label>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start text-left font-normal">
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dateRange.from && dateRange.to
-                          ? `${format(dateRange.from, 'MMM dd, yyyy')} - ${format(dateRange.to, 'MMM dd, yyyy')}`
-                          : 'Select range'}
+                      <Button 
+                        id="date-range"
+                        variant="outline" 
+                        className="w-full justify-start text-left font-normal h-10 overflow-hidden"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+                        <span className="truncate text-sm">
+                          {dateRange.from && dateRange.to
+                            ? `${format(dateRange.from, 'MMM dd, yyyy')} - ${format(dateRange.to, 'MMM dd, yyyy')}`
+                            : 'Select range'}
+                        </span>
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="range"
-                        selected={dateRange}
-                        onSelect={(range) => setDateRange(range ?? { from: undefined, to: undefined })}
-                        numberOfMonths={2}
-                        initialFocus
-                      />
+                    <PopoverContent className="w-auto p-0 bg-white border-slate-200 z-[100]" align="start">
+                      <div className="bg-white">
+                        <Calendar
+                          mode="range"
+                          selected={dateRange}
+                          onSelect={(range) => setDateRange(range ?? { from: undefined, to: undefined })}
+                          numberOfMonths={2}
+                          initialFocus
+                        />
+                      </div>
                     </PopoverContent>
                   </Popover>
                 </div>
                 <div className="space-y-2">
-                  <Label>Reason</Label>
-                  <Textarea placeholder="Add context that helps approvals" rows={4} />
+                  <Label htmlFor="reason" className="text-sm font-medium text-slate-700">Reason</Label>
+                  <Textarea 
+                    id="reason"
+                    placeholder="Add context that helps approvals" 
+                    rows={4}
+                    className="resize-none min-h-[100px]"
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                  />
                 </div>
-                <Button className="w-full">Submit for approval</Button>
-                <div className="rounded-xl border border-rose-200/50 bg-white/90 p-4 text-sm text-rose-900/80 space-y-2 shadow-sm">
-                  <p className="font-semibold text-rose-900">Auto-routing</p>
+                <Button 
+                  className="w-full h-10" 
+                  onClick={handleLeaveSubmit}
+                  disabled={submitting}
+                >
+                  {submitting ? 'Submitting...' : 'Submit for approval'}
+                </Button>
+                <div className="rounded-xl border border-slate-200 bg-transparent p-4 text-sm text-slate-700 space-y-2">
+                  <p className="font-semibold text-slate-900">Auto-routing</p>
                   <ul className="list-disc space-y-1 pl-4">
                     <li>Manager approval within 24h</li>
                     <li>HR gets notified on approved leaves</li>
@@ -138,7 +300,7 @@ export default function EmployeeRequestsPage() {
                   </ul>
                 </div>
               </div>
-              <div className="rounded-xl border border-rose-200/50 bg-white/90 p-4 text-sm text-rose-900/80 space-y-4 shadow-sm">
+              <div className="rounded-xl border border-slate-200 bg-transparent p-4 text-sm text-slate-700 space-y-4">
                 <div>
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Leave balance by type
@@ -171,6 +333,77 @@ export default function EmployeeRequestsPage() {
                   </p>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Leave Requests List */}
+          <Card className="border border-slate-200 bg-white shadow-lg mt-6">
+            <CardHeader className="flex flex-row items-start justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <CardTitle className="text-slate-900 text-xl font-bold">My Leave Requests</CardTitle>
+                <CardDescription className="text-sm text-slate-600">View all your submitted leave requests and their status</CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchLeaveRequests}
+                disabled={loadingLeaveRequests}
+                className="flex-shrink-0 flex items-center gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${loadingLeaveRequests ? 'animate-spin' : ''}`} />
+                {loadingLeaveRequests ? 'Refreshing...' : 'Refresh'}
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {loadingLeaveRequests ? (
+                <div className="text-center py-8 text-sm text-slate-600">Loading leave requests...</div>
+              ) : leaveRequests.length === 0 ? (
+                <div className="text-center py-8 text-sm text-slate-600">No leave requests found</div>
+              ) : (
+                <div className="space-y-3">
+                  {leaveRequests.map((req) => {
+                    const statusColors = {
+                      'pending': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+                      'approved': 'bg-green-100 text-green-800 border-green-200',
+                      'rejected': 'bg-red-100 text-red-800 border-red-200'
+                    };
+                    const statusColor = statusColors[req.status?.toLowerCase()] || 'bg-gray-100 text-gray-800 border-gray-200';
+                    
+                    return (
+                      <div key={req.id} className="rounded-lg border border-slate-200 bg-white p-4 hover:shadow-md transition-shadow">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-3 mb-2">
+                              <Badge className={`${statusColor} border font-medium`}>
+                                {req.status || 'Pending'}
+                              </Badge>
+                              <span className="text-sm font-semibold text-slate-900">{req.leaveType || 'Time Off'}</span>
+                            </div>
+                            <div className="space-y-1 text-sm text-slate-600">
+                              <p><span className="font-medium">Date Range:</span> {req.dateRange || 'N/A'}</p>
+                              {req.reason && (
+                                <p><span className="font-medium">Reason:</span> {req.reason}</p>
+                              )}
+                              {req.submittedAt && (
+                                <p><span className="font-medium">Submitted:</span> {format(new Date(req.submittedAt), 'MMM dd, yyyy hh:mm a')}</p>
+                              )}
+                              {req.approvedAt && (
+                                <p><span className="font-medium">Approved:</span> {format(new Date(req.approvedAt), 'MMM dd, yyyy hh:mm a')}</p>
+                              )}
+                              {req.rejectedAt && (
+                                <p><span className="font-medium">Rejected:</span> {format(new Date(req.rejectedAt), 'MMM dd, yyyy hh:mm a')}</p>
+                              )}
+                              {req.rejectionReason && (
+                                <p className="text-red-600"><span className="font-medium">Rejection Reason:</span> {req.rejectionReason}</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

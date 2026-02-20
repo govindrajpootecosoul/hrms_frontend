@@ -11,7 +11,8 @@ import AttendanceTable from '@/components/hrms/AttendanceTable';
 import AttendanceUploadForm from '@/components/hrms/AttendanceUploadForm';
 import Modal from '@/components/common/Modal';
 import Button from '@/components/common/Button';
-import { Users, UserCheck, UserX, CalendarDays, Home, Clock3, CheckCircle2, Edit, Trash2, Plus, Search } from 'lucide-react';
+import { Users, UserCheck, UserX, CalendarDays, Home, Clock3, CheckCircle2, Edit, Trash2, Plus, Search, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 const AttendanceOverviewPage = () => {
   const params = useParams();
@@ -36,6 +37,9 @@ const AttendanceOverviewPage = () => {
     leaveApprovals: 0
   });
   const [loading, setLoading] = useState(true);
+  const [showEmployeeModal, setShowEmployeeModal] = useState(false);
+  const [modalFilterType, setModalFilterType] = useState(null);
+  const [modalTitle, setModalTitle] = useState('');
 
   // Fetch employees list
   useEffect(() => {
@@ -93,15 +97,19 @@ const AttendanceOverviewPage = () => {
         }
         
         const today = new Date().toISOString().split('T')[0];
+        const timestamp = Date.now(); // Cache-busting timestamp
         
         const params = new URLSearchParams();
         params.append('date', today);
+        params.append('_t', timestamp.toString()); // Cache-busting
         if (company) {
           params.append('company', company);
         }
 
         const headers = {
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
         };
         if (company) {
           headers['x-company'] = company;
@@ -110,22 +118,50 @@ const AttendanceOverviewPage = () => {
         console.log('[Attendance Overview] Fetching with company:', company);
 
         const [attendanceRes, statsRes] = await Promise.all([
-          fetch(`/api/hrms-portal/attendance?${params.toString()}`, { headers }),
-          fetch(`/api/hrms-portal/attendance/stats?${params.toString()}`, { headers })
+          fetch(`/api/hrms-portal/attendance?${params.toString()}`, { 
+            headers,
+            cache: 'no-store',
+          }),
+          fetch(`/api/hrms-portal/attendance/stats?${params.toString()}`, { 
+            headers,
+            cache: 'no-store',
+          })
         ]);
 
         if (attendanceRes.ok) {
           const attendanceJson = await attendanceRes.json();
+          console.log('[Attendance Overview] Attendance records response:', attendanceJson);
           if (attendanceJson.success) {
-            setAttendance(attendanceJson.data.records || []);
+            const records = attendanceJson.data.records || [];
+            console.log(`[Attendance Overview] Setting ${records.length} attendance records`);
+            console.log('[Attendance Overview] Sample record:', records[0]);
+            setAttendance(records);
+          } else {
+            console.warn('[Attendance Overview] Attendance records response missing success or data:', attendanceJson);
           }
+        } else {
+          console.error('[Attendance Overview] Failed to fetch attendance records:', attendanceRes.status, attendanceRes.statusText);
         }
 
         if (statsRes.ok) {
           const statsJson = await statsRes.json();
-          if (statsJson.success) {
-            setStats(statsJson.data);
+          console.log('[Attendance Overview] Stats response:', statsJson);
+          if (statsJson.success && statsJson.data) {
+            console.log('[Attendance Overview] Setting stats:', statsJson.data);
+            setStats({
+              totalEmployees: statsJson.data.totalEmployees || 0,
+              presentToday: statsJson.data.presentToday || 0,
+              absentToday: statsJson.data.absentToday || 0,
+              onLeaveToday: statsJson.data.onLeaveToday || 0,
+              onWFHToday: statsJson.data.onWFHToday || 0,
+              lateCheckIns: statsJson.data.lateCheckIns || 0,
+              leaveApprovals: statsJson.data.leaveApprovals || 0
+            });
+          } else {
+            console.warn('[Attendance Overview] Stats response missing success or data:', statsJson);
           }
+        } else {
+          console.error('[Attendance Overview] Stats response not OK:', statsRes.status, statsRes.statusText);
         }
       } catch (err) {
         console.error('Fetch attendance error:', err);
@@ -137,6 +173,11 @@ const AttendanceOverviewPage = () => {
 
     fetchAttendance();
   }, [companyId, currentCompany, toast]);
+
+  // Debug: Log stats changes
+  useEffect(() => {
+    console.log('[Attendance Overview] Stats updated:', stats);
+  }, [stats]);
 
   const handleUploadAttendance = () => {
     setShowUploadForm(true);
@@ -325,6 +366,186 @@ const AttendanceOverviewPage = () => {
     return 'bg-gray-100 text-gray-800 border-gray-200';
   };
 
+  // Get filtered employees based on card type
+  const getFilteredEmployees = (filterType) => {
+    const today = new Date().toISOString().split('T')[0];
+    
+    switch (filterType) {
+      case 'total':
+        return employees.map(emp => {
+          const attendanceRecord = attendance.find(a => 
+            a.biometricId === emp.biometricId || 
+            a.employeeName === emp.name
+          );
+          return {
+            ...emp,
+            employeeCode: emp.biometricId || emp.employeeCode || emp.id,
+            employeeName: emp.name || emp.employeeName,
+            department: emp.department || 'General',
+            status: attendanceRecord?.status || 'absent',
+            checkIn: attendanceRecord?.timeIn || '--',
+            checkOut: attendanceRecord?.timeOut || '--',
+            isLate: attendanceRecord?.isLate || false
+          };
+        });
+      
+      case 'present':
+        const presentRecords = attendance.filter(a => {
+          const matchesStatus = a.status === 'present';
+          const matchesDate = a.date === today;
+          return matchesStatus && matchesDate;
+        });
+        console.log(`[Attendance Overview] Filtering 'present': Found ${presentRecords.length} records out of ${attendance.length} total`);
+        console.log('[Attendance Overview] Today:', today);
+        console.log('[Attendance Overview] Sample attendance record:', attendance[0]);
+        return presentRecords.map(a => ({
+          employeeCode: a.biometricId,
+          employeeName: a.employeeName,
+          department: a.department || 'General',
+          status: 'present',
+          checkIn: a.timeIn || '--',
+          checkOut: a.timeOut || '--',
+          isLate: a.isLate || false
+        }));
+      
+      case 'absent':
+        // Get all employees and find those not present today
+        const presentIds = new Set(
+          attendance
+            .filter(a => a.status === 'present' && a.date === today)
+            .map(a => a.biometricId)
+        );
+        const onLeaveIds = new Set(
+          attendance
+            .filter(a => a.status === 'on-leave' && a.date === today)
+            .map(a => a.biometricId)
+        );
+        const wfhIds = new Set(
+          attendance
+            .filter(a => (a.status === 'wfh' || a.status === 'work-from-home') && a.date === today)
+            .map(a => a.biometricId)
+        );
+        
+        return employees
+          .filter(emp => {
+            const empId = emp.biometricId || emp.employeeCode || emp.id;
+            return !presentIds.has(empId) && !onLeaveIds.has(empId) && !wfhIds.has(empId);
+          })
+          .map(emp => ({
+            employeeCode: emp.biometricId || emp.employeeCode || emp.id,
+            employeeName: emp.name || emp.employeeName,
+            department: emp.department || 'General',
+            status: 'absent',
+            checkIn: '--',
+            checkOut: '--',
+            isLate: false
+          }));
+      
+      case 'on-leave':
+        return attendance
+          .filter(a => a.status === 'on-leave' && a.date === today)
+          .map(a => ({
+            employeeCode: a.biometricId,
+            employeeName: a.employeeName,
+            department: a.department || 'General',
+            status: 'on-leave',
+            checkIn: '--',
+            checkOut: '--',
+            isLate: false
+          }));
+      
+      case 'wfh':
+        return attendance
+          .filter(a => (a.status === 'wfh' || a.status === 'work-from-home') && a.date === today)
+          .map(a => ({
+            employeeCode: a.biometricId,
+            employeeName: a.employeeName,
+            department: a.department || 'General',
+            status: 'wfh',
+            checkIn: a.timeIn || '--',
+            checkOut: a.timeOut || '--',
+            isLate: a.isLate || false
+          }));
+      
+      case 'late':
+        return attendance
+          .filter(a => (a.isLate || (a.status === 'present' && a.timeIn)) && a.date === today)
+          .map(a => ({
+            employeeCode: a.biometricId,
+            employeeName: a.employeeName,
+            department: a.department || 'General',
+            status: 'present',
+            checkIn: a.timeIn || '--',
+            checkOut: a.timeOut || '--',
+            isLate: true
+          }));
+      
+      default:
+        return [];
+    }
+  };
+
+  // Handle card click
+  const handleCardClick = (filterType, title) => {
+    setModalFilterType(filterType);
+    setModalTitle(title);
+    setShowEmployeeModal(true);
+  };
+
+  // Export to Excel
+  const handleExportToExcel = () => {
+    try {
+      const filteredData = getFilteredEmployees(modalFilterType);
+      
+      if (filteredData.length === 0) {
+        toast.error('No data to export');
+        return;
+      }
+
+      // Prepare data for Excel
+      const excelData = filteredData.map((emp, index) => ({
+        'S.No': index + 1,
+        'Employee Code': emp.employeeCode || '--',
+        'Employee Name': emp.employeeName || '--',
+        'Department': emp.department || '--',
+        'Check-in': emp.checkIn || '--',
+        'Check-out': emp.checkOut || '--',
+        'Status': emp.isLate ? 'Late' : (emp.status === 'present' ? 'Present' : emp.status === 'absent' ? 'Absent' : emp.status === 'on-leave' ? 'On Leave' : emp.status === 'wfh' ? 'WFH' : emp.status || '--')
+      }));
+
+      // Create workbook and worksheet
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(excelData);
+
+      // Set column widths
+      const colWidths = [
+        { wch: 8 },  // S.No
+        { wch: 18 }, // Employee Code
+        { wch: 25 }, // Employee Name
+        { wch: 25 }, // Department
+        { wch: 12 }, // Check-in
+        { wch: 12 }, // Check-out
+        { wch: 15 }  // Status
+      ];
+      ws['!cols'] = colWidths;
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, 'Employees');
+
+      // Generate filename with current date
+      const dateStr = new Date().toISOString().split('T')[0];
+      const filename = `${modalTitle.replace(/\s+/g, '_')}_${dateStr}.xlsx`;
+
+      // Write file
+      XLSX.writeFile(wb, filename);
+      
+      toast.success('Excel file exported successfully');
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export Excel file');
+    }
+  };
+
   const attendanceLogColumns = [
     {
       key: 'biometricId',
@@ -414,16 +635,17 @@ const AttendanceOverviewPage = () => {
         {/* First row - 4 cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { title: 'Total Employees', value: stats.totalEmployees, icon: Users, gradient: 'from-blue-600 via-indigo-600 to-blue-700' },
-            { title: 'Present Today', value: stats.presentToday, icon: UserCheck, gradient: 'from-green-600 via-emerald-600 to-green-700' },
-            { title: 'Absent Today', value: stats.absentToday, icon: UserX, gradient: 'from-red-600 via-rose-600 to-red-700' },
-            { title: 'On Leave', value: stats.onLeaveToday, icon: CalendarDays, gradient: 'from-purple-600 via-violet-600 to-purple-700' },
+            { title: 'Total Employees', value: stats.totalEmployees, icon: Users, gradient: 'from-blue-600 via-indigo-600 to-blue-700', filterType: 'total' },
+            { title: 'Present Today', value: stats.presentToday, icon: UserCheck, gradient: 'from-green-600 via-emerald-600 to-green-700', filterType: 'present' },
+            { title: 'Absent Today', value: stats.absentToday, icon: UserX, gradient: 'from-red-600 via-rose-600 to-red-700', filterType: 'absent' },
+            { title: 'On Leave', value: stats.onLeaveToday, icon: CalendarDays, gradient: 'from-purple-600 via-violet-600 to-purple-700', filterType: 'on-leave' },
           ].map((kpi, index) => {
             const Icon = kpi.icon;
             return (
               <div
                 key={index}
-                className={`bg-gradient-to-r ${kpi.gradient} rounded-xl p-5 text-white shadow-lg`}
+                onClick={() => handleCardClick(kpi.filterType, kpi.title)}
+                className={`bg-gradient-to-r ${kpi.gradient} rounded-xl p-5 text-white shadow-lg cursor-pointer hover:scale-105 transition-transform duration-200`}
               >
                 <div className="flex items-center justify-between mb-3">
                   <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
@@ -440,15 +662,16 @@ const AttendanceOverviewPage = () => {
         {/* Second row - 3 cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[
-            { title: 'On WFH', value: stats.onWFHToday, icon: Home, gradient: 'from-pink-600 via-rose-600 to-pink-700' },
-            { title: 'Late Check-ins', value: stats.lateCheckIns, icon: Clock3, gradient: 'from-orange-600 via-amber-600 to-orange-700' },
-            { title: 'Leave Approvals', value: stats.leaveApprovals, icon: CheckCircle2, gradient: 'from-emerald-600 via-teal-600 to-emerald-700' },
+            { title: 'On WFH', value: stats.onWFHToday, icon: Home, gradient: 'from-pink-600 via-rose-600 to-pink-700', filterType: 'wfh' },
+            { title: 'Late Check-ins', value: stats.lateCheckIns, icon: Clock3, gradient: 'from-orange-600 via-amber-600 to-orange-700', filterType: 'late' },
+            { title: 'Leave Approvals', value: stats.leaveApprovals, icon: CheckCircle2, gradient: 'from-emerald-600 via-teal-600 to-emerald-700', filterType: null },
           ].map((kpi, index) => {
             const Icon = kpi.icon;
             return (
               <div
                 key={index}
-                className={`bg-gradient-to-r ${kpi.gradient} rounded-xl p-5 text-white shadow-lg`}
+                onClick={() => kpi.filterType && handleCardClick(kpi.filterType, kpi.title)}
+                className={`bg-gradient-to-r ${kpi.gradient} rounded-xl p-5 text-white shadow-lg ${kpi.filterType ? 'cursor-pointer hover:scale-105 transition-transform duration-200' : ''}`}
               >
                 <div className="flex items-center justify-between mb-3">
                   <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
@@ -684,6 +907,87 @@ const AttendanceOverviewPage = () => {
           onSubmit={handleSubmitAttendance}
           onCancel={() => setShowUploadForm(false)}
         />
+      </Modal>
+
+      {/* Employee List Modal */}
+      <Modal
+        isOpen={showEmployeeModal}
+        onClose={() => setShowEmployeeModal(false)}
+        title={modalTitle}
+        size="xl"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-sm text-slate-600">
+              Showing {getFilteredEmployees(modalFilterType).length} employee(s)
+            </div>
+            <Button
+              onClick={handleExportToExcel}
+              className="bg-green-600 text-white hover:bg-green-700 flex items-center gap-2"
+              icon={<Download className="w-4 h-4" />}
+            >
+              Export to Excel
+            </Button>
+          </div>
+          <div className="max-h-[500px] overflow-y-auto">
+            <Table
+              columns={[
+                {
+                  key: 'employeeCode',
+                  title: 'Employee Code',
+                  render: (value) => <span className="font-mono text-sm font-medium text-slate-900">{value}</span>
+                },
+                {
+                  key: 'employeeName',
+                  title: 'Employee Name',
+                  render: (value, row) => (
+                    <div>
+                      <div className="font-medium text-slate-900">{value}</div>
+                      <div className="text-xs text-slate-600">{row.department}</div>
+                    </div>
+                  )
+                },
+                {
+                  key: 'department',
+                  title: 'Department',
+                  render: (value) => <span className="text-slate-700">{value}</span>
+                },
+                {
+                  key: 'checkIn',
+                  title: 'Check-in',
+                  render: (value) => <span className="text-slate-700">{value}</span>
+                },
+                {
+                  key: 'checkOut',
+                  title: 'Check-out',
+                  render: (value) => <span className="text-slate-700">{value}</span>
+                },
+                {
+                  key: 'status',
+                  title: 'Status',
+                  render: (value, row) => {
+                    const displayStatus = row.isLate ? 'Late' : (value === 'present' ? 'Present' : value === 'absent' ? 'Absent' : value === 'on-leave' ? 'On Leave' : value === 'wfh' ? 'WFH' : value);
+                    return (
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusBadge(value, row.isLate)}`}>
+                        {displayStatus}
+                      </span>
+                    );
+                  }
+                }
+              ]}
+              data={getFilteredEmployees(modalFilterType)}
+              emptyMessage="No employees found"
+            />
+          </div>
+          <div className="flex justify-end pt-4 border-t">
+            <Button
+              onClick={() => setShowEmployeeModal(false)}
+              className="bg-blue-600 text-white hover:bg-blue-700"
+            >
+              Close
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

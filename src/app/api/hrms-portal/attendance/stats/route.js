@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { API_BASE_URL } from '@/lib/utils/constants';
 
+// Disable caching for this route
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // Proxy route for HRMS portal attendance statistics
 export async function GET(request) {
   try {
@@ -26,9 +30,18 @@ export async function GET(request) {
       headers['x-company'] = company;
     }
 
-    const response = await fetch(backendUrl, {
+    // Add cache-busting timestamp to URL
+    const timestamp = Date.now();
+    const finalUrl = `${backendUrl}${backendUrl.includes('?') ? '&' : '?'}_t=${timestamp}`;
+    
+    const response = await fetch(finalUrl, {
       method: 'GET',
-      headers,
+      headers: {
+        ...headers,
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+      },
+      cache: 'no-store', // Prevent Next.js from caching
     });
 
     if (!response.ok) {
@@ -41,7 +54,17 @@ export async function GET(request) {
     }
 
     const data = await response.json();
-    return NextResponse.json(data);
+    console.log('[Attendance Stats Proxy] Backend response:', JSON.stringify(data, null, 2));
+    
+    // Return with no-cache headers to prevent caching
+    return NextResponse.json(data, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'X-Timestamp': Date.now().toString(),
+      },
+    });
   } catch (error) {
     console.error('Attendance stats proxy error:', error);
     return NextResponse.json(

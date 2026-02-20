@@ -51,3 +51,53 @@ export async function GET(request) {
   }
 }
 
+export async function POST(request) {
+  try {
+    const body = await request.json();
+    const { searchParams } = new URL(request.url);
+    const company = searchParams.get('company') || request.headers.get('x-company');
+
+    const backendUrl = `${API_BASE_URL}/hrms/attendance-requests`;
+
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+
+    const authHeader = request.headers.get('authorization');
+    if (authHeader) headers['Authorization'] = authHeader;
+    if (company) headers['x-company'] = company;
+
+    const response = await fetch(backendUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    });
+
+    const responseText = await response.text();
+    let responseData;
+
+    try {
+      responseData = JSON.parse(responseText);
+    } catch (e) {
+      console.error('[HRMS attendance-requests POST] Failed to parse response:', responseText);
+      responseData = { success: false, error: responseText || 'Unknown error' };
+    }
+
+    if (!response.ok) {
+      console.error('[HRMS attendance-requests POST] Backend error:', response.status, responseData);
+      return NextResponse.json(
+        { success: false, error: responseData.error || responseData.message || `Backend error: ${response.status}` },
+        { status: response.status }
+      );
+    }
+
+    return NextResponse.json(responseData);
+  } catch (error) {
+    console.error('[HRMS attendance-requests POST] Proxy error:', error);
+    return NextResponse.json(
+      { success: false, error: error.message || 'Internal server error. Please try again.' },
+      { status: 500 }
+    );
+  }
+}
+

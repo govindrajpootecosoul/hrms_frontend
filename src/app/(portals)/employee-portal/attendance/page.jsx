@@ -101,7 +101,8 @@ export default function EmployeeAttendancePage() {
   });
   const [timeOffForm, setTimeOffForm] = useState({
     dateRange: '',
-    reason: ''
+    reason: '',
+    leaveType: ''
   });
   const [submitting, setSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState({ type: '', text: '' });
@@ -195,15 +196,16 @@ export default function EmployeeAttendancePage() {
           details: onDutyForm.details
         };
       } else if (type === 'time-off') {
-        if (!timeOffForm.dateRange || !timeOffForm.reason) {
-          setSubmitMessage({ type: 'error', text: 'Please fill in all required fields' });
+        if (!timeOffForm.dateRange || !timeOffForm.reason || !timeOffForm.leaveType) {
+          setSubmitMessage({ type: 'error', text: 'Please fill in all required fields including leave type' });
           setSubmitting(false);
           return;
         }
         requestData = {
           ...requestData,
           dateRange: timeOffForm.dateRange,
-          reason: timeOffForm.reason
+          reason: timeOffForm.reason,
+          leaveType: timeOffForm.leaveType
         };
       }
 
@@ -232,7 +234,7 @@ export default function EmployeeAttendancePage() {
         } else if (type === 'on-duty') {
           setOnDutyForm({ date: '', location: '', details: '' });
         } else if (type === 'time-off') {
-          setTimeOffForm({ dateRange: '', reason: '' });
+          setTimeOffForm({ dateRange: '', reason: '', leaveType: '' });
         }
 
         // Clear message after 3 seconds
@@ -281,8 +283,9 @@ export default function EmployeeAttendancePage() {
     
     const attendanceMap = new Map();
     attendanceData.attendanceThisMonth.forEach((day) => {
-      const date = new Date(day.date);
-      attendanceMap.set(date.getDate(), day);
+      // Use date string as key for accurate matching (format: YYYY-MM-DD)
+      const dateKey = day.date;
+      attendanceMap.set(dateKey, day);
     });
 
     const absent = [];
@@ -291,8 +294,9 @@ export default function EmployeeAttendancePage() {
     const weekend = [];
 
     eachDayOfInterval({ start: startOfMonth(currentMonthDate), end: endOfMonth(currentMonthDate) }).forEach((date) => {
-      const dayNumber = date.getDate();
-      const dayData = attendanceMap.get(dayNumber);
+      // Create date key in YYYY-MM-DD format to match attendance data
+      const dateKey = format(date, 'yyyy-MM-dd');
+      const dayData = attendanceMap.get(dateKey);
       
       if (isWeekend(date)) {
         weekend.push(date);
@@ -324,8 +328,9 @@ export default function EmployeeAttendancePage() {
     
     const attendanceMap = new Map();
     attendanceData.attendancePreviousMonth.forEach((day) => {
-      const date = new Date(day.date);
-      attendanceMap.set(date.getDate(), day);
+      // Use date string as key for accurate matching (format: YYYY-MM-DD)
+      const dateKey = day.date;
+      attendanceMap.set(dateKey, day);
     });
 
     const absent = [];
@@ -334,8 +339,9 @@ export default function EmployeeAttendancePage() {
     const weekend = [];
 
     eachDayOfInterval({ start: startOfMonth(previousMonthDate), end: endOfMonth(previousMonthDate) }).forEach((date) => {
-      const dayNumber = date.getDate();
-      const dayData = attendanceMap.get(dayNumber);
+      // Create date key in YYYY-MM-DD format to match attendance data
+      const dateKey = format(date, 'yyyy-MM-dd');
+      const dayData = attendanceMap.get(dateKey);
       
       if (isWeekend(date)) {
         weekend.push(date);
@@ -363,7 +369,7 @@ export default function EmployeeAttendancePage() {
   const renderAttendanceRows = () => (
     <div className="space-y-2">
       {attendance.map((day) => (
-        <div key={day.day} className="flex items-center justify-between rounded-lg border bg-white p-3 text-sm">
+        <div key={day.date || `${day.day}-${day.status}-${day.hours}`} className="flex items-center justify-between rounded-lg border bg-white p-3 text-sm">
           <div className="flex items-center gap-3">
             <Badge variant="outline" className="w-12 justify-center">
               {day.day}
@@ -637,6 +643,22 @@ export default function EmployeeAttendancePage() {
                   </div>
                 )}
                 <div className="space-y-2">
+                  <Label htmlFor="leave-type">Leave Type</Label>
+                  <Select value={timeOffForm.leaveType} onValueChange={(value) => setTimeOffForm({ ...timeOffForm, leaveType: value })}>
+                    <SelectTrigger id="leave-type" className="rounded-xl">
+                      <SelectValue placeholder="Select leave type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Casual Leave">Casual Leave</SelectItem>
+                      <SelectItem value="Sick Leave">Sick Leave</SelectItem>
+                      <SelectItem value="Earned Leave">Earned Leave</SelectItem>
+                      <SelectItem value="Compensatory Off">Compensatory Off</SelectItem>
+                      <SelectItem value="LOP">LOP (Loss of Pay)</SelectItem>
+                      <SelectItem value="Time Off">Time Off</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="range">Date range</Label>
                   <Input 
                     id="range" 
@@ -708,6 +730,101 @@ export default function EmployeeAttendancePage() {
               </p>
             </div>
           ))}
+        </CardContent>
+      </Card>
+
+      {/* Previous Attendance History Table */}
+      <Card className="border-none bg-gradient-to-br from-slate-50 to-slate-100 shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-slate-900">Previous Attendance History</CardTitle>
+          <CardDescription>Detailed view of your past attendance records</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loadingData ? (
+            <div className="text-center py-8 text-sm text-slate-600">Loading attendance history...</div>
+          ) : !attendanceData ? (
+            <div className="text-center py-8 text-sm text-slate-600">No attendance data available</div>
+          ) : (
+            <div className="space-y-4">
+              {/* Combine all attendance data for history view */}
+              {(() => {
+                const allAttendance = [
+                  ...(attendanceData.attendanceLast7Days || []).map(day => ({ ...day, period: 'Last 7 Days' })),
+                  ...(attendanceData.attendanceThisMonth || []).map(day => ({ ...day, period: 'This Month' })),
+                  ...(attendanceData.attendancePreviousMonth || []).map(day => ({ ...day, period: 'Previous Month' }))
+                ];
+                
+                // Remove duplicates and sort by date
+                const uniqueAttendance = Array.from(
+                  new Map(allAttendance.map(item => [item.day || item.date, item])).values()
+                ).sort((a, b) => {
+                  const dateA = new Date(a.date || a.day);
+                  const dateB = new Date(b.date || b.day);
+                  return dateB - dateA;
+                });
+
+                if (uniqueAttendance.length === 0) {
+                  return <div className="text-center py-8 text-sm text-slate-600">No attendance records found</div>;
+                }
+
+                return (
+                  <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-slate-50 border-b border-slate-200">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Date</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Day</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Status</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Hours</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Period</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                          {uniqueAttendance.slice(0, 30).map((day, index) => {
+                            const statusColors = {
+                              'Present': 'bg-green-100 text-green-800 border-green-200',
+                              'Absent': 'bg-red-100 text-red-800 border-red-200',
+                              'WFH': 'bg-sky-100 text-sky-800 border-sky-200',
+                              'Weekend': 'bg-slate-100 text-slate-600 border-slate-200'
+                            };
+                            const statusColor = statusColors[day.status] || 'bg-gray-100 text-gray-800 border-gray-200';
+                            
+                            return (
+                              <tr key={index} className="hover:bg-slate-50 transition-colors">
+                                <td className="px-4 py-3 text-sm text-slate-900">
+                                  {day.date ? format(new Date(day.date), 'MMM dd, yyyy') : day.day || 'N/A'}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-slate-600">
+                                  {day.day || (day.date ? format(new Date(day.date), 'EEE') : 'N/A')}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <Badge className={`${statusColor} border font-medium`}>
+                                    {day.status || 'N/A'}
+                                  </Badge>
+                                </td>
+                                <td className="px-4 py-3 text-sm font-medium text-slate-900">
+                                  {day.hours ? `${day.hours.toFixed(1)} hrs` : '-'}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-slate-600">
+                                  {day.period || 'N/A'}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    {uniqueAttendance.length > 30 && (
+                      <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 text-sm text-slate-600 text-center">
+                        Showing last 30 records. Use the filters above to view specific periods.
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

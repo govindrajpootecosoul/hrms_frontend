@@ -170,7 +170,7 @@ const mockCandidates = [
   },
 ];
 
-const statusOptions = ['New', 'Shortlisted', 'In Interview', 'Feedback Call', 'Finalized', 'Hired', 'On Hold'];
+const statusOptions = ['New', 'Shortlisted', 'In Interview', 'Interview Scheduled', 'Hired', 'On Hold'];
 const recruiterOptions = ['Sarah Johnson', 'Mike Wilson', 'David Lee'];
 
 export default function SourcingScreening() {
@@ -226,7 +226,7 @@ export default function SourcingScreening() {
     return {
       totalCandidates: candidates.length,
       shortlisted: candidates.filter(c => c.status === 'Shortlisted').length,
-      inInterview: candidates.filter(c => c.status === 'In Interview').length,
+      inInterview: candidates.filter(c => c.status === 'In Interview' || c.status === 'Interview Scheduled').length,
       hired: candidates.filter(c => c.status === 'Hired').length,
       onHold: candidates.filter(c => c.status === 'On Hold').length,
     };
@@ -373,12 +373,7 @@ export default function SourcingScreening() {
         expectedCTC: parseFloat(formData.expectedCTC) || 0,
       };
       
-      // If status changed to Finalized, move to Recruitment & Hiring
-      if (formData.status === 'Finalized' && selectedCandidate.status !== 'Finalized') {
-        updateCandidateStatus(selectedCandidate.id, 'Finalized', 'sourcing');
-      } else {
-        updateCandidate(selectedCandidate.id, updates);
-      }
+      updateCandidate(selectedCandidate.id, updates);
       
       setIsEditDialogOpen(false);
       setSelectedCandidate(null);
@@ -409,8 +404,7 @@ export default function SourcingScreening() {
       'New': 'bg-blue-100 text-blue-800',
       'Shortlisted': 'bg-purple-100 text-purple-800',
       'In Interview': 'bg-yellow-100 text-yellow-800',
-      'Feedback Call': 'bg-orange-100 text-orange-800',
-      'Finalized': 'bg-green-100 text-green-800',
+      'Interview Scheduled': 'bg-yellow-100 text-yellow-800',
       'Hired': 'bg-emerald-100 text-emerald-800',
       'On Hold': 'bg-gray-100 text-gray-800',
     };
@@ -861,11 +855,7 @@ export default function SourcingScreening() {
                                   <Select 
                                     value={candidate.status} 
                                     onValueChange={(value) => {
-                                      if (value === 'Finalized') {
-                                        updateCandidateStatus(candidate.id, 'Finalized', 'sourcing');
-                                      } else {
-                                        updateCandidate(candidate.id, { status: value });
-                                      }
+                                      updateCandidate(candidate.id, { status: value });
                                     }}
                                   >
                                     <SelectTrigger className="w-[200px]">

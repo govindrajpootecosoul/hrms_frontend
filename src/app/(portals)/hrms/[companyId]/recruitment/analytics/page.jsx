@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
+import { useCompany } from '@/lib/context/CompanyContext';
 import { 
   Briefcase,
   FileText,
@@ -26,229 +28,184 @@ import {
 } from 'recharts';
 
 export default function HRAnalyticsPage() {
+  const params = useParams();
+  const companyId = params.companyId;
+  const { currentCompany } = useCompany();
+  
   const [selectedMonth, setSelectedMonth] = useState('This Month');
   const [selectedHR, setSelectedHR] = useState('All HRs');
   const [selectedDept, setSelectedDept] = useState('All Departments');
+  const [loading, setLoading] = useState(true);
+  const [kpiCards, setKpiCards] = useState([]);
+  const [pipelineByHR, setPipelineByHR] = useState([]);
+  const [recruitmentFunnel, setRecruitmentFunnel] = useState([]);
+  const [todaysCallsData, setTodaysCallsData] = useState([]);
+  const [hrPerformanceData, setHrPerformanceData] = useState([]);
+  const [locationData, setLocationData] = useState([]);
+  const [hrActivityData, setHrActivityData] = useState([]);
+  const [recentActivities, setRecentActivities] = useState([]);
+  const [hrList, setHrList] = useState([]);
+  const [departments, setDepartments] = useState([]);
 
-  // All KPI Cards (10 cards)
-  const kpiCards = [
-    { 
-      title: 'TOTAL ACTIVE JOBS', 
-      value: '12', 
-      icon: Briefcase, 
-      gradient: 'from-purple-600 via-purple-500 to-purple-700'
-    },
-    { 
-      title: 'TOTAL APPLICATIONS', 
-      value: '245', 
-      icon: FileText, 
-      gradient: 'from-blue-600 via-blue-500 to-blue-700'
-    },
-    { 
-      title: 'SHORTLISTED', 
-      value: '59', 
-      icon: Star, 
-      gradient: 'from-orange-500 via-orange-400 to-orange-600'
-    },
-    { 
-      title: 'INTERVIEWS SCHEDULED', 
-      value: '45', 
-      icon: Calendar, 
-      gradient: 'from-red-600 via-red-500 to-red-700'
-    },
-    { 
-      title: 'OFFERS SENT', 
-      value: '38', 
-      icon: Handshake, 
-      gradient: 'from-green-600 via-green-500 to-green-700'
-    },
-    { 
-      title: 'HIRED', 
-      value: '32', 
-      icon: CheckCircle2, 
-      gradient: 'from-emerald-500 via-emerald-400 to-emerald-600'
-    },
-    { 
-      title: 'AVG. TIME TO HIRE', 
-      value: '15.5%', 
-      icon: Clock, 
-      gradient: 'from-blue-800 via-blue-700 to-blue-900'
-    },
-    { 
-      title: 'AVG. INTERVIEW TIME', 
-      value: '10 Days', 
-      icon: Timer, 
-      gradient: 'from-red-800 via-red-700 to-red-900'
-    },
-    { 
-      title: 'AVG. OFFER ACCEPTANCE RATE', 
-      value: '05 Days', 
-      icon: Percent, 
-      gradient: 'from-purple-600 via-purple-500 to-purple-700'
-    },
-    { 
-      title: 'OFFER REJECTION RATE', 
-      value: '8.2%', 
-      icon: ArrowDown, 
-      gradient: 'from-blue-800 via-blue-700 to-blue-900'
-    },
-  ];
+  // Function to get company name
+  const getCompanyName = () => {
+    let company = currentCompany?.name;
+    if (!company && typeof window !== 'undefined') {
+      company = sessionStorage.getItem('selectedCompany') || 
+               sessionStorage.getItem('adminSelectedCompany');
+    }
+    if (!company && companyId && companyId !== 'undefined') {
+      if (typeof window !== 'undefined') {
+        company = sessionStorage.getItem(`company_${companyId}`);
+      }
+    }
+    return company;
+  };
 
-  // Candidate for Interview in Pipeline by HR
-  const pipelineByHR = [
-    { name: 'David Lee', candidates: 1, percentage: 15.4, color: 'bg-blue-500' },
-    { name: 'Emma Brown', candidates: 1, percentage: 15.4, color: 'bg-green-500' },
-    { name: 'James Taylor', candidates: 1, percentage: 15.4, color: 'bg-emerald-400' },
-    { name: 'Lisa Anderson', candidates: 1, percentage: 15.4, color: 'bg-orange-500' },
-    { name: 'Sarah Johnson', candidates: 1, percentage: 15.4, color: 'bg-purple-500' },
-    { name: 'Mike Wilson', candidates: 1, percentage: 15.4, color: 'bg-blue-800' },
-    { name: 'Zanah Johnson', candidates: 1, percentage: 15.4, color: 'bg-emerald-400' },
-  ];
+  // Fetch recruitment analytics data
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem('auth_token');
+        const company = getCompanyName();
+        
+        const params = new URLSearchParams();
+        if (company) {
+          params.append('company', company);
+        }
+        if (selectedMonth) {
+          params.append('month', selectedMonth);
+        }
+        if (selectedHR && selectedHR !== 'All HRs') {
+          params.append('hr', selectedHR);
+        }
+        if (selectedDept && selectedDept !== 'All Departments') {
+          params.append('department', selectedDept);
+        }
 
-  // Recruitment Funnel
-  const recruitmentFunnel = [
-    { stage: 'New', candidates: 1, percentage: 5.0, color: 'bg-blue-500' },
-    { stage: 'Shortlisted', candidates: 1, percentage: 5.0, color: 'bg-cyan-400' },
-    { stage: 'Screening', candidates: 0, percentage: 0.0, color: 'bg-slate-300' },
-    { stage: 'Interview Aligned', candidates: 12, percentage: 60.0, color: 'bg-orange-500' },
-    { stage: 'Feedback Call', candidates: 0, percentage: 0.0, color: 'bg-slate-300' },
-    { stage: 'Finalized', candidates: 1, percentage: 5.0, color: 'bg-emerald-400' },
-    { stage: 'Hired', candidates: 0, percentage: 0.0, color: 'bg-slate-300' },
-    { stage: 'On Hold', candidates: 0, percentage: 0.0, color: 'bg-slate-300' },
-  ];
+        const headers = {
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        };
+        if (company) {
+          // For HRMS Admin Portal - don't send company header to allow all data access
+          // headers['x-company'] = company;
+        }
 
-  // Today's Calls by HR
-  const todaysCallsData = [
-    { name: 'Sarah Johnson', calls: 7 },
-    { name: 'Mike Wilson', calls: 5 },
-    { name: 'David Lee', calls: 6 },
-    { name: 'Emma Brown', calls: 4 },
-    { name: 'James Taylor', calls: 5 },
-    { name: 'Lisa Anderson', calls: 8 },
-  ];
+        const res = await fetch(`/api/hrms-portal/recruitment/analytics?${params.toString()}`, { headers });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data) {
+            const data = json.data;
+            
+            // Set KPI Cards
+            if (data.kpiCards) {
+              setKpiCards([
+                { 
+                  title: 'TOTAL ACTIVE JOBS', 
+                  value: String(data.kpiCards.totalActiveJobs || 0), 
+                  icon: Briefcase, 
+                  gradient: 'from-purple-600 via-purple-500 to-purple-700'
+                },
+                { 
+                  title: 'TOTAL APPLICATIONS', 
+                  value: String(data.kpiCards.totalApplications || 0), 
+                  icon: FileText, 
+                  gradient: 'from-blue-600 via-blue-500 to-blue-700'
+                },
+                { 
+                  title: 'SHORTLISTED', 
+                  value: String(data.kpiCards.shortlisted || 0), 
+                  icon: Star, 
+                  gradient: 'from-orange-500 via-orange-400 to-orange-600'
+                },
+                { 
+                  title: 'INTERVIEWS SCHEDULED', 
+                  value: String(data.kpiCards.interviewsScheduled || 0), 
+                  icon: Calendar, 
+                  gradient: 'from-red-600 via-red-500 to-red-700'
+                },
+                { 
+                  title: 'OFFERS SENT', 
+                  value: String(data.kpiCards.offersSent || 0), 
+                  icon: Handshake, 
+                  gradient: 'from-green-600 via-green-500 to-green-700'
+                },
+                { 
+                  title: 'HIRED', 
+                  value: String(data.kpiCards.hired || 0), 
+                  icon: CheckCircle2, 
+                  gradient: 'from-emerald-500 via-emerald-400 to-emerald-600'
+                },
+                { 
+                  title: 'AVG. TIME TO HIRE', 
+                  value: data.kpiCards.avgTimeToHire || '0%', 
+                  icon: Clock, 
+                  gradient: 'from-blue-800 via-blue-700 to-blue-900'
+                },
+                { 
+                  title: 'AVG. INTERVIEW TIME', 
+                  value: data.kpiCards.avgInterviewTime || '0 Days', 
+                  icon: Timer, 
+                  gradient: 'from-red-800 via-red-700 to-red-900'
+                },
+                { 
+                  title: 'AVG. OFFER ACCEPTANCE RATE', 
+                  value: data.kpiCards.avgOfferAcceptanceRate || '0%', 
+                  icon: Percent, 
+                  gradient: 'from-purple-600 via-purple-500 to-purple-700'
+                },
+                { 
+                  title: 'OFFER REJECTION RATE', 
+                  value: data.kpiCards.offerRejectionRate || '0%', 
+                  icon: ArrowDown, 
+                  gradient: 'from-blue-800 via-blue-700 to-blue-900'
+                },
+              ]);
+            }
+            
+            // Set other data
+            setPipelineByHR(data.pipelineByHR || []);
+            setRecruitmentFunnel(data.recruitmentFunnel || []);
+            setTodaysCallsData(data.todaysCallsData || []);
+            setHrPerformanceData(data.hrPerformanceData || []);
+            setLocationData(data.locationData || []);
+            setHrActivityData(data.hrActivityData || []);
+            setRecentActivities(data.recentActivities || []);
+            setHrList(['All HRs', ...(data.hrList || [])]);
+            setDepartments(['All Departments', ...(data.departments || [])]);
+          }
+        }
+      } catch (err) {
+        console.error('Fetch recruitment analytics error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // HR Performance Comparison
-  const hrPerformanceData = [
-    { name: 'Sarah Johnson', shortlisted: 15, positioned: 5 },
-    { name: 'Mike Wilson', shortlisted: 13, positioned: 3 },
-    { name: 'David Lee', shortlisted: 14, positioned: 4 },
-    { name: 'Emma Brown', shortlisted: 12, positioned: 2 },
-    { name: 'James Taylor', shortlisted: 14, positioned: 3 },
-    { name: 'Lisa Anderson', shortlisted: 15, positioned: 5 },
-  ];
+    fetchAnalytics();
+  }, [companyId, currentCompany, selectedMonth, selectedHR, selectedDept]);
 
-  // Location Based Hiring Distribution
-  const locationData = [
-    { name: 'Bangalore', value: 11 },
-    { name: 'Mumbai', value: 7 },
-    { name: 'Delhi', value: 5 },
-    { name: 'Hyderabad', value: 3 },
-    { name: 'Pune', value: 1 },
-  ];
+  // Helper function to get color for pipeline items
+  const getPipelineColor = (index) => {
+    const colors = ['bg-blue-500', 'bg-green-500', 'bg-emerald-400', 'bg-orange-500', 'bg-purple-500', 'bg-blue-800', 'bg-cyan-400'];
+    return colors[index % colors.length];
+  };
 
-  // HR Activity Table
-  const hrActivityData = [
-    { 
-      hrName: 'Sarah Johnson', 
-      totalCalls: 128, 
-      shortlisted: 24, 
-      interviewsScheduled: 18, 
-      offersSent: 12, 
-      hiresClosed: 10, 
-      conversion: 4.9, 
-      avgResponseTime: '2.8 hrs' 
-    },
-    { 
-      hrName: 'Mike Wilson', 
-      totalCalls: 132, 
-      shortlisted: 24, 
-      interviewsScheduled: 16, 
-      offersSent: 10, 
-      hiresClosed: 8, 
-      conversion: 4.7, 
-      avgResponseTime: '3.2 hrs' 
-    },
-    { 
-      hrName: 'David Lee', 
-      totalCalls: 138, 
-      shortlisted: 24, 
-      interviewsScheduled: 16, 
-      offersSent: 11, 
-      hiresClosed: 9, 
-      conversion: 4.6, 
-      avgResponseTime: '2.8 hrs' 
-    },
-    { 
-      hrName: 'Emma Brown', 
-      totalCalls: 138, 
-      shortlisted: 23, 
-      interviewsScheduled: 12, 
-      offersSent: 8, 
-      hiresClosed: 7, 
-      conversion: 4.9, 
-      avgResponseTime: '3.6 hrs' 
-    },
-    { 
-      hrName: 'James Taylor', 
-      totalCalls: 126, 
-      shortlisted: 23, 
-      interviewsScheduled: 14, 
-      offersSent: 9, 
-      hiresClosed: 7, 
-      conversion: 4.6, 
-      avgResponseTime: '3.0 hrs' 
-    },
-    { 
-      hrName: 'Lisa Anderson', 
-      totalCalls: 140, 
-      shortlisted: 27, 
-      interviewsScheduled: 17, 
-      offersSent: 12, 
-      hiresClosed: 10, 
-      conversion: 7.0, 
-      avgResponseTime: '2.5 hrs' 
-    },
-  ];
-
-  // Recent Activity Log
-  const recentActivities = [
-    { 
-      hr: 'David Lee', 
-      activity: 'Candidate Shortlisted', 
-      status: 'Approved', 
-      statusColor: 'bg-green-500' 
-    },
-    { 
-      hr: 'Emma Brown', 
-      activity: 'Offer Declined', 
-      status: 'Failed', 
-      statusColor: 'bg-red-500' 
-    },
-    { 
-      hr: 'James Taylor', 
-      activity: 'Onboarding Completed', 
-      status: 'Approved', 
-      statusColor: 'bg-green-500' 
-    },
-    { 
-      hr: 'Lisa Anderson', 
-      activity: 'Offer Accepted', 
-      status: 'Approved', 
-      statusColor: 'bg-green-500' 
-    },
-    { 
-      hr: 'Sarah Johnson', 
-      activity: 'Interview Completed', 
-      status: 'Approved', 
-      statusColor: 'bg-green-500' 
-    },
-    { 
-      hr: 'Mike Wilson', 
-      activity: 'Interview Scheduled', 
-      status: 'Pending', 
-      statusColor: 'bg-yellow-500' 
-    },
-  ];
+  // Helper function to get color for funnel stages
+  const getFunnelColor = (stage) => {
+    const colorMap = {
+      'New': 'bg-blue-500',
+      'Shortlisted': 'bg-cyan-400',
+      'Screening': 'bg-slate-300',
+      'Interview Aligned': 'bg-orange-500',
+      'Feedback Call': 'bg-slate-300',
+      'Finalized': 'bg-emerald-400',
+      'Hired': 'bg-slate-300',
+      'On Hold': 'bg-slate-300'
+    };
+    return colorMap[stage] || 'bg-slate-300';
+  };
 
   return (
     <div className="space-y-6">
@@ -276,25 +233,18 @@ export default function HRAnalyticsPage() {
             onChange={(e) => setSelectedHR(e.target.value)}
             className="px-4 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option>All HRs</option>
-            <option>Sarah Johnson</option>
-            <option>Mike Wilson</option>
-            <option>David Lee</option>
-            <option>Emma Brown</option>
-            <option>James Taylor</option>
-            <option>Lisa Anderson</option>
+            {hrList.map((hr) => (
+              <option key={hr} value={hr}>{hr}</option>
+            ))}
           </select>
           <select 
             value={selectedDept}
             onChange={(e) => setSelectedDept(e.target.value)}
             className="px-4 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option>All Departments</option>
-            <option>Engineering</option>
-            <option>Sales</option>
-            <option>Marketing</option>
-            <option>HR</option>
-            <option>Operations</option>
+            {departments.map((dept) => (
+              <option key={dept} value={dept}>{dept}</option>
+            ))}
           </select>
           <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
             <RefreshCw className="w-4 h-4" />
@@ -303,9 +253,17 @@ export default function HRAnalyticsPage() {
         </div>
       </div>
 
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-slate-600">Loading analytics data...</div>
+        </div>
+      )}
+
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        {kpiCards.map((card, index) => {
+      {!loading && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {kpiCards.map((card, index) => {
           const Icon = card.icon;
           return (
             <div
@@ -322,9 +280,11 @@ export default function HRAnalyticsPage() {
             </div>
           );
         })}
-      </div>
+        </div>
+      )}
 
       {/* Main Content Grid */}
+      {!loading && (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - 2/3 width */}
         <div className="lg:col-span-2 space-y-6">
@@ -335,20 +295,24 @@ export default function HRAnalyticsPage() {
               <p className="text-sm text-slate-600 mt-1">Pending interview candidates by HR</p>
             </div>
             <div className="space-y-4">
-              {pipelineByHR.map((hr, index) => (
-                <div key={index}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-slate-700">{hr.name}</span>
-                    <span className="text-sm text-slate-600">{hr.candidates} candidates ({hr.percentage}%)</span>
+              {pipelineByHR.length > 0 ? (
+                pipelineByHR.map((hr, index) => (
+                  <div key={index}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-slate-700">{hr.name}</span>
+                      <span className="text-sm text-slate-600">{hr.candidates} candidates ({hr.percentage}%)</span>
+                    </div>
+                    <div className="w-full bg-slate-200 rounded-full h-2.5">
+                      <div 
+                        className={`${getPipelineColor(index)} h-2.5 rounded-full transition-all`}
+                        style={{ width: `${hr.percentage}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="w-full bg-slate-200 rounded-full h-2.5">
-                    <div 
-                      className={`${hr.color} h-2.5 rounded-full transition-all`}
-                      style={{ width: `${hr.percentage}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <div className="text-sm text-slate-500 text-center py-4">No pipeline data available</div>
+              )}
             </div>
           </div>
 
@@ -359,20 +323,24 @@ export default function HRAnalyticsPage() {
               <p className="text-sm text-slate-600 mt-1">Candidate distribution by status</p>
             </div>
             <div className="space-y-4">
-              {recruitmentFunnel.map((stage, index) => (
-                <div key={index}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-slate-700">{stage.stage}</span>
-                    <span className="text-sm text-slate-600">{stage.candidates} candidate ({stage.percentage}%)</span>
+              {recruitmentFunnel.length > 0 ? (
+                recruitmentFunnel.map((stage, index) => (
+                  <div key={index}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-slate-700">{stage.stage}</span>
+                      <span className="text-sm text-slate-600">{stage.candidates} candidate ({stage.percentage}%)</span>
+                    </div>
+                    <div className="w-full bg-slate-200 rounded-full h-2.5">
+                      <div 
+                        className={`${getFunnelColor(stage.stage)} h-2.5 rounded-full transition-all`}
+                        style={{ width: `${stage.percentage}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="w-full bg-slate-200 rounded-full h-2.5">
-                    <div 
-                      className={`${stage.color} h-2.5 rounded-full transition-all`}
-                      style={{ width: `${stage.percentage}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <div className="text-sm text-slate-500 text-center py-4">No recruitment funnel data available</div>
+              )}
             </div>
           </div>
 
@@ -494,6 +462,7 @@ export default function HRAnalyticsPage() {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

@@ -254,6 +254,28 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setIsAuthenticated(false);
     localStorage.removeItem('auth_token');
+    
+    // Clear all company-related storage for clean logout
+    if (typeof window !== 'undefined') {
+      // Clear sessionStorage
+      sessionStorage.removeItem('selectedCompany');
+      sessionStorage.removeItem('adminSelectedCompany');
+      sessionStorage.removeItem('selected_company_id');
+      
+      // Clear company-specific sessionStorage items
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && key.startsWith('company_')) {
+          sessionStorage.removeItem(key);
+        }
+      }
+      
+      // Clear company from localStorage (but keep selected_company_id for faster re-login)
+      // localStorage.removeItem('selected_company_id');
+      // localStorage.removeItem('selected_company');
+      // localStorage.removeItem('companies');
+    }
+    
     // Navigate to login page after logout
     if (typeof window !== 'undefined') {
       window.location.href = '/login';
