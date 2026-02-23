@@ -140,43 +140,15 @@ function mapRowToCandidate(row, rowNumber) {
     }
   });
 
-  // Validate required fields
-  const requiredFields = {
-    candidateName: 'Candidate Name',
-    contactNumber: 'Contact Number',
-    email: 'Email',
-    currentLocation: 'Current Location',
-    callingDate: 'Calling Date',
-    currentOrganisation: 'Current Organisation',
-    education: 'Education',
-    totalExperience: 'Total Experience',
-    assignedTo: 'Assigned To',
-    status: 'Status',
-    currentCTCFixed: 'Current CTC (Fixed)',
-    expectedCTC: 'Expected CTC',
-    noticePeriod: 'Notice Period',
-    willingToWorkInStartup: 'Willing to Work in Startup',
-    communicationSkills: 'Communication Skills',
-  };
+  // All fields are optional - only validate format when values are provided
 
-  Object.keys(requiredFields).forEach((field) => {
-    // Skip optional fields
-    if (field === 'currentCTCInHand' || field === 'recruiterFeedback' || field === 'interviewerFeedback' || field === 'remark') {
-      return;
-    }
-    
-    if (!candidate[field] || candidate[field].toString().trim() === '') {
-      errors.push(`${requiredFields[field]} is required`);
-    }
-  });
-
-  // Email validation
-  if (candidate.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidate.email)) {
+  // Email validation (only if email is provided)
+  if (candidate.email && candidate.email.toString().trim() !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidate.email)) {
     errors.push('Invalid email format');
   }
 
-  // Phone validation
-  if (candidate.contactNumber && !/^[+]?[(]?[0-9]{1,4}[)]?[-\s.]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,9}$/.test(candidate.contactNumber.replace(/\s/g, ''))) {
+  // Phone validation (only if phone is provided)
+  if (candidate.contactNumber && candidate.contactNumber.toString().trim() !== '' && !/^[+]?[(]?[0-9]{1,4}[)]?[-\s.]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,9}$/.test(candidate.contactNumber.replace(/\s/g, ''))) {
     errors.push('Invalid phone number format');
   }
 
@@ -237,10 +209,12 @@ export async function POST(request) {
       const rowNumber = index + 2; // +2 because index is 0-based and header is row 1
       const { candidate, errors } = mapRowToCandidate(row, rowNumber);
 
+      // Only add errors for format validation issues, not missing required fields
       if (errors.length > 0) {
         rowErrors.push({ row: rowNumber, errors });
-        errorCount++;
-        return;
+        // Don't skip the candidate - still add it even if there are format errors
+        // errorCount++;
+        // return;
       }
 
       // Set default values for optional fields
@@ -254,17 +228,8 @@ export async function POST(request) {
       createdCount++;
     });
 
-    // If no valid candidates, return error
-    if (candidates.length === 0) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'No valid candidates found. Please check your Excel file.',
-          errors: rowErrors
-        },
-        { status: 400 }
-      );
-    }
+    // Allow empty candidates - all fields are optional
+    // Removed the check that required at least one valid candidate
 
     // Send candidates to backend in batches
     const token = request.headers.get('authorization') || '';

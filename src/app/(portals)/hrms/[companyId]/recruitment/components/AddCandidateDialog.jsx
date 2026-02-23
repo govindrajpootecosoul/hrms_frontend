@@ -222,22 +222,10 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
     const newErrors = {};
     let isValid = true;
 
-    // Check required fields
-    phaseData.fields.forEach((field) => {
-      // Skip validation for optional fields
-      if (field === 'currentCTCInHand' || field === 'recruiterFeedback' || field === 'interviewerFeedback' || field === 'remark') {
-        return;
-      }
-      
-      if (!formData[field] || formData[field].toString().trim() === '') {
-        const fieldName = field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1');
-        newErrors[field] = `${fieldName} is required`;
-        isValid = false;
-      }
-    });
+    // All fields are optional - only validate format when values are provided
 
-    // Email validation
-    if (phase === 1 && formData.email) {
+    // Email validation (only if email is provided)
+    if (phase === 1 && formData.email && formData.email.trim() !== '') {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(formData.email)) {
         newErrors.email = 'Invalid email format';
@@ -245,8 +233,8 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
       }
     }
 
-    // Phone validation
-    if (phase === 1 && formData.contactNumber) {
+    // Phone validation (only if phone is provided)
+    if (phase === 1 && formData.contactNumber && formData.contactNumber.trim() !== '') {
       const phoneRegex = /^[+]?[(]?[0-9]{1,4}[)]?[-\s.]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,9}$/;
       if (!phoneRegex.test(formData.contactNumber.replace(/\s/g, ''))) {
         newErrors.contactNumber = 'Invalid phone number';
@@ -254,13 +242,13 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
       }
     }
 
-    // CTC validation
+    // CTC validation (only if values are provided)
     if (phase === 3) {
-      if (formData.currentCTCFixed && parseFloat(formData.currentCTCFixed) < 0) {
+      if (formData.currentCTCFixed && formData.currentCTCFixed.trim() !== '' && parseFloat(formData.currentCTCFixed) < 0) {
         newErrors.currentCTCFixed = 'CTC cannot be negative';
         isValid = false;
       }
-      if (formData.expectedCTC && parseFloat(formData.expectedCTC) < 0) {
+      if (formData.expectedCTC && formData.expectedCTC.trim() !== '' && parseFloat(formData.expectedCTC) < 0) {
         newErrors.expectedCTC = 'Expected CTC cannot be negative';
         isValid = false;
       }
@@ -402,7 +390,7 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
         return (
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Candidate Name *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Candidate Name</label>
               <Input
                 value={formData.candidateName}
                 onChange={(e) => setFormData({ ...formData, candidateName: e.target.value })}
@@ -412,7 +400,7 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
               {errors.candidateName && <p className="text-sm text-red-500 mt-1">{errors.candidateName}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Contact Number *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Contact Number</label>
               <Input
                 value={formData.contactNumber}
                 onChange={(e) => setFormData({ ...formData, contactNumber: e.target.value })}
@@ -422,7 +410,7 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
               {errors.contactNumber && <p className="text-sm text-red-500 mt-1">{errors.contactNumber}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Email *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
               <Input
                 type="email"
                 value={formData.email}
@@ -433,7 +421,7 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
               {errors.email && <p className="text-sm text-red-500 mt-1">{errors.email}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Current Location *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Current Location</label>
               <Input
                 value={formData.currentLocation}
                 onChange={(e) => setFormData({ ...formData, currentLocation: e.target.value })}
@@ -443,7 +431,7 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
               {errors.currentLocation && <p className="text-sm text-red-500 mt-1">{errors.currentLocation}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Calling Date *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Calling Date</label>
               <div className="relative">
                 <Input
                   type="date"
@@ -465,7 +453,7 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
         return (
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Current Organisation *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Current Organisation</label>
               <Input
                 value={formData.currentOrganisation}
                 onChange={(e) => setFormData({ ...formData, currentOrganisation: e.target.value })}
@@ -475,7 +463,7 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
               {errors.currentOrganisation && <p className="text-sm text-red-500 mt-1">{errors.currentOrganisation}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Education *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Education</label>
               <Input
                 value={formData.education}
                 onChange={(e) => setFormData({ ...formData, education: e.target.value })}
@@ -485,7 +473,7 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
               {errors.education && <p className="text-sm text-red-500 mt-1">{errors.education}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Total Experience *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Total Experience</label>
               <Input
                 value={formData.totalExperience}
                 onChange={(e) => setFormData({ ...formData, totalExperience: e.target.value })}
@@ -496,7 +484,7 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
             </div>
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="block text-sm font-medium text-slate-700">Assigned To *</label>
+                <label className="block text-sm font-medium text-slate-700">Assigned To</label>
                 <button
                   type="button"
                   onClick={() => setIsRecruiterDialogOpen(true)}
@@ -517,7 +505,7 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
               {errors.assignedTo && <p className="text-sm text-red-500 mt-1">{errors.assignedTo}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Status *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
               <Select
                 options={statusOptions}
                 value={formData.status}
@@ -533,7 +521,7 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
         return (
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Current CTC (Fixed) *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Current CTC (Fixed)</label>
               <Input
                 type="number"
                 value={formData.currentCTCFixed}
@@ -553,7 +541,7 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Expected CTC *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Expected CTC</label>
               <Input
                 type="number"
                 value={formData.expectedCTC}
@@ -564,7 +552,7 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
               {errors.expectedCTC && <p className="text-sm text-red-500 mt-1">{errors.expectedCTC}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Notice Period *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Notice Period</label>
               <Input
                 value={formData.noticePeriod}
                 onChange={(e) => setFormData({ ...formData, noticePeriod: e.target.value })}
@@ -574,7 +562,7 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
               {errors.noticePeriod && <p className="text-sm text-red-500 mt-1">{errors.noticePeriod}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Willing to Work in Startup *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Willing to Work in Startup</label>
               <Select
                 options={yesNoOptions}
                 value={formData.willingToWorkInStartup}
@@ -590,7 +578,7 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
         return (
           <div className="grid gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Communication Skills *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Communication Skills</label>
               <Select
                 options={communicationSkillsOptions}
                 value={formData.communicationSkills}
