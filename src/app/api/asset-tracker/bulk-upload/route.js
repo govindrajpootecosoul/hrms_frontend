@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import * as XLSX from 'xlsx';
-import { getAssetsCollection } from '@/lib/mongodb';
+import { getAssetsCollection, getAssetCategoriesCollection } from '@/lib/mongodb';
 
 // Maps Excel column names to asset form fields
 const COLUMN_MAP = {
@@ -123,6 +123,82 @@ function validateAsset(row, rowNumber) {
   return errors;
 }
 
+const DEFAULT_CATEGORY_PREFIX_MAP = {
+  'computerassets::laptop': 'CA-LAP',
+  'computerassets::desktop': 'CA-DESK',
+  'computerassets::server': 'CA-SRV',
+  'externalequipment::bag': 'EE-BAG',
+  'externalequipment::charger': 'EE-CHG',
+  'externalequipment::keyboard': 'EE-KBD',
+  'externalequipment::lcdmonitor': 'EE-LCD',
+  'externalequipment::lcdmonitors': 'EE-LCD',
+  'externalequipment::mouse': 'EE-MSE',
+  'officesupplies::printer': 'OS-PRT',
+  'officesupplies::scanner': 'OS-SCN',
+};
+
+function normalizeKey(value) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function buildCategoryPrefixMap(categories = []) {
+  const prefixMap = { ...DEFAULT_CATEGORY_PREFIX_MAP };
+  for (const category of categories) {
+    const categoryName = normalizeKey(category?.name);
+    if (!categoryName) continue;
+
+    for (const subcategory of category?.subcategories || []) {
+      const subcategoryName = normalizeKey(subcategory?.name);
+      const tagPrefix = String(subcategory?.tagPrefix || '').trim().toUpperCase();
+      if (!subcategoryName || !tagPrefix) continue;
+      prefixMap[`${categoryName}::${subcategoryName}`] = tagPrefix;
+    }
+  }
+  return prefixMap;
+}
+
+function deriveTagPrefix(category, subcategory, categoryPrefixMap) {
+  const normalizedCategory = normalizeKey(category);
+  const normalizedSubcategory = normalizeKey(subcategory);
+  const mapped = categoryPrefixMap[`${normalizedCategory}::${normalizedSubcategory}`];
+  if (mapped) return mapped;
+
+  const categoryCode = normalizeKey(category).slice(0, 2).toUpperCase().padEnd(2, 'X');
+  const subcategoryCode = normalizeKey(subcategory).slice(0, 3).toUpperCase().padEnd(3, 'X');
+  return `${categoryCode}-${subcategoryCode}`;
+}
+
+async function getNextAssetTag(prefix, assetsCollection, sequenceCache, reservedTags) {
+  if (!sequenceCache.has(prefix)) {
+    const regex = new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-\\d+$`, 'i');
+    const existingTags = await assetsCollection
+      .find({ assetTag: { $regex: regex } }, { projection: { assetTag: 1 } })
+      .toArray();
+
+    let maxSequence = 0;
+    for (const doc of existingTags) {
+      const tag = String(doc?.assetTag || '');
+      const numberPart = Number(tag.split('-').pop());
+      if (Number.isInteger(numberPart) && numberPart > maxSequence) {
+        maxSequence = numberPart;
+      }
+    }
+
+    sequenceCache.set(prefix, maxSequence + 1);
+  }
+
+  let nextSequence = sequenceCache.get(prefix);
+  let candidateTag = `${prefix}-${String(nextSequence).padStart(3, '0')}`;
+  while (reservedTags.has(candidateTag.toLowerCase())) {
+    nextSequence += 1;
+    candidateTag = `${prefix}-${String(nextSequence).padStart(3, '0')}`;
+  }
+
+  sequenceCache.set(prefix, nextSequence + 1);
+  reservedTags.add(candidateTag.toLowerCase());
+  return candidateTag;
+}
+
 export async function POST(request) {
   try {
     const formData = await request.formData();
@@ -226,6 +302,13 @@ export async function POST(request) {
       }
     }
 
+    const collection = await getAssetsCollection(company);
+    const categoriesCollection = await getAssetCategoriesCollection();
+    const categoriesDoc = await categoriesCollection.findOne({ companyId: companyId || 'default' });
+    const categoryPrefixMap = buildCategoryPrefixMap(categoriesDoc?.categories || []);
+    const sequenceCache = new Map();
+    const reservedTags = new Set();
+
     const created = [];
     const rowErrors = [];
     let createdCount = 0;
@@ -272,26 +355,14 @@ export async function POST(request) {
         continue;
       }
 
+      if (normalizedRow.assetTag && normalizedRow.assetTag.trim()) {
+        reservedTags.add(normalizedRow.assetTag.trim().toLowerCase());
+      }
+
       // Generate assetTag if missing
       if (!normalizedRow.assetTag || !normalizedRow.assetTag.trim()) {
-        const categoryMapping = {
-          'Computer Assets': {
-            'Laptop': 'CA-LAP',
-            'Desktop': 'CA-DESK',
-          },
-          'External Equipment': {
-            'Bag': 'EE-BAG',
-            'Charger': 'EE-CHG',
-            'Keyboard': 'EE-KBD',
-            'LCD-Monitors': 'EE-LCD',
-            'Mouse': 'EE-MSE',
-          },
-        };
-        const prefix = categoryMapping[normalizedRow.category]?.[normalizedRow.subcategory];
-        if (prefix) {
-          const randomNum = Math.floor(Math.random() * 900) + 100;
-          normalizedRow.assetTag = `${prefix}-${randomNum}`;
-        }
+        const prefix = deriveTagPrefix(normalizedRow.category, normalizedRow.subcategory, categoryPrefixMap);
+        normalizedRow.assetTag = await getNextAssetTag(prefix, collection, sequenceCache, reservedTags);
       }
 
       // Normalize status value - handle both lowercase and capitalized values
@@ -346,9 +417,6 @@ export async function POST(request) {
     // Save created assets to MongoDB using company-specific collection
     if (created.length > 0) {
       try {
-        // Use company parameter to get the correct company-specific database
-        const collection = await getAssetsCollection(company);
-        
         // Debug: Log first asset to verify company field
         if (created.length > 0) {
           console.log(`[BulkUpload] Sample asset being saved:`, {

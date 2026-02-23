@@ -27,10 +27,13 @@ import AddEmployeeDialog from './components/AddEmployeeDialog';
 import ConfirmationDialog from './components/ConfirmationDialog';
 import ViewEmployeeDetailsDialog from './components/ViewEmployeeDetailsDialog';
 import { API_BASE_URL } from '@/lib/utils/constants';
+import { useAuth } from '@/lib/context/AuthContext';
+import { getCompanyFromEmail } from '@/lib/config/database.config';
 
 export default function EmployeesPage() {
   const params = useParams();
   const companyId = params?.companyId;
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('All Departments');
   const [locationFilter, setLocationFilter] = useState('All Locations');
@@ -107,6 +110,58 @@ export default function EmployeesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const normalizeCompanyName = (value) => {
+    if (!value) return null;
+    const raw = String(value).trim();
+    if (!raw || raw === 'undefined' || raw === 'null') return null;
+
+    const lc = raw.toLowerCase();
+    if (lc === '1' || lc === 'ecosoul' || lc === 'eco soul' || lc === 'ecosoul home') {
+      return 'Ecosoul Home';
+    }
+    if (lc === '2' || lc === 'thrive' || lc === 'thrive brands' || lc === 'thrivebrands') {
+      return 'Thrive';
+    }
+    return raw;
+  };
+
+  const resolveCompanyName = () => {
+    const companyFromEmail = normalizeCompanyName(getCompanyFromEmail(user?.email));
+    if (companyFromEmail) return companyFromEmail;
+
+    const normalizedCompanyId = normalizeCompanyName(companyId);
+    if (typeof window === 'undefined') return normalizedCompanyId;
+
+    // Prefer company tied to current route id to avoid stale session values.
+    const routeMappedCompany = normalizeCompanyName(sessionStorage.getItem(`company_${companyId}`));
+    if (routeMappedCompany) return routeMappedCompany;
+
+    const savedCompanyId = localStorage.getItem('selected_company_id');
+    const savedCompanyRaw = localStorage.getItem('selected_company');
+    if (savedCompanyRaw) {
+      try {
+        const savedCompany = JSON.parse(savedCompanyRaw);
+        if (!companyId || !savedCompanyId || String(savedCompanyId) === String(companyId)) {
+          const normalizedSavedCompany = normalizeCompanyName(savedCompany?.name);
+          if (normalizedSavedCompany) return normalizedSavedCompany;
+        }
+      } catch (e) {
+        console.warn('[EmployeesPage] Failed to parse selected_company from localStorage:', e);
+      }
+    }
+
+    // If URL has explicit company id/name, prefer that over stale sessionStorage.
+    if (normalizedCompanyId) return normalizedCompanyId;
+
+    const selectedCompany = normalizeCompanyName(sessionStorage.getItem('selectedCompany'));
+    if (selectedCompany) return selectedCompany;
+
+    const adminSelectedCompany = normalizeCompanyName(sessionStorage.getItem('adminSelectedCompany'));
+    if (adminSelectedCompany) return adminSelectedCompany;
+
+    return normalizedCompanyId;
+  };
+
   // Employee Data - will be fetched from MongoDB
   const [employees, setEmployees] = useState([]);
 
@@ -117,19 +172,7 @@ export default function EmployeesPage() {
         setLoading(true);
         setError(null);
         
-        // Get company name from sessionStorage or use companyId
-        let company = null;
-        if (typeof window !== 'undefined') {
-          company = sessionStorage.getItem('selectedCompany') || 
-                    sessionStorage.getItem('adminSelectedCompany');
-        }
-        
-        // If companyId is '1', try to map it to company name
-        // You may need to adjust this mapping based on your setup
-        if (!company && companyId) {
-          // Try to determine company from URL or other context
-          // For now, we'll try both collections
-        }
+        const company = resolveCompanyName();
         
         // Build API URL with company filter if available
         let apiUrl = `${API_BASE_URL}/admin-users`;
@@ -268,17 +311,12 @@ export default function EmployeesPage() {
     };
     
     fetchEmployees();
-  }, [companyId]);
+  }, [companyId, user?.email]);
 
   // Handle adding/updating employee
   const handleSaveEmployee = async (employeeData) => {
     try {
-      // Get company name
-      let company = null;
-      if (typeof window !== 'undefined') {
-        company = sessionStorage.getItem('selectedCompany') || 
-                  sessionStorage.getItem('adminSelectedCompany');
-      }
+      const company = resolveCompanyName();
       
       if (employeeToEdit) {
         // Update existing employee via API - Only send fields that have values (partial update)
@@ -541,12 +579,7 @@ export default function EmployeesPage() {
     if (!employee) return;
 
     try {
-      // Get company name
-      let company = null;
-      if (typeof window !== 'undefined') {
-        company = sessionStorage.getItem('selectedCompany') || 
-                  sessionStorage.getItem('adminSelectedCompany');
-      }
+      const company = resolveCompanyName();
       
       let apiUrl = `${API_BASE_URL}/admin-users/${employee.id || employee._id}`;
       if (company) {

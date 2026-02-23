@@ -17,6 +17,7 @@ export default function UsersPage() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
+  const [submitSuccess, setSubmitSuccess] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [formData, setFormData] = useState({
     name: '',
@@ -33,6 +34,8 @@ export default function UsersPage() {
   });
 
   const handleCreate = () => {
+    setSubmitError(null);
+    setSubmitSuccess(null);
     setFormData({
       name: '',
       email: '',
@@ -50,6 +53,8 @@ export default function UsersPage() {
   };
 
   const handleEdit = (user) => {
+    setSubmitError(null);
+    setSubmitSuccess(null);
     setSelectedUser(user);
     setFormData({
       name: user.name || '',
@@ -68,6 +73,8 @@ export default function UsersPage() {
   };
 
   const handleDelete = (user) => {
+    setSubmitError(null);
+    setSubmitSuccess(null);
     setSelectedUser(user);
     setIsDeleteModalOpen(true);
   };
@@ -76,9 +83,11 @@ export default function UsersPage() {
     e.preventDefault();
     setIsSubmitting(true);
     setSubmitError(null);
+    setSubmitSuccess(null);
     try {
       await addUser(formData);
       setIsCreateModalOpen(false);
+      setSubmitSuccess('User created successfully.');
       setFormData({
         name: '',
         email: '',
@@ -104,10 +113,24 @@ export default function UsersPage() {
     if (selectedUser) {
       setIsSubmitting(true);
       setSubmitError(null);
+      setSubmitSuccess(null);
       try {
-        await updateUser(selectedUser.id, formData);
+        const userId = selectedUser.id || selectedUser._id;
+        const payload = {
+          ...formData,
+          // Empty password means "do not change password" on edit.
+          password: formData.password?.trim() || '',
+        };
+        await updateUser(userId, payload);
+        const successMessage = payload.password
+          ? 'User and password updated successfully.'
+          : 'User updated successfully.';
+        if (typeof window !== 'undefined') {
+          window.alert(successMessage);
+        }
         setIsEditModalOpen(false);
         setSelectedUser(null);
+        setSubmitSuccess(successMessage);
       } catch (err) {
         setSubmitError(err.message || 'Failed to update user');
       } finally {
@@ -120,10 +143,13 @@ export default function UsersPage() {
     if (selectedUser) {
       setIsSubmitting(true);
       setSubmitError(null);
+      setSubmitSuccess(null);
       try {
-        await deleteUser(selectedUser.id);
+        const userId = selectedUser.id || selectedUser._id;
+        await deleteUser(userId);
         setIsDeleteModalOpen(false);
         setSelectedUser(null);
+        setSubmitSuccess('User deleted successfully.');
       } catch (err) {
         setSubmitError(err.message || 'Failed to delete user');
       } finally {
@@ -140,6 +166,7 @@ export default function UsersPage() {
         : [...user.portals, portal];
       try {
         await updateUser(userId, { portals: newPortals });
+        setSubmitSuccess('Portal access updated successfully.');
       } catch (err) {
         console.error('Failed to update user portals:', err);
         setSubmitError(err.message || 'Failed to update portal access');
@@ -214,6 +241,11 @@ export default function UsersPage() {
       {submitError && (
         <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="text-red-800">Error: {submitError}</div>
+        </div>
+      )}
+      {submitSuccess && (
+        <div className="mb-4 bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="text-green-800">{submitSuccess}</div>
         </div>
       )}
 
@@ -367,11 +399,14 @@ export default function UsersPage() {
             </label>
             <input
               type="password"
-              required
+              placeholder="Leave blank to keep current password"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
+            <p className="mt-1 text-xs text-gray-500">
+              Leave blank if you do not want to change password.
+            </p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">

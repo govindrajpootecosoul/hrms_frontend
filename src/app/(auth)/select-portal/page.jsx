@@ -73,10 +73,26 @@ const PortalSelectionPage = () => {
     }
   }, [isAuthenticated, user, router, loadCompanies]);
 
+  useEffect(() => {
+    if (!isAuthenticated || !companyName || !companies?.length) return;
+
+    const matchedCompany = companies.find(
+      (company) => company?.name?.toLowerCase() === companyName.toLowerCase()
+    );
+
+    // Keep company selection aligned with login email domain for portal isolation.
+    if (matchedCompany?.id && currentCompany?.id !== matchedCompany.id) {
+      selectCompany(matchedCompany.id);
+    }
+  }, [isAuthenticated, companyName, companies, currentCompany, selectCompany]);
+
   const handlePortalSelect = (portal) => {
     // Admin portals (HRMS / Asset Tracker / Finance / Demand Panel / DataHive) remain company-scoped.
     if (portal === 'hrms' || portal === 'asset-tracker' || portal === 'finance' || portal === 'demand-panel' || portal === 'datahive') {
-      const companyId = currentCompany?.id ?? companies[0]?.id;
+      const matchedCompanyByEmail = companyName
+        ? companies.find((company) => company?.name?.toLowerCase() === companyName.toLowerCase())
+        : null;
+      const companyId = matchedCompanyByEmail?.id ?? currentCompany?.id ?? companies[0]?.id;
 
       if (!companyId) {
         console.error('No company ID available for portal navigation');

@@ -1,8 +1,8 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect } from 'react';
-import { mockCompany } from '../utils/hrmsMockData';
 import { API_BASE_URL } from '../utils/constants';
+import { getCompanyFromEmail } from '../config/database.config';
 
 const AuthContext = createContext();
 
@@ -19,8 +19,31 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const normalizeCompanyName = (value) => {
+    if (!value) return null;
+    const raw = String(value).trim();
+    if (!raw || raw === 'undefined' || raw === 'null') return null;
+    const lc = raw.toLowerCase();
+    if (lc.includes('thrive')) return 'Thrive';
+    if (lc.includes('ecosoul') || lc.includes('eco soul')) return 'Ecosoul Home';
+    return raw;
+  };
+
+  const resolveUserCompany = (backendUser) => {
+    const fromUserField = normalizeCompanyName(backendUser?.company);
+    if (fromUserField) return fromUserField;
+    return normalizeCompanyName(getCompanyFromEmail(backendUser?.email));
+  };
+
+  const getCompanyIdFromName = (companyName) => {
+    if (!companyName) return '1';
+    return companyName.toLowerCase().includes('thrive') ? '2' : '1';
+  };
+
   // Map backend user to frontend format
   const mapUserToFrontendFormat = (backendUser) => {
+    const resolvedCompany = resolveUserCompany(backendUser) || 'Ecosoul Home';
+    const resolvedCompanyId = getCompanyIdFromName(resolvedCompany);
     // Use portals from database - if no portals are checked, show no portals
     let portalAccess = [];
     
@@ -52,15 +75,15 @@ export const AuthProvider = ({ children }) => {
       role: backendUser.role,
       employeeId: backendUser.employeeId,
       department: backendUser.department,
-      company: backendUser.company,
+      company: resolvedCompany,
       portals: backendUser.portals || [], // Store original portal names from database
       portalAccess, // Mapped portal identifiers for filtering
       companies: [
         {
-          id: mockCompany.id,
-          name: mockCompany.name,
+          id: resolvedCompanyId,
+          name: resolvedCompany,
           role: backendUser.role,
-          logo: mockCompany.logo
+          logo: resolvedCompany === 'Thrive' ? '/thriveLogo.svg' : '/ecosoulLogo.svg'
         }
       ]
     };
