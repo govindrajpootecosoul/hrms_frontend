@@ -441,10 +441,6 @@ export default function OnboardingPage() {
 
   const handleDeleteCandidate = async () => {
     if (!deletingCandidate?.id) return;
-    
-    if (!confirm(`Are you sure you want to delete ${deletingCandidate.name}? This action cannot be undone.`)) {
-      return;
-    }
 
     try {
       const company = getCompanyName();
@@ -467,17 +463,18 @@ export default function OnboardingPage() {
         if (json.success) {
           setRefreshTrigger(prev => prev + 1);
           setDeletingCandidate(null);
-          alert('Candidate deleted successfully!');
         } else {
-          alert('Failed to delete candidate: ' + (json.error || 'Unknown error'));
+          console.error('Failed to delete candidate:', json.error || 'Unknown error');
+          setDeletingCandidate(null);
         }
       } else {
         const errorText = await res.text();
-        alert('Failed to delete candidate: ' + errorText);
+        console.error('Failed to delete candidate:', errorText);
+        setDeletingCandidate(null);
       }
     } catch (error) {
       console.error('Delete candidate error:', error);
-      alert('Failed to delete candidate: ' + error.message);
+      setDeletingCandidate(null);
     }
   };
 

@@ -244,13 +244,21 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
 
     // CTC validation (only if values are provided)
     if (phase === 3) {
-      if (formData.currentCTCFixed && formData.currentCTCFixed.trim() !== '' && parseFloat(formData.currentCTCFixed) < 0) {
-        newErrors.currentCTCFixed = 'CTC cannot be negative';
-        isValid = false;
+      const currentCTCFixedValue = formData.currentCTCFixed;
+      if (currentCTCFixedValue !== null && currentCTCFixedValue !== undefined && currentCTCFixedValue !== '') {
+        const currentCTCFixedStr = String(currentCTCFixedValue).trim();
+        if (currentCTCFixedStr !== '' && parseFloat(currentCTCFixedStr) < 0) {
+          newErrors.currentCTCFixed = 'CTC cannot be negative';
+          isValid = false;
+        }
       }
-      if (formData.expectedCTC && formData.expectedCTC.trim() !== '' && parseFloat(formData.expectedCTC) < 0) {
-        newErrors.expectedCTC = 'Expected CTC cannot be negative';
-        isValid = false;
+      const expectedCTCValue = formData.expectedCTC;
+      if (expectedCTCValue !== null && expectedCTCValue !== undefined && expectedCTCValue !== '') {
+        const expectedCTCStr = String(expectedCTCValue).trim();
+        if (expectedCTCStr !== '' && parseFloat(expectedCTCStr) < 0) {
+          newErrors.expectedCTC = 'Expected CTC cannot be negative';
+          isValid = false;
+        }
       }
     }
 

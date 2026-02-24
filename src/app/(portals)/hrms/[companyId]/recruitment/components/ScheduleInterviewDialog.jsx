@@ -16,6 +16,15 @@ export default function ScheduleInterviewDialog({ open, onOpenChange, onSchedule
 
   const [errors, setErrors] = useState({});
 
+  // Get today's date in YYYY-MM-DD format for minimum date restriction
+  const getTodayDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   // Update form data when initialData changes (for edit mode)
   useEffect(() => {
     if (initialData) {
@@ -47,6 +56,17 @@ export default function ScheduleInterviewDialog({ open, onOpenChange, onSchedule
     if (!formData.date) {
       newErrors.date = 'Date is required';
       isValid = false;
+    } else {
+      // Check if selected date is in the past
+      const selectedDate = new Date(formData.date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      selectedDate.setHours(0, 0, 0, 0);
+      
+      if (selectedDate < today) {
+        newErrors.date = 'Cannot schedule interview for a past date';
+        isValid = false;
+      }
     }
 
     if (!formData.time) {
@@ -183,6 +203,7 @@ export default function ScheduleInterviewDialog({ open, onOpenChange, onSchedule
               type="date"
               value={formData.date}
               onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+              min={getTodayDate()}
               className={`${errors.date ? 'border-red-500' : ''} pr-10`}
               data-lpignore="true"
               data-form-type="other"

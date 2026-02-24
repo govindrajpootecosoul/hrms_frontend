@@ -13,6 +13,7 @@ import Table from '@/components/common/Table';
 import { useCompany } from '@/lib/context/CompanyContext';
 import { useToast } from '@/components/common/Toast';
 import * as XLSX from 'xlsx';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 
 // Memoized KPI Card component - only re-renders when its value changes
 const KPICard = memo(({ kpi, index }) => {
@@ -94,6 +95,7 @@ const Dashboard = () => {
   const [recentCheckIns, setRecentCheckIns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedCalendarMonth, setSelectedCalendarMonth] = useState(new Date());
   
   // Employee modal state
   const [showEmployeeModal, setShowEmployeeModal] = useState(false);
@@ -596,6 +598,90 @@ const Dashboard = () => {
     }
   }, [modalFilterType, modalTitle, toast]);
 
+  // Process birthdays and anniversaries for calendar
+  // IMPORTANT: This hook must be called before any conditional returns
+  const getEventsByDate = useMemo(() => {
+    const eventsMap = {};
+    
+    // Process birthdays
+    if (dashboardData?.birthdayCalendar && dashboardData.birthdayCalendar.length > 0) {
+      dashboardData.birthdayCalendar.forEach((item) => {
+        if (item.date || item.birthday) {
+          const dateStr = item.date || item.birthday;
+          const date = new Date(dateStr);
+          const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+          
+          if (!eventsMap[dateKey]) {
+            eventsMap[dateKey] = { birthdays: [], anniversaries: [] };
+          }
+          eventsMap[dateKey].birthdays.push(item);
+        }
+      });
+    }
+    
+    // Process work anniversaries
+    if (dashboardData?.workAnniversaryCalendar && dashboardData.workAnniversaryCalendar.length > 0) {
+      dashboardData.workAnniversaryCalendar.forEach((item) => {
+        if (item.date || item.anniversaryDate || item.joinDate) {
+          const dateStr = item.date || item.anniversaryDate || item.joinDate;
+          const date = new Date(dateStr);
+          const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+          
+          if (!eventsMap[dateKey]) {
+            eventsMap[dateKey] = { birthdays: [], anniversaries: [] };
+          }
+          eventsMap[dateKey].anniversaries.push(item);
+        }
+      });
+    }
+    
+    return eventsMap;
+  }, [dashboardData?.birthdayCalendar, dashboardData?.workAnniversaryCalendar]);
+
+  // Get dates with events for calendar marking
+  const datesWithEvents = useMemo(() => {
+    if (!getEventsByDate || Object.keys(getEventsByDate).length === 0) {
+      return [];
+    }
+    return Object.keys(getEventsByDate).map(dateStr => {
+      const [year, month, day] = dateStr.split('-').map(Number);
+      return new Date(year, month - 1, day);
+    });
+  }, [getEventsByDate]);
+
+  // Get events for selected month
+  const getEventsForMonth = useMemo(() => {
+    if (!getEventsByDate || Object.keys(getEventsByDate).length === 0) {
+      return [];
+    }
+    const month = selectedCalendarMonth.getMonth();
+    const year = selectedCalendarMonth.getFullYear();
+    const allEvents = [];
+    
+    Object.keys(getEventsByDate).forEach(dateStr => {
+      const [eventYear, eventMonth, eventDay] = dateStr.split('-').map(Number);
+      if (eventMonth - 1 === month && eventYear === year) {
+        const events = getEventsByDate[dateStr];
+        events.birthdays.forEach(birthday => {
+          allEvents.push({
+            ...birthday,
+            type: 'birthday',
+            date: new Date(year, month, eventDay)
+          });
+        });
+        events.anniversaries.forEach(anniversary => {
+          allEvents.push({
+            ...anniversary,
+            type: 'anniversary',
+            date: new Date(year, month, eventDay)
+          });
+        });
+      }
+    });
+    
+    return allEvents.sort((a, b) => a.date.getDate() - b.date.getDate());
+  }, [getEventsByDate, selectedCalendarMonth]);
+
   // Memoize KPI Cards data to prevent unnecessary re-renders
   // Only re-compute when stats actually change
   // IMPORTANT: This hook must be called before any conditional returns
@@ -686,23 +772,6 @@ const Dashboard = () => {
     return <div className="p-6">No data available</div>;
   }
 
-  // Quick Actions
-  const handleAddEmployee = () => {
-    router.push(`/hrms/${companyId}/employees`);
-  };
-
-  const handleApproveLeaves = () => {
-    router.push(`/hrms/${companyId}/leaves`);
-  };
-
-  const handleRunReports = () => {
-    router.push(`/hrms/${companyId}/reports`);
-  };
-
-  const handleBroadcastUpdate = () => {
-    setShowBroadcastDialog(true);
-  };
-
   const handleSendBroadcast = () => {
     console.log('Sending broadcast:', broadcastData);
     setShowBroadcastDialog(false);
@@ -716,10 +785,10 @@ const Dashboard = () => {
   };
 
   // Format monthly headcounts for chart
-  const monthlyHeadcountsData = dashboardData.monthlyHeadcounts && dashboardData.monthlyHeadcounts.length > 0
+  const monthlyHeadcountsData = dashboardData?.monthlyHeadcounts && dashboardData.monthlyHeadcounts.length > 0
     ? dashboardData.monthlyHeadcounts.map(item => item.headcount)
     : [];
-  const monthlyHeadcountsCategories = dashboardData.monthlyHeadcounts && dashboardData.monthlyHeadcounts.length > 0
+  const monthlyHeadcountsCategories = dashboardData?.monthlyHeadcounts && dashboardData.monthlyHeadcounts.length > 0
     ? dashboardData.monthlyHeadcounts.map(item => item.month)
     : [];
 
@@ -737,73 +806,6 @@ const Dashboard = () => {
           <KPICard key={`${kpi.title}-${kpi.value}`} kpi={kpi} index={index} />
         ))}
       </div>
-
-      {/* Quick Actions */}
-      <Card className="border-2 p-6">
-        <h2 className="text-base font-semibold mb-1">Quick Actions</h2>
-        <p className="text-xs text-slate-600 mb-4">Jump into frequent HR workflows</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="rounded-xl border-2 border-neutral-200 p-5 flex items-start justify-between gap-3 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer">
-            <div>
-              <h3 className="text-sm font-semibold mb-1 group-hover:text-blue-600 transition-colors">Add Employee</h3>
-              <p className="text-xs text-slate-600">Onboard a new team member</p>
-            </div>
-            <Button
-              size="sm"
-              onClick={handleAddEmployee}
-              className="bg-blue-600 text-white hover:bg-blue-700"
-              icon={<Plus className="w-4 h-4" />}
-            >
-              Add
-            </Button>
-          </div>
-
-          <div className="rounded-xl border-2 border-neutral-200 p-5 flex items-start justify-between gap-3 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer">
-            <div>
-              <h3 className="text-sm font-semibold mb-1 group-hover:text-purple-600 transition-colors">Approve Leaves</h3>
-              <p className="text-xs text-slate-600">Review pending leave requests</p>
-            </div>
-            <Button
-              size="sm"
-              onClick={handleApproveLeaves}
-              className="bg-purple-600 text-white hover:bg-purple-700"
-              icon={<Calendar className="w-4 h-4" />}
-            >
-              View
-            </Button>
-          </div>
-
-          <div className="rounded-xl border-2 border-neutral-200 p-5 flex items-start justify-between gap-3 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer">
-            <div>
-              <h3 className="text-sm font-semibold mb-1 group-hover:text-green-600 transition-colors">Run Reports</h3>
-              <p className="text-xs text-slate-600">View workforce analytics</p>
-            </div>
-            <Button
-              size="sm"
-              onClick={handleRunReports}
-              className="bg-green-600 text-white hover:bg-green-700"
-              icon={<BarChart3 className="w-4 h-4" />}
-            >
-              Open
-            </Button>
-          </div>
-
-          <div className="rounded-xl border-2 border-neutral-200 p-5 flex items-start justify-between gap-3 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer">
-            <div>
-              <h3 className="text-sm font-semibold mb-1 group-hover:text-orange-600 transition-colors">Broadcast Update</h3>
-              <p className="text-xs text-slate-600">Send HR announcement</p>
-            </div>
-            <Button
-              size="sm"
-              onClick={handleBroadcastUpdate}
-              className="bg-orange-600 text-white hover:bg-orange-700"
-              icon={<FileText className="w-4 h-4" />}
-            >
-              Compose
-            </Button>
-          </div>
-        </div>
-      </Card>
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -826,47 +828,237 @@ const Dashboard = () => {
           </Card>
 
           {/* Birthday Calendar & Work Anniversary */}
-          <Card className="border-2 p-6">
-            <h2 className="text-base font-semibold mb-1">Birthday Calendar & Work Anniversary</h2>
-            <p className="text-xs text-slate-600 mb-4">This month birthdays and work anniversaries</p>
-            <div className="space-y-3 max-h-[300px] overflow-y-auto">
-              {dashboardData.birthdayCalendar && dashboardData.birthdayCalendar.length > 0 ? (
-                dashboardData.birthdayCalendar.slice(0, 5).map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-3 rounded-lg border border-neutral-200 hover:bg-slate-50 hover:shadow-md transition-all duration-200 cursor-pointer">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center">
-                      <Cake className="w-5 h-5 text-pink-800" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">{item.name}</p>
-                      <p className="text-xs text-slate-600">{item.department}</p>
-                    </div>
-                  </div>
-                  <span className="text-xs bg-pink-100 text-pink-800 border border-pink-200 px-2 py-1 rounded-full">Birthday</span>
-                </div>
-                ))
-              ) : (
-                <p className="text-sm text-slate-500 text-center py-4">No birthdays this month</p>
-              )}
-              {dashboardData.workAnniversaryCalendar && dashboardData.workAnniversaryCalendar.length > 0 ? (
-                dashboardData.workAnniversaryCalendar.slice(0, 5).map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-3 rounded-lg border border-neutral-200 hover:bg-slate-50 hover:shadow-md transition-all duration-200 cursor-pointer">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                      <Calendar className="w-5 h-5 text-blue-800" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">{item.name}</p>
-                      <p className="text-xs text-slate-600">{item.department} • {item.years} years</p>
-                    </div>
-                  </div>
-                  <span className="text-xs bg-blue-100 text-blue-800 border border-blue-200 px-2 py-1 rounded-full">Anniversary</span>
-                </div>
-                ))
-              ) : (
-                <p className="text-sm text-slate-500 text-center py-4">No work anniversaries this month</p>
-              )}
+          <Card className="border-2 p-6 bg-gradient-to-br from-white to-slate-50/50">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 mb-1">Birthday Calendar & Work Anniversary</h2>
+                <p className="text-xs text-slate-600">View birthdays and work anniversaries on the calendar</p>
+              </div>
             </div>
+            
+            {/* Calendar */}
+            <div className="mb-6 bg-white rounded-xl border-2 border-slate-200 p-4 shadow-sm">
+              <style dangerouslySetInnerHTML={{__html: `
+                .rdp {
+                  --rdp-cell-size: 42px;
+                  --rdp-accent-color: #6366f1;
+                  --rdp-background-color: #f3f4f6;
+                  --rdp-accent-color-dark: #4f46e5;
+                  --rdp-outline: 2px solid var(--rdp-accent-color);
+                  --rdp-outline-selected: 2px solid var(--rdp-accent-color);
+                }
+                .rdp-day.has-birthday {
+                  position: relative;
+                }
+                .rdp-day.has-birthday::after {
+                  content: '';
+                  position: absolute;
+                  bottom: 4px;
+                  left: 50%;
+                  transform: translateX(-50%);
+                  width: 8px;
+                  height: 8px;
+                  background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);
+                  border-radius: 50%;
+                  box-shadow: 0 2px 4px rgba(236, 72, 153, 0.3);
+                }
+                .rdp-day.has-anniversary {
+                  position: relative;
+                }
+                .rdp-day.has-anniversary::after {
+                  content: '';
+                  position: absolute;
+                  bottom: 4px;
+                  right: 4px;
+                  width: 8px;
+                  height: 8px;
+                  background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+                  border-radius: 50%;
+                  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+                }
+                .rdp-day.has-both::before {
+                  content: '';
+                  position: absolute;
+                  bottom: 4px;
+                  left: 50%;
+                  transform: translateX(-50%);
+                  width: 8px;
+                  height: 8px;
+                  background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);
+                  border-radius: 50%;
+                  box-shadow: 0 2px 4px rgba(236, 72, 153, 0.3);
+                }
+                .rdp-day.has-both::after {
+                  content: '';
+                  position: absolute;
+                  bottom: 4px;
+                  right: 4px;
+                  width: 8px;
+                  height: 8px;
+                  background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+                  border-radius: 50%;
+                  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+                }
+                .rdp-day {
+                  border-radius: 8px;
+                  transition: all 0.2s ease;
+                }
+                .rdp-day:hover:not(.rdp-day_disabled) {
+                  background-color: #f3f4f6;
+                  transform: scale(1.05);
+                }
+                .rdp-day_today {
+                  background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+                  font-weight: 600;
+                  color: #4f46e5;
+                }
+                .rdp-caption {
+                  font-weight: 600;
+                  font-size: 1rem;
+                  color: #1e293b;
+                  margin-bottom: 0.75rem;
+                }
+                .rdp-nav_button {
+                  border-radius: 8px;
+                  transition: all 0.2s ease;
+                }
+                .rdp-nav_button:hover {
+                  background-color: #f3f4f6;
+                  transform: scale(1.1);
+                }
+                .rdp-head_cell {
+                  font-weight: 600;
+                  color: #64748b;
+                  font-size: 0.75rem;
+                  text-transform: uppercase;
+                  letter-spacing: 0.05em;
+                }
+              `}} />
+              <CalendarComponent
+                mode="single"
+                month={selectedCalendarMonth}
+                onMonthChange={setSelectedCalendarMonth}
+                className="rounded-lg"
+                modifiers={{
+                  hasBirthday: datesWithEvents.filter(date => {
+                    const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                    const events = getEventsByDate[dateKey];
+                    return events?.birthdays?.length > 0 && !events?.anniversaries?.length;
+                  }),
+                  hasAnniversary: datesWithEvents.filter(date => {
+                    const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                    const events = getEventsByDate[dateKey];
+                    return events?.anniversaries?.length > 0 && !events?.birthdays?.length;
+                  }),
+                  hasBoth: datesWithEvents.filter(date => {
+                    const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                    const events = getEventsByDate[dateKey];
+                    return events?.birthdays?.length > 0 && events?.anniversaries?.length > 0;
+                  }),
+                }}
+                modifiersClassNames={{
+                  hasBirthday: 'has-birthday',
+                  hasAnniversary: 'has-anniversary',
+                  hasBoth: 'has-both',
+                }}
+                classNames={{
+                  day: 'h-[42px] w-[42px] relative font-medium',
+                  caption: 'mb-3',
+                  nav_button: 'h-8 w-8',
+                }}
+              />
+              
+              {/* Legend */}
+              <div className="flex items-center justify-center gap-6 mt-4 pt-4 border-t border-slate-200">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-pink-50 border border-pink-200">
+                  <div className="w-3 h-3 rounded-full bg-gradient-to-br from-pink-500 to-pink-400 shadow-sm"></div>
+                  <span className="text-xs font-medium text-pink-700">Birthday</span>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-200">
+                  <div className="w-3 h-3 rounded-full bg-gradient-to-br from-blue-500 to-blue-400 shadow-sm"></div>
+                  <span className="text-xs font-medium text-blue-700">Work Anniversary</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Events Grid */}
+            {getEventsForMonth.length > 0 ? (
+              <div>
+                <h3 className="text-sm font-semibold text-slate-700 mb-3">
+                  Events for {selectedCalendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-2">
+                  {getEventsForMonth.map((item, index) => (
+                    <div 
+                      key={`${item.type}-${item.id || index}`} 
+                      className={`group relative p-4 rounded-xl border-2 transition-all duration-300 cursor-pointer hover:shadow-lg hover:-translate-y-1 ${
+                        item.type === 'birthday' 
+                          ? 'bg-gradient-to-br from-pink-50 to-rose-50 border-pink-200 hover:border-pink-300' 
+                          : 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200 hover:border-blue-300'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-md ${
+                          item.type === 'birthday' 
+                            ? 'bg-gradient-to-br from-pink-500 to-rose-500' 
+                            : 'bg-gradient-to-br from-blue-500 to-indigo-500'
+                        }`}>
+                          {item.type === 'birthday' ? (
+                            <Cake className="w-6 h-6 text-white" />
+                          ) : (
+                            <Calendar className="w-6 h-6 text-white" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2 mb-1">
+                            <p className="text-sm font-semibold text-slate-900 truncate">{item.name}</p>
+                            <span className={`text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap ${
+                              item.type === 'birthday' 
+                                ? 'bg-pink-200 text-pink-800' 
+                                : 'bg-blue-200 text-blue-800'
+                            }`}>
+                              {item.type === 'birthday' ? '🎂' : '🎉'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-600 mb-1">
+                            {item.department}
+                            {item.type === 'anniversary' && item.years && (
+                              <span className="ml-1 font-medium text-blue-700">{item.years} years</span>
+                            )}
+                          </p>
+                          <div className="flex items-center gap-1.5 mt-2">
+                            <CalendarDays className={`w-3.5 h-3.5 ${
+                              item.type === 'birthday' ? 'text-pink-600' : 'text-blue-600'
+                            }`} />
+                            <p className={`text-xs font-medium ${
+                              item.type === 'birthday' ? 'text-pink-700' : 'text-blue-700'
+                            }`}>
+                              {item.date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      {/* Decorative corner accent */}
+                      <div className={`absolute top-0 right-0 w-16 h-16 opacity-10 ${
+                        item.type === 'birthday' 
+                          ? 'bg-pink-500' 
+                          : 'bg-blue-500'
+                      } rounded-bl-full`}></div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 px-4 bg-slate-50 rounded-xl border-2 border-dashed border-slate-300">
+                <Cake className="w-12 h-12 text-slate-400 mx-auto mb-3 opacity-50" />
+                <p className="text-sm font-medium text-slate-500 mb-1">
+                  No birthdays or work anniversaries this month
+                </p>
+                <p className="text-xs text-slate-400">
+                  Events will appear here when available
+                </p>
+              </div>
+            )}
           </Card>
 
           {/* People Pulse */}

@@ -113,7 +113,7 @@ export async function PUT(request, { params }) {
 // DELETE - Delete candidate
 export async function DELETE(request, { params }) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const company = request.headers.get('x-company') || new URL(request.url).searchParams.get('company');
     
     const backendUrl = `${API_BASE_URL}/hrms/recruitment/candidates/${id}`;
@@ -133,8 +133,15 @@ export async function DELETE(request, { params }) {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Backend error:', response.status, errorText);
+      let errorMessage = `Backend error: ${response.status}`;
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMessage = errorJson.error || errorMessage;
+      } catch (e) {
+        errorMessage = errorText || errorMessage;
+      }
       return NextResponse.json(
-        { success: false, error: `Backend error: ${response.status}` },
+        { success: false, error: errorMessage },
         { status: response.status }
       );
     }
