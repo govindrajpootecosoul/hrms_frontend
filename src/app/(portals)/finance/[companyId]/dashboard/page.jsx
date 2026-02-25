@@ -86,7 +86,7 @@ const FinanceDashboard = () => {
     },
     {
       id: 'gst-b2b-file-processing',
-      title: 'GST File Processing & Merging B2B',
+      title: 'GST File Processing for Reconciliation',
       description: 'Process GST B2B sheet Excel files with full column set (Trade/Legal name, Reverse Charge, Cess, Filing date) and merge (use only Excel files)',
       icon: <FileCheck className="w-8 h-8" />,
       color: 'from-emerald-500 to-emerald-600',
