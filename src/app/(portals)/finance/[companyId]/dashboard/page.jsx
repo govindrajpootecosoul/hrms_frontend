@@ -85,6 +85,16 @@ const FinanceDashboard = () => {
       enabled: true
     },
     {
+      id: 'gst-b2b-file-processing',
+      title: 'GST File Processing & Merging B2B',
+      description: 'Process GST B2B sheet Excel files with full column set (Trade/Legal name, Reverse Charge, Cess, Filing date) and merge (use only Excel files)',
+      icon: <FileCheck className="w-8 h-8" />,
+      color: 'from-emerald-500 to-emerald-600',
+      bgColor: 'bg-emerald-50',
+      iconColor: 'text-emerald-600',
+      enabled: true
+    },
+    {
       id: 'amazon-missing-shipment',
       title: 'Amazon Missing Shipment',
       description: 'Find missing Shipment IDs by comparing main_data CSV with country-specific Excel files',
@@ -172,6 +182,8 @@ const FinanceDashboard = () => {
       return '/api/finance/gst-reconcile/process';
     } else if (featureId === 'amazon-gst-process') {
       return '/api/finance/amazon-gst-process/process';
+    } else if (featureId === 'gst-b2b-file-processing') {
+      return '/api/finance/gst-b2b-file-processing/process';
     } else if (featureId === 'amazon-missing-shipment') {
       return '/api/finance/amazon-missing-shipment/process';
     } else if (featureId === 'meir') {

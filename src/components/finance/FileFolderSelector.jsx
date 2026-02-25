@@ -21,7 +21,7 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
   const toast = useToast();
 
   const isGstFeature = feature?.id === 'gst-reconcile';
-  const isGstFileProcessing = feature?.id === 'gst-file-processing' || feature?.id === 'amazon-gst-process';
+  const isGstFileProcessing = feature?.id === 'gst-file-processing' || feature?.id === 'amazon-gst-process' || feature?.id === 'gst-b2b-file-processing';
   const isMissingShipment = feature?.id === 'amazon-missing-shipment';
   const isMeir = feature?.id === 'meir';
   const isBookReconcile = feature?.id === 'book-reconcile';
@@ -431,7 +431,9 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
             ? `cleaned_book_keeping_${new Date().getTime()}.csv`
             : feature.id === 'books-vs-gst-reconciliation'
               ? `books_vs_gst_reconciliation_${new Date().getTime()}.csv`
-              : `amazon_tax_invoices_${new Date().getTime()}.xlsx`;
+              : feature.id === 'gst-b2b-file-processing'
+                ? `GST_B2B_Combined_${new Date().getTime()}.xlsx`
+                : `amazon_tax_invoices_${new Date().getTime()}.xlsx`;
       a.download = fileName;
       document.body.appendChild(a);
       a.click();
