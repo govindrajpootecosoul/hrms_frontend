@@ -12,6 +12,8 @@ const Modal = forwardRef(({
   footer,
   size = 'md',
   className = '',
+  closeOnBackdropClick = true,
+  closeOnEscape = true,
   ...props
 }, ref) => {
   // Prevent body scroll when modal is open
@@ -42,13 +44,13 @@ const Modal = forwardRef(({
   if (!isOpen) return null;
 
   const handleBackdropClick = (e) => {
-    if (e.target === e.currentTarget) {
+    if (closeOnBackdropClick && e.target === e.currentTarget) {
       onClose?.();
     }
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Escape') {
+    if (closeOnEscape && e.key === 'Escape') {
       onClose?.();
     }
   };

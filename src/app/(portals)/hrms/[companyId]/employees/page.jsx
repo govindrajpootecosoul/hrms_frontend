@@ -943,8 +943,10 @@ export default function EmployeesPage() {
                 <option>Bangalore</option>
                 <option>Mumbai</option>
                 <option>Delhi</option>
+                <option>Noida</option>
                 <option>Hyderabad</option>
                 <option>Pune</option>
+                <option>Chennai</option>
               </select>
               {/* View Toggle Buttons */}
               <div className="flex items-center gap-2 border border-slate-300 rounded-lg p-1 bg-slate-50">
