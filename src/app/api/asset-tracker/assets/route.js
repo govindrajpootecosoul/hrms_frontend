@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAssetsCollection, getAssetHistoryCollection } from '@/lib/mongodb';
+import { getAssetsCollection, getAssetHistoryCollection, getDb, getCollectionName } from '@/lib/mongodb';
 
 async function logAssetHistory(entry, company = null) {
   try {
@@ -19,41 +19,105 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const companyId = searchParams.get('companyId');
-    const company = searchParams.get('company'); // Company name filter (Thrive, Ecosoul Home, etc.)
+    const company = (searchParams.get('company') || '').trim(); // Company name filter (Thrive, Ecosoul Home, etc.)
 
-    // Company name is REQUIRED for proper data isolation
-    // Without company name, we cannot determine which database to use
-    if (!company || company.trim() === '') {
-      console.warn('[API] No company name provided - returning empty array for safety');
-      return NextResponse.json({
-        success: true,
-        data: [],
-        count: 0,
-        message: 'Company name is required to fetch assets'
-      });
-    }
-
-    // Get company-specific collection (this automatically uses the correct database)
-    // e.g., 'thrive_asset_tracker' or 'ecosoul_asset_tracker'
-    const collection = await getAssetsCollection(company);
-
-    // Build query - Since we're using company-specific databases, we don't need to filter by company field
-    // The database itself is already isolated by company
-    // We'll only filter by companyId if provided (for extra safety)
-    const query = {};
-    
+    // Build base query (optionally filtered by companyId)
+    // Note: Many existing records in company‑specific DBs may not have a companyId field.
+    // We will use companyId as a soft filter only, and retry without it if no records are found.
+    const baseQuery = {};
     if (companyId) {
-      query.companyId = companyId;
+      baseQuery.companyId = companyId;
     }
-    
-    console.log(`[API] Fetching assets from company DB: ${company}, query:`, JSON.stringify(query));
-    console.log(`[API] CompanyId from params: ${companyId}, Company: ${company}`);
-    console.log(`[API] Using database collection for company: ${company}`);
 
-    const assets = await collection.find(query).sort({ createdAt: -1 }).toArray();
-    
-    console.log(`[API] Found ${assets.length} assets in database for company: ${company}`);
-    
+    // Helper to build a case-insensitive company filter for shared DB fallback
+    const buildCompanyFilter = (companyName) => {
+      if (!companyName) return {};
+      return {
+        $or: [
+          { company: companyName },
+          { company: { $regex: new RegExp(`^${companyName}\\b`, 'i') } },
+        ],
+      };
+    };
+
+    let assets = [];
+
+    if (company) {
+      // Primary path: company‑scoped database (e.g. thrive_asset_tracker, ecosoul_asset_tracker)
+      const companyCollection = await getAssetsCollection(company);
+      const query = { ...baseQuery };
+      console.log(
+        `[API] Fetching assets from company DB: ${company}, query:`,
+        JSON.stringify(query)
+      );
+      assets = await companyCollection.find(query).sort({ createdAt: -1 }).toArray();
+
+      console.log(
+        `[API] Company DB result for ${company}: ${assets.length} assets (companyId=${companyId || 'n/a'})`
+      );
+
+      // If companyId filter returned no records, retry WITHOUT companyId so older data still appears.
+      if (assets.length === 0 && companyId) {
+        const relaxedQuery = {};
+        console.log(
+          `[API] No assets found with companyId=${companyId} in company DB for ${company}. `
+          + `Retrying without companyId filter.`
+        );
+        assets = await companyCollection
+          .find(relaxedQuery)
+          .sort({ createdAt: -1 })
+          .toArray();
+
+        console.log(
+          `[API] Relaxed query result for ${company} (no companyId filter): ${assets.length} assets`
+        );
+      }
+
+      // Fallback: if no records in the company‑scoped DB, also look in the shared/base DB.
+      // This supports older data that was stored before company‑specific databases were introduced.
+      if (assets.length === 0) {
+        const sharedDb = await getDb('assetTracker');
+        const collectionName = getCollectionName('assets');
+        const sharedCollection = sharedDb.collection(collectionName);
+
+        const sharedQuery = {
+          ...baseQuery,
+          ...buildCompanyFilter(company),
+        };
+
+        console.log(
+          `[API] No assets in company DB for ${company}. Falling back to shared DB with query:`,
+          JSON.stringify(sharedQuery)
+        );
+
+        const sharedAssets = await sharedCollection
+          .find(sharedQuery)
+          .sort({ createdAt: -1 })
+          .toArray();
+
+        console.log(
+          `[API] Shared DB fallback result for ${company}: ${sharedAssets.length} assets`
+        );
+
+        assets = sharedAssets;
+      }
+    } else {
+      // No company provided: use shared/base DB only, optionally filtered by companyId.
+      console.warn(
+        '[API] No company name provided. Using shared asset_tracker database only.'
+      );
+
+      const sharedDb = await getDb('assetTracker');
+      const collectionName = getCollectionName('assets');
+      const sharedCollection = sharedDb.collection(collectionName);
+
+      assets = await sharedCollection.find(baseQuery).sort({ createdAt: -1 }).toArray();
+
+      console.log(
+        `[API] Shared DB result without explicit company: ${assets.length} assets (companyId=${companyId || 'n/a'})`
+      );
+    }
+
     // Debug: Log first asset's company field if available
     if (assets.length > 0) {
       console.log(`[API] Sample asset company field:`, assets[0].company);
