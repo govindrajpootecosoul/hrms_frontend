@@ -263,12 +263,7 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
         return;
       }
 
-      if (validFiles.length !== 1) {
-        const allValid = validFiles.map((f, idx) => `${idx + 1}. ${f.name}`).join('\n');
-        alert(
-          `Error: Please ensure the selected folder for ${folderTarget === 'gst' ? 'GST' : 'Books'} contains exactly 1 supported file.\n\n` +
-            `Supported files found (${validFiles.length}):\n${allValid || 'None'}`
-        );
+      if (validFiles.length < 1) {
         if (folderInputRef.current) {
           folderInputRef.current.value = '';
         }
@@ -276,6 +271,8 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
         return;
       }
 
+      // For simplicity we use the first supported file from the folder;
+      // backend will treat this as the entry point (raw mode).
       const pickedFile = validFiles[0];
       let updatedFiles = [...selectedFiles];
       let updatedStatuses = [...fileStatuses];
@@ -662,7 +659,7 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
                 ref={gstFileInputRef}
                 type="file"
                 accept=".xlsx,.xls"
-                onChange={handleFileSelect}
+                onChange={(e) => handleFileSelect(e, 'gst')}
                 className="hidden"
               />
               <Button
@@ -689,7 +686,7 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
                 ref={booksFileInputRef}
                 type="file"
                 accept=".csv,.xlsx,.xls"
-                onChange={handleFileSelect}
+                onChange={(e) => handleFileSelect(e, 'books')}
                 className="hidden"
               />
               <Button
