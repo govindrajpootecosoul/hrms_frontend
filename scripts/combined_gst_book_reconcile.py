@@ -256,7 +256,7 @@ def _collect_files(input_path: Path, extensions: List[str]) -> List[Path]:
 
 def _load_and_clean_gst(path: Path, sheet_name: str = "B2B") -> pd.DataFrame:
     """
-    Load a GST Excel file, flatten columns, select required columns, and rename.
+    Load a raw GST Excel file, flatten columns, select required columns, and rename.
     """
     df_raw = pd.read_excel(path, sheet_name=sheet_name, skiprows=4, header=[0, 1])
     df_raw.columns = _flatten_columns(df_raw.columns)
@@ -293,12 +293,87 @@ def _load_and_clean_gst(path: Path, sheet_name: str = "B2B") -> pd.DataFrame:
     return df
 
 
-def process_gst_files(input_path: str, sheet_name: str = "B2B") -> pd.DataFrame:
+def _load_cleaned_gst_file(path: Path) -> pd.DataFrame:
+    """
+    Load an already-cleaned GST file (output of gst_file_processing).
+    Accepts CSV or Excel with flat headers and standard column names.
+    """
+    ext = path.suffix.lower()
+    if ext in {".xlsx", ".xls"}:
+        df = pd.read_excel(path)
+    else:
+        df = pd.read_csv(path)
+
+    # Ensure invoice_date and year_month exist
+    if "invoice_date" in df.columns:
+        df["invoice_date"] = pd.to_datetime(df["invoice_date"], errors="coerce", dayfirst=True)
+        if "year_month" not in df.columns:
+            df["year_month"] = df["invoice_date"].dt.strftime("%Y-%m")
+
+    df["source_file"] = path.name
+    return df
+
+
+def _get_excel_sheet_names(path: Path) -> List[str]:
+    """Return list of worksheet names in an Excel file."""
+    with pd.ExcelFile(path) as xl:
+        return xl.sheet_names
+
+
+def _is_sheet_not_found_error(e: Exception) -> bool:
+    """True if the exception indicates the requested worksheet name was not found."""
+    msg = str(e).lower()
+    return "not found" in msg and ("worksheet" in msg or "sheet" in msg)
+
+
+def _load_gst_from_file(path: Path, preferred_sheet: str = "B2B") -> pd.DataFrame:
+    """
+    Load GST data from an Excel file. Tries preferred_sheet (e.g. 'B2B') first;
+    if that sheet is missing, tries each available sheet until one has valid GST structure.
+    """
+    try:
+        return _load_and_clean_gst(path, sheet_name=preferred_sheet)
+    except Exception as e:
+        if not _is_sheet_not_found_error(e):
+            raise
+
+    sheet_names = _get_excel_sheet_names(path)
+    if not sheet_names:
+        raise ValueError(f"No worksheets found in {path.name}")
+
+    for name in sheet_names:
+        if name == preferred_sheet:
+            continue
+        try:
+            print(f"    Trying sheet: '{name}' (B2B not found)")
+            df = _load_and_clean_gst(path, sheet_name=name)
+            print(f"    ✓ Using sheet: '{name}'")
+            return df
+        except (ValueError, KeyError, Exception):
+            continue
+
+    raise ValueError(
+        f"No worksheet with valid GST B2B structure found. "
+        f"Available sheets: {sheet_names}. Expected a sheet (e.g. 'B2B') with GST invoice columns."
+    )
+
+
+def process_gst_files(
+    input_path: str,
+    sheet_name: str = "B2B",
+    use_cleaned: bool = False,
+) -> pd.DataFrame:
     """
     Process GST files and return combined DataFrame.
+
+    Args:
+        input_path: Path to GST file or folder.
+        sheet_name: Sheet name for raw Excel files (default 'B2B').
+        use_cleaned: If True, treat input as already-cleaned GST (CSV/Excel).
     """
     inp = Path(input_path).expanduser().resolve()
-    files = _collect_files(inp, [".xlsx", ".xls"])
+    extensions = [".xlsx", ".xls", ".csv"] if use_cleaned else [".xlsx", ".xls"]
+    files = _collect_files(inp, extensions)
 
     if not files:
         raise FileNotFoundError(f"No Excel files found at {inp}")
@@ -307,7 +382,10 @@ def process_gst_files(input_path: str, sheet_name: str = "B2B") -> pd.DataFrame:
     for f in files:
         try:
             print(f"  → Processing GST file: {f.name}")
-            frames.append(_load_and_clean_gst(f, sheet_name=sheet_name))
+            if use_cleaned:
+                frames.append(_load_cleaned_gst_file(f))
+            else:
+                frames.append(_load_gst_from_file(f, preferred_sheet=sheet_name))
         except Exception as e:
             print(f"  ✗ Skipped {f.name}: {e}")
             continue
@@ -385,9 +463,34 @@ def _load_and_clean_bookkeeping(path: Path) -> pd.DataFrame:
     return df
 
 
-def process_bookkeeping_files(input_path: str) -> pd.DataFrame:
+def _load_cleaned_bookkeeping_file(path: Path) -> pd.DataFrame:
+    """
+    Load an already-cleaned bookkeeping file (output of book_keeping_file_processing).
+    Accepts CSV or Excel with flat headers and standard column names.
+    """
+    ext = path.suffix.lower()
+    if ext in {".xlsx", ".xls"}:
+        df = pd.read_excel(path)
+    else:
+        df = pd.read_csv(path)
+
+    if "bill_number" in df.columns:
+        df["bill_number"] = df["bill_number"].astype(str)
+    if "bill_date" in df.columns and "year_month" not in df.columns:
+        df["bill_date"] = pd.to_datetime(df["bill_date"], errors="coerce", dayfirst=True)
+        df["year_month"] = df["bill_date"].dt.strftime("%Y-%m")
+
+    df["source_file"] = path.name
+    return df
+
+
+def process_bookkeeping_files(input_path: str, use_cleaned: bool = False) -> pd.DataFrame:
     """
     Process bookkeeping files and return combined DataFrame.
+
+    Args:
+        input_path: Path to bookkeeping file or folder.
+        use_cleaned: If True, treat input as already-cleaned books (CSV/Excel).
     """
     inp = Path(input_path).expanduser().resolve()
     files = _collect_files(inp, [".csv", ".xlsx", ".xls"])
@@ -399,7 +502,10 @@ def process_bookkeeping_files(input_path: str) -> pd.DataFrame:
     for f in files:
         try:
             print(f"  → Processing bookkeeping file: {f.name}")
-            frames.append(_load_and_clean_bookkeeping(f))
+            if use_cleaned:
+                frames.append(_load_cleaned_bookkeeping_file(f))
+            else:
+                frames.append(_load_and_clean_bookkeeping(f))
         except Exception as e:
             print(f"  ✗ Skipped {f.name}: {e}")
             continue
@@ -567,9 +673,23 @@ def reconcile_data(gst_data_main: pd.DataFrame, books_required: pd.DataFrame) ->
 # =============================================================================
 
 
-def run_reconciliation(gst_input: str, books_input: str, output_path: Path) -> Path:
+def run_reconciliation(
+    gst_input: str,
+    books_input: str,
+    output_path: Path,
+    gst_mode: str = "raw",
+    books_mode: str = "raw",
+) -> Path:
     """
     Run full reconciliation pipeline and save to output_path.
+
+    Args:
+        gst_input: Path to GST file or folder (raw Excel or cleaned CSV/Excel).
+        books_input: Path to bookkeeping file or folder (raw or cleaned CSV/Excel).
+        output_path: Where to save reconciled output (CSV/Excel).
+        gst_mode: "raw" if gst_input is raw B2B Excel, "clean" if already cleaned.
+        books_mode: "raw" if books_input is raw Zoho Books export, "clean" if already cleaned.
+
     Returns the resolved output_path.
     """
     _print_header("GST vs BOOKKEEPING RECONCILIATION")
@@ -578,15 +698,17 @@ def run_reconciliation(gst_input: str, books_input: str, output_path: Path) -> P
     print("\n" + "=" * 60)
     print("STEP 1: GST File Processing")
     print("=" * 60)
-    print(f"Input path: {gst_input}")
-    gst_df = process_gst_files(gst_input)
+    print(f"Input path: {gst_input} (mode: {gst_mode})")
+    use_cleaned_gst = gst_mode.lower() == "clean"
+    gst_df = process_gst_files(gst_input, use_cleaned=use_cleaned_gst)
 
     # Step 2: Bookkeeping processing
     print("\n" + "=" * 60)
     print("STEP 2: Bookkeeping File Processing")
     print("=" * 60)
-    print(f"Input path: {books_input}")
-    books_df = process_bookkeeping_files(books_input)
+    print(f"Input path: {books_input} (mode: {books_mode})")
+    use_cleaned_books = books_mode.lower() == "clean"
+    books_df = process_bookkeeping_files(books_input, use_cleaned=use_cleaned_books)
 
     # Step 3: Prepare data
     print("\n" + "=" * 60)
@@ -648,12 +770,24 @@ Examples:
     parser.add_argument(
         "--gst-input",
         required=True,
-        help="GST Excel file or folder path",
+        help="GST file or folder path (raw Excel or cleaned CSV/Excel)",
+    )
+    parser.add_argument(
+        "--gst-mode",
+        choices=["raw", "clean"],
+        default="raw",
+        help='Whether GST input is "raw" B2B Excel or "clean" processed data (default: raw)',
     )
     parser.add_argument(
         "--books-input",
         required=True,
-        help="Bookkeeping CSV/Excel file or folder path",
+        help="Bookkeeping file or folder path (raw or cleaned CSV/Excel)",
+    )
+    parser.add_argument(
+        "--books-mode",
+        choices=["raw", "clean"],
+        default="raw",
+        help='Whether books input is "raw" Zoho Books export or "clean" processed data (default: raw)',
     )
     parser.add_argument(
         "--output",
@@ -671,7 +805,13 @@ def main() -> None:
         gst_input = args.gst_input
         books_input = args.books_input
         output_path = Path(args.output)
-        run_reconciliation(gst_input, books_input, output_path)
+        run_reconciliation(
+            gst_input,
+            books_input,
+            output_path,
+            gst_mode=args.gst_mode,
+            books_mode=args.books_mode,
+        )
     except Exception:
         print("\n❌ Error during processing:")
         print(traceback.format_exc())

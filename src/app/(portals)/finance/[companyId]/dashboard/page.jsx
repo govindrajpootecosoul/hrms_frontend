@@ -117,7 +117,7 @@ const FinanceDashboard = () => {
     {
       id: 'books-vs-gst-reconciliation',
       title: 'Books vs GST Reconciliation',
-      description: 'Compare and reconcile GST vs Zoho Books Data; Check for GST Match Status',
+      description: 'Compare and reconcile GST vs Zoho Books Data; Check for GST Match Status\nGST file type: Raw GST Excel (B2B from GST portal)\nBooks file type: Raw Books export (Zoho Books CSV/Excel)',
       icon: <FileCheck className="w-8 h-8" />,
       color: 'from-indigo-500 to-indigo-600',
       bgColor: 'bg-indigo-50',

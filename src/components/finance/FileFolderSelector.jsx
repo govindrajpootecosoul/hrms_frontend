@@ -12,6 +12,9 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
   const [fileStatuses, setFileStatuses] = useState([]);
   const [progress, setProgress] = useState(0);
   const [mode, setMode] = useState(feature?.id === 'gst-reconcile' ? 'amazon' : '');
+  const [gstMode, setGstMode] = useState('raw');
+  const [booksMode, setBooksMode] = useState('raw');
+  const [folderTarget, setFolderTarget] = useState(null);
   const [availableSheets, setAvailableSheets] = useState([]);
   const [selectedSheet, setSelectedSheet] = useState('');
   const fileInputRef = useRef(null);
@@ -73,7 +76,7 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
     }
   };
 
-  const handleFileSelect = async (event) => {
+  const handleFileSelect = async (event, source) => {
     const files = Array.from(event.target.files);
     const validFiles = files.filter((file) =>
       allowedExtensions.some((ext) => file.name.toLowerCase().endsWith(ext))
@@ -101,7 +104,7 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
       return;
     }
 
-    // For Books vs GST, handle single file selection
+    // For Books vs GST, handle single file selection with explicit GST/Books source
     if (isBooksVsGst) {
       if (validFiles.length > 1) {
         alert('Please select one file at a time. You can select up to 2 files total.');
@@ -113,35 +116,81 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
         }
         return;
       }
-      
       const newFile = validFiles[0];
-      
-      // Check if we already have 2 files
-      if (selectedFiles.length >= 2) {
-        alert('You can only select 2 files. Please remove a file first if you want to replace it.');
-        if (gstFileInputRef.current) {
-          gstFileInputRef.current.value = '';
+
+      // Determine whether this is GST or Books file based on source
+      if (source === 'gst') {
+        // GST file -> index 0
+        let updatedFiles = [...selectedFiles];
+        let updatedStatuses = [...fileStatuses];
+
+        if (updatedFiles.length === 0) {
+          updatedFiles = [newFile];
+          updatedStatuses = [{
+            fileName: newFile.name,
+            status: 'pending',
+            message: 'Waiting to process...',
+          }];
+        } else if (updatedFiles.length === 1) {
+          updatedFiles[0] = newFile;
+          updatedStatuses[0] = {
+            fileName: newFile.name,
+            status: 'pending',
+            message: 'Waiting to process...',
+          };
+        } else {
+          // length >= 2
+          updatedFiles[0] = newFile;
+          updatedStatuses[0] = {
+            fileName: newFile.name,
+            status: 'pending',
+            message: 'Waiting to process...',
+          };
+          // keep index 1 as books file
+          updatedFiles = updatedFiles.slice(0, 2);
+          updatedStatuses = updatedStatuses.slice(0, 2);
         }
-        if (booksFileInputRef.current) {
-          booksFileInputRef.current.value = '';
+
+        setSelectedFiles(updatedFiles);
+        setFileStatuses(updatedStatuses);
+        setGstMode('clean');
+      } else if (source === 'books') {
+        // Books file -> index 1 (require GST first)
+        if (selectedFiles.length === 0) {
+          alert('Please select GST file first.');
+          if (booksFileInputRef.current) {
+            booksFileInputRef.current.value = '';
+          }
+          return;
         }
-        return;
+
+        let updatedFiles = [...selectedFiles];
+        let updatedStatuses = [...fileStatuses];
+
+        if (updatedFiles.length === 1) {
+          updatedFiles = [updatedFiles[0], newFile];
+          updatedStatuses = [
+            updatedStatuses[0],
+            {
+              fileName: newFile.name,
+              status: 'pending',
+              message: 'Waiting to process...',
+            },
+          ];
+        } else {
+          updatedFiles[1] = newFile;
+          updatedStatuses[1] = {
+            fileName: newFile.name,
+            status: 'pending',
+            message: 'Waiting to process...',
+          };
+        }
+
+        setSelectedFiles(updatedFiles);
+        setFileStatuses(updatedStatuses);
+        setBooksMode('clean');
       }
-      
-      // Add the new file
-      const updatedFiles = [...selectedFiles, newFile];
-      const updatedStatuses = [
-        ...fileStatuses,
-        {
-          fileName: newFile.name,
-          status: 'pending',
-          message: 'Waiting to process...',
-        }
-      ];
-      
-      setSelectedFiles(updatedFiles);
-      setFileStatuses(updatedStatuses);
-      
+
       // Reset inputs
       if (gstFileInputRef.current) {
         gstFileInputRef.current.value = '';
@@ -203,6 +252,103 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
       return;
     }
 
+    // Special handling for Books vs GST: GST/Books folder separately,
+    // and folder = raw files.
+    if (isBooksVsGst) {
+      if (!folderTarget) {
+        alert('Unknown folder target. Please click the folder button again.');
+        if (folderInputRef.current) {
+          folderInputRef.current.value = '';
+        }
+        return;
+      }
+
+      if (validFiles.length !== 1) {
+        const allValid = validFiles.map((f, idx) => `${idx + 1}. ${f.name}`).join('\n');
+        alert(
+          `Error: Please ensure the selected folder for ${folderTarget === 'gst' ? 'GST' : 'Books'} contains exactly 1 supported file.\n\n` +
+            `Supported files found (${validFiles.length}):\n${allValid || 'None'}`
+        );
+        if (folderInputRef.current) {
+          folderInputRef.current.value = '';
+        }
+        setFolderTarget(null);
+        return;
+      }
+
+      const pickedFile = validFiles[0];
+      let updatedFiles = [...selectedFiles];
+      let updatedStatuses = [...fileStatuses];
+
+      if (folderTarget === 'gst') {
+        // GST from folder -> index 0, raw mode
+        if (updatedFiles.length === 0) {
+          updatedFiles = [pickedFile];
+          updatedStatuses = [{
+            fileName: pickedFile.name,
+            status: 'pending',
+            message: 'Waiting to process...',
+          }];
+        } else if (updatedFiles.length === 1) {
+          updatedFiles[0] = pickedFile;
+          updatedStatuses[0] = {
+            fileName: pickedFile.name,
+            status: 'pending',
+            message: 'Waiting to process...',
+          };
+        } else {
+          updatedFiles[0] = pickedFile;
+          updatedStatuses[0] = {
+            fileName: pickedFile.name,
+            status: 'pending',
+            message: 'Waiting to process...',
+          };
+          updatedFiles = updatedFiles.slice(0, 2);
+          updatedStatuses = updatedStatuses.slice(0, 2);
+        }
+        setGstMode('raw');
+      } else if (folderTarget === 'books') {
+        // Books from folder -> index 1, raw mode (require GST first)
+        if (updatedFiles.length === 0) {
+          alert('Please select GST file or folder first.');
+          if (folderInputRef.current) {
+            folderInputRef.current.value = '';
+          }
+          setFolderTarget(null);
+          return;
+        }
+
+        if (updatedFiles.length === 1) {
+          updatedFiles = [updatedFiles[0], pickedFile];
+          updatedStatuses = [
+            updatedStatuses[0],
+            {
+              fileName: pickedFile.name,
+              status: 'pending',
+              message: 'Waiting to process...',
+            },
+          ];
+        } else {
+          updatedFiles[1] = pickedFile;
+          updatedStatuses[1] = {
+            fileName: pickedFile.name,
+            status: 'pending',
+            message: 'Waiting to process...',
+          };
+        }
+        setBooksMode('raw');
+      }
+
+      setSelectedFiles(updatedFiles);
+      setFileStatuses(updatedStatuses);
+      if (folderInputRef.current) {
+        folderInputRef.current.value = '';
+      }
+      setFolderTarget(null);
+      return;
+    }
+
+    // Generic folder handling for other features
     const initialStatuses = validFiles.map((file) => ({
       fileName: file.name,
       status: 'pending',
@@ -326,6 +472,10 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
       formData.append('feature', feature.id);
       if (isGstFeature) {
         formData.append('mode', mode);
+      }
+      if (isBooksVsGst) {
+        formData.append('gstMode', gstMode);
+        formData.append('booksMode', booksMode);
       }
       if (isMissingShipment && selectedSheet) {
         formData.append('sheetName', selectedSheet);
@@ -501,59 +651,105 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
 
       {/* Selection Buttons - In One Line */}
       {isBooksVsGst ? (
-        <div className="space-y-3">
-          {/* File 1: GST File */}
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-neutral-700">
-              File 1: GST Excel File (B2B) {selectedFiles.length > 0 && <span className="text-green-600">✓</span>}
-            </label>
-            <input
-              ref={gstFileInputRef}
-              type="file"
-              accept=".xlsx,.xls"
-              onChange={handleFileSelect}
-              className="hidden"
-            />
-            <Button
-              onClick={() => gstFileInputRef.current?.click()}
-              disabled={isProcessing || selectedFiles.length >= 1}
-              className="w-full bg-primary-600 hover:bg-primary-700 text-white py-3 text-base font-semibold disabled:bg-neutral-400 disabled:cursor-not-allowed"
-              icon={<File className="w-5 h-5" />}
-            >
-              {selectedFiles.length === 0 ? 'Select GST File' : 'GST File Selected'}
-            </Button>
-            {selectedFiles.length > 0 && (
-              <p className="text-xs text-neutral-500">
-                Selected: {selectedFiles[0].name}
-              </p>
-            )}
+        <div className="space-y-4">
+          <div className="space-y-3">
+            {/* File 1: GST File */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-neutral-700">
+                File 1: GST Excel File (B2B) {selectedFiles.length > 0 && <span className="text-green-600">✓</span>}
+              </label>
+              <input
+                ref={gstFileInputRef}
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              <Button
+                onClick={() => gstFileInputRef.current?.click()}
+                disabled={isProcessing || selectedFiles.length >= 1}
+                className="w-full bg-primary-600 hover:bg-primary-700 text-white py-3 text-base font-semibold disabled:bg-neutral-400 disabled:cursor-not-allowed"
+                icon={<File className="w-5 h-5" />}
+              >
+                {selectedFiles.length === 0 ? 'Select GST File' : 'GST File Selected'}
+              </Button>
+              {selectedFiles.length > 0 && (
+                <p className="text-xs text-neutral-500">
+                  Selected: {selectedFiles[0].name}
+                </p>
+              )}
+            </div>
+            
+            {/* File 2: Books File */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-neutral-700">
+                File 2: Bookkeeping File (CSV/Excel) {selectedFiles.length > 1 && <span className="text-green-600">✓</span>}
+              </label>
+              <input
+                ref={booksFileInputRef}
+                type="file"
+                accept=".csv,.xlsx,.xls"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              <Button
+                onClick={() => booksFileInputRef.current?.click()}
+                disabled={isProcessing || selectedFiles.length < 1 || selectedFiles.length >= 2}
+                className="w-full bg-primary-600 hover:bg-primary-700 text-white py-3 text-base font-semibold disabled:bg-neutral-400 disabled:cursor-not-allowed"
+                icon={<File className="w-5 h-5" />}
+              >
+                {selectedFiles.length < 1 ? 'Select GST File First' : selectedFiles.length === 1 ? 'Select Books File' : 'Books File Selected'}
+              </Button>
+              {selectedFiles.length > 1 && (
+                <p className="text-xs text-neutral-500">
+                  Selected: {selectedFiles[1].name}
+                </p>
+              )}
+            </div>
           </div>
-          
-          {/* File 2: Books File */}
+
+          {/* Folder option: contains both files */}
+          {/* Folder options: GST folder and Books folder */}
           <div className="space-y-2">
             <label className="text-sm font-semibold text-neutral-700">
-              File 2: Bookkeeping File (CSV/Excel) {selectedFiles.length > 1 && <span className="text-green-600">✓</span>}
+              Or select folders for GST and Books
             </label>
             <input
-              ref={booksFileInputRef}
+              ref={folderInputRef}
               type="file"
-              accept=".csv,.xlsx,.xls"
-              onChange={handleFileSelect}
+              webkitdirectory=""
+              directory=""
+              multiple
+              onChange={handleFolderSelect}
               className="hidden"
             />
-            <Button
-              onClick={() => booksFileInputRef.current?.click()}
-              disabled={isProcessing || selectedFiles.length < 1 || selectedFiles.length >= 2}
-              className="w-full bg-primary-600 hover:bg-primary-700 text-white py-3 text-base font-semibold disabled:bg-neutral-400 disabled:cursor-not-allowed"
-              icon={<File className="w-5 h-5" />}
-            >
-              {selectedFiles.length < 1 ? 'Select GST File First' : selectedFiles.length === 1 ? 'Select Books File' : 'Books File Selected'}
-            </Button>
-            {selectedFiles.length > 1 && (
-              <p className="text-xs text-neutral-500">
-                Selected: {selectedFiles[1].name}
-              </p>
-            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Button
+                onClick={() => {
+                  setFolderTarget('gst');
+                  folderInputRef.current?.click();
+                }}
+                disabled={isProcessing}
+                className="w-full bg-secondary-600 hover:bg-secondary-700 text-white py-3 text-base font-semibold"
+                icon={<FolderOpen className="w-5 h-5" />}
+              >
+                GST Folder (raw GST files)
+              </Button>
+              <Button
+                onClick={() => {
+                  setFolderTarget('books');
+                  folderInputRef.current?.click();
+                }}
+                disabled={isProcessing || selectedFiles.length < 1}
+                className="w-full bg-secondary-600 hover:bg-secondary-700 text-white py-3 text-base font-semibold disabled:bg-neutral-400 disabled:cursor-not-allowed"
+                icon={<FolderOpen className="w-5 h-5" />}
+              >
+                Books Folder (raw Books files)
+              </Button>
+            </div>
+            <p className="text-xs text-neutral-500">
+              Each selected folder should contain exactly 1 supported file for that type.
+            </p>
           </div>
         </div>
       ) : (
@@ -665,13 +861,13 @@ const FileFolderSelector = ({ feature, onClose, apiEndpoint }) => {
           ) : isBooksVsGst ? (
             <div className="space-y-2">
               <p className="text-xs text-neutral-500">
-                Select files one by one. We'll automatically detect which file is GST and which is books.
+                Select GST and Books files (or folders) as required. Folder selection will be treated as raw files; single file selection as cleaned files.
               </p>
               <div className="text-xs text-neutral-500 space-y-1">
                 <p className="font-semibold">Requirements:</p>
                 <ul className="list-disc list-inside ml-2 space-y-0.5">
-                  <li>File 1: GST Excel file (.xlsx, .xls) with B2B worksheet</li>
-                  <li>File 2: Bookkeeping CSV/Excel file (.csv, .xlsx, .xls)</li>
+                  <li>GST: Excel file (.xlsx, .xls) with B2B worksheet (or folder containing one such file)</li>
+                  <li>Books: CSV/Excel file (.csv, .xlsx, .xls) exported from Zoho Books (or folder containing one such file)</li>
                 </ul>
               </div>
             </div>

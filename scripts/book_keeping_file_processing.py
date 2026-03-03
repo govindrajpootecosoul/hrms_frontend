@@ -154,6 +154,7 @@ def _collect_files(input_path: Path) -> List[Path]:
     return sorted(found)
 
 
+
 # =============================================================================
 # CORE PROCESS
 # =============================================================================
@@ -182,11 +183,13 @@ def _write_output(df: pd.DataFrame, out: Path) -> None:
     if ext in {".xlsx", ".xls"}:
         df.to_excel(out, index=False)
     else:
-        # For CSV, format decimal columns to ensure 2 decimal places
+        # For CSV, format decimal columns to ensure 2 decimal places.
+        # Coerce to numeric first so string values from Excel don't break formatting.
         df_output = df.copy()
         for col in decimal_cols:
             if col in df_output.columns:
-                df_output[col] = df_output[col].apply(lambda x: f"{x:.2f}" if pd.notna(x) else "0.00")
+                s = pd.to_numeric(df_output[col], errors="coerce").fillna(0)
+                df_output[col] = s.apply(lambda x: f"{x:.2f}")
         df_output.to_csv(out, index=False)
 
 

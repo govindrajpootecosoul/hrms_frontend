@@ -89,6 +89,8 @@ export async function POST(request) {
   try {
     const formData = await request.formData();
     const files = formData.getAll('files');
+    const gstMode = (formData.get('gstMode') || 'raw').toString().toLowerCase();
+    const booksMode = (formData.get('booksMode') || 'raw').toString().toLowerCase();
 
     if (!files || files.length === 0) {
       return NextResponse.json(
@@ -181,8 +183,12 @@ export async function POST(request) {
         scriptPath,
         '--gst-input',
         gstPath,
+        '--gst-mode',
+        gstMode === 'clean' ? 'clean' : 'raw',
         '--books-input',
         booksPath,
+        '--books-mode',
+        booksMode === 'clean' ? 'clean' : 'raw',
         '--output',
         outputPath,
       ];
