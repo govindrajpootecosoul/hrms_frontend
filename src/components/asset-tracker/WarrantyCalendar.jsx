@@ -82,50 +82,50 @@ const WarrantyCalendar = ({ assets = [] }) => {
   const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return (
-    <Card className="p-3 bg-neutral-900 border-neutral-800">
+    <Card className="p-3 rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 via-slate-25 to-slate-100 shadow-[0_18px_45px_rgba(15,23,42,0.08)]">
       <div className="space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="px-3 py-1 bg-neutral-800 rounded">
-              <h3 className="text-white text-base font-semibold">Warranty</h3>
+            <div className="px-3 py-1 rounded-xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white shadow-sm shadow-slate-400/30">
+              <h3 className="text-sm font-semibold tracking-tight">Warranty</h3>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={goToPreviousMonth}
-                className="w-8 h-8 flex items-center justify-center bg-neutral-800 hover:bg-neutral-700 text-white rounded transition-colors"
+                className="w-8 h-8 flex items-center justify-center rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 transition-colors shadow-sm"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <div className="px-3 py-1 bg-neutral-800 rounded">
-                <h2 className="text-white text-base font-semibold min-w-[140px] text-center">
+              <div className="px-3 py-1 rounded-xl bg-white border border-slate-200 shadow-sm">
+                <h2 className="text-slate-900 text-base font-semibold min-w-[140px] text-center tracking-tight">
                   {format(currentDate, 'MMMM yyyy')}
                 </h2>
               </div>
               <button
                 onClick={goToNextMonth}
-                className="w-8 h-8 flex items-center justify-center bg-neutral-800 hover:bg-neutral-700 text-white rounded transition-colors"
+                className="w-8 h-8 flex items-center justify-center rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 transition-colors shadow-sm"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="px-3 py-1 bg-orange-600/20 border border-orange-500/50 rounded text-xs text-orange-400">
+            <div className="px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-xs text-amber-700 shadow-sm shadow-amber-100/80">
               Warranty Expiring
             </div>
-            <div className="px-3 py-1 bg-neutral-800 border border-neutral-700 rounded text-xs text-neutral-400">
+            <div className="px-3 py-1 rounded-full bg-white border border-slate-200 text-xs text-slate-500 shadow-sm">
               month
             </div>
           </div>
         </div>
 
         {/* Calendar Grid */}
-        <div className="bg-neutral-800 rounded-lg p-3">
+        <div className="bg-white rounded-2xl p-3 border border-slate-200 shadow-sm">
           {/* Week Days Header */}
           <div className="grid grid-cols-7 gap-1 mb-2">
             {weekDays.map((day) => (
-              <div key={day} className="text-center text-xs text-neutral-400 font-medium py-2">
+              <div key={day} className="text-center text-xs text-slate-500 font-semibold py-2 tracking-wide uppercase">
                 {day}
               </div>
             ))}
@@ -144,11 +144,15 @@ const WarrantyCalendar = ({ assets = [] }) => {
               return (
                 <div
                   key={idx}
-                  className={`min-h-[80px] p-1 border border-neutral-700 rounded ${
-                    isCurrentMonth ? 'bg-neutral-900' : 'bg-neutral-800/50'
-                  } ${isToday ? 'ring-2 ring-blue-500' : ''}`}
+                  className={`min-h-[80px] p-1 rounded-xl border ${
+                    isCurrentMonth ? 'bg-slate-50 border-slate-200' : 'bg-slate-25 border-slate-100'
+                  } ${
+                    isToday
+                      ? 'ring-2 ring-sky-400/70 shadow-[0_0_0_1px_rgba(56,189,248,0.40)]'
+                      : ''
+                  }`}
                 >
-                  <div className={`text-xs mb-1 ${isCurrentMonth ? 'text-white' : 'text-neutral-600'}`}>
+                  <div className={`text-xs mb-1 font-medium ${isCurrentMonth ? 'text-slate-900' : 'text-slate-400'}`}>
                     {format(day, 'd')}
                   </div>
                   <div className="space-y-0.5">
@@ -162,10 +166,10 @@ const WarrantyCalendar = ({ assets = [] }) => {
                         }}
                         className={`w-full px-1.5 py-0.5 rounded text-[10px] font-medium truncate text-left hover:opacity-80 transition-opacity cursor-pointer ${
                           expired
-                            ? 'bg-red-600/30 text-red-400 border border-red-500/50'
+                            ? 'bg-rose-50 text-rose-700 border border-rose-200'
                             : expiringSoon
-                            ? 'bg-orange-600/30 text-orange-400 border border-orange-500/50'
-                            : 'bg-blue-600/30 text-blue-400 border border-blue-500/50'
+                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                            : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                         }`}
                         title={`${asset.assetTag} - ${asset.model || asset.brand || 'N/A'}`}
                       >
@@ -179,7 +183,7 @@ const WarrantyCalendar = ({ assets = [] }) => {
                           setSelectedDate(day);
                           setShowAssetsModal(true);
                         }}
-                        className="w-full px-1.5 py-0.5 rounded text-[10px] text-neutral-400 bg-neutral-700/50 hover:bg-neutral-700 transition-colors cursor-pointer text-left"
+                        className="w-full px-1.5 py-0.5 rounded text-[10px] text-slate-500 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer text-left"
                       >
                         +{warrantyAssets.length - 2} more
                       </button>
