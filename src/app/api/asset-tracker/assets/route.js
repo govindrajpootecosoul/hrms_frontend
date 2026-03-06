@@ -29,13 +29,40 @@ export async function GET(request) {
       baseQuery.companyId = companyId;
     }
 
-    // Helper to build a case-insensitive company filter for shared DB fallback
+    // Helper to build a case-insensitive, flexible company filter for shared DB fallback
     const buildCompanyFilter = (companyName) => {
       if (!companyName) return {};
+
+      const normalized = companyName.trim().toLowerCase();
+
+      // Special handling for known tenants so we also match legacy values like "Thrivebrands" or "Eco Soul"
+      if (normalized.includes('thrive')) {
+        return {
+          $or: [
+            { company: { $regex: /thrive/i } },          // "Thrive", "Thrive Brands", "Thrivebrands", etc.
+            { company: { $regex: /thrivebrands/i } },
+          ],
+        };
+      }
+
+      if (normalized.includes('ecosoul') || normalized.includes('eco soul')) {
+        return {
+          $or: [
+            { company: { $regex: /ecosoul/i } },         // "Ecosoul", "Ecosoul Home"
+            { company: { $regex: /eco\s*soul/i } },
+          ],
+        };
+      }
+
+      // Generic fallback: escape special chars and allow flexible whitespace, case‑insensitive
+      const escaped = companyName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const flexibleSpacing = escaped.replace(/\s+/g, '\\s*');
+
       return {
         $or: [
           { company: companyName },
-          { company: { $regex: new RegExp(`^${companyName}\\b`, 'i') } },
+          { company: { $regex: new RegExp(`^${flexibleSpacing}$`, 'i') } },
+          { company: { $regex: new RegExp(flexibleSpacing, 'i') } },
         ],
       };
     };
@@ -44,34 +71,25 @@ export async function GET(request) {
 
     if (company) {
       // Primary path: company‑scoped database (e.g. thrive_asset_tracker, ecosoul_asset_tracker)
+      // IMPORTANT: For company‑specific DBs we IGNORE companyId filters because
+      // the database is already isolated per tenant. This ensures all existing
+      // Thrive / Ecosoul assets are visible even if companyId was not set
+      // consistently in older records.
       const companyCollection = await getAssetsCollection(company);
-      const query = { ...baseQuery };
+      const query = {}; // do not apply baseQuery / companyId here
       console.log(
-        `[API] Fetching assets from company DB: ${company}, query:`,
+        `[API] Fetching assets from company DB: ${company}, query (company‑scoped, no companyId filter):`,
         JSON.stringify(query)
       );
       assets = await companyCollection.find(query).sort({ createdAt: -1 }).toArray();
 
       console.log(
-        `[API] Company DB result for ${company}: ${assets.length} assets (companyId=${companyId || 'n/a'})`
+        `[API] Company DB result for ${company}: ${assets.length} assets (company‑scoped DB, ignoring companyId=${companyId || 'n/a'})`
       );
 
-      // If companyId filter returned no records, retry WITHOUT companyId so older data still appears.
-      if (assets.length === 0 && companyId) {
-        const relaxedQuery = {};
-        console.log(
-          `[API] No assets found with companyId=${companyId} in company DB for ${company}. `
-          + `Retrying without companyId filter.`
-        );
-        assets = await companyCollection
-          .find(relaxedQuery)
-          .sort({ createdAt: -1 })
-          .toArray();
-
-        console.log(
-          `[API] Relaxed query result for ${company} (no companyId filter): ${assets.length} assets`
-        );
-      }
+      // Note: we no longer re‑run with a "relaxed" query here because companyId
+      // is not used at all in company‑specific databases. All assets in the
+      // tenant DB are already included in the initial query.
 
       // Fallback: if no records in the company‑scoped DB, also look in the shared/base DB.
       // This supports older data that was stored before company‑specific databases were introduced.
@@ -90,7 +108,7 @@ export async function GET(request) {
           JSON.stringify(sharedQuery)
         );
 
-        const sharedAssets = await sharedCollection
+        let sharedAssets = await sharedCollection
           .find(sharedQuery)
           .sort({ createdAt: -1 })
           .toArray();
@@ -98,6 +116,27 @@ export async function GET(request) {
         console.log(
           `[API] Shared DB fallback result for ${company}: ${sharedAssets.length} assets`
         );
+
+        // If shared DB has no results with companyId filter, retry without companyId
+        if (sharedAssets.length === 0 && companyId) {
+          const relaxedSharedQuery = {
+            ...buildCompanyFilter(company),
+          };
+
+          console.log(
+            `[API] Shared DB had no assets for ${company} with companyId=${companyId}. ` +
+            `Retrying without companyId using query: ${JSON.stringify(relaxedSharedQuery)}`
+          );
+
+          sharedAssets = await sharedCollection
+            .find(relaxedSharedQuery)
+            .sort({ createdAt: -1 })
+            .toArray();
+
+          console.log(
+            `[API] Shared DB relaxed fallback result for ${company}: ${sharedAssets.length} assets`
+          );
+        }
 
         assets = sharedAssets;
       }
