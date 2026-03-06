@@ -3,7 +3,6 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/context/AuthContext";
 import { CompanyProvider } from "@/lib/context/CompanyContext";
 import ToastProvider from "@/components/common/Toast";
-import MaterialIconsLoader from "@/components/MaterialIconsLoader";
 
 const jakartaSans = Plus_Jakarta_Sans({
   variable: "--font-geist-sans", // reuse existing CSS variable wiring
@@ -26,11 +25,22 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+        />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+        />
+      </head>
       <body
         className={`${jakartaSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning
       >
-        <MaterialIconsLoader />
         <AuthProvider>
           <CompanyProvider>
             <ToastProvider>

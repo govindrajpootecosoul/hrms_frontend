@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { useCompany } from '@/lib/context/CompanyContext';
 import * as XLSX from 'xlsx';
@@ -28,8 +28,10 @@ export default function SourcingScreeningPage() {
   const params = useParams();
   const companyId = params.companyId;
   const { currentCompany } = useCompany();
+  const hasLoadedOnceRef = useRef(false);
   
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Status');
   const [recruiterFilter, setRecruiterFilter] = useState('All Recruiters');
   const [experienceFilter, setExperienceFilter] = useState('All Experience');
@@ -40,17 +42,30 @@ export default function SourcingScreeningPage() {
   const [editingCandidate, setEditingCandidate] = useState(null);
   const [deletingCandidate, setDeletingCandidate] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [candidatesList, setCandidatesList] = useState([]);
   const [kpiCards, setKpiCards] = useState([]);
   const [hrList, setHrList] = useState(['All Recruiters']);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const itemsPerPage = 10;
 
+  // Debounce search input to avoid refetch on every keystroke
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
   // Fetch candidates data - optimized for immediate loading
   useEffect(() => {
     const fetchCandidates = async () => {
       try {
-        setLoading(true);
+        if (!hasLoadedOnceRef.current) {
+          setLoading(true);
+        } else {
+          setIsRefreshing(true);
+        }
         const token = localStorage.getItem('auth_token');
         
         // Get company name - prioritize multiple sources for faster loading
@@ -103,8 +118,8 @@ export default function SourcingScreeningPage() {
         if (experienceFilter && experienceFilter !== 'All Experience') {
           params.append('experience', experienceFilter);
         }
-        if (searchQuery) {
-          params.append('search', searchQuery);
+        if (debouncedSearchQuery) {
+          params.append('search', debouncedSearchQuery);
         }
 
         const headers = {
@@ -165,12 +180,14 @@ export default function SourcingScreeningPage() {
         console.error('Fetch candidates error:', err);
       } finally {
         setLoading(false);
+        setIsRefreshing(false);
+        hasLoadedOnceRef.current = true;
       }
     };
 
     // Fetch immediately - don't wait for currentCompany if we have sessionStorage
     fetchCandidates();
-  }, [companyId, currentCompany, statusFilter, recruiterFilter, experienceFilter, searchQuery, refreshTrigger]);
+  }, [companyId, currentCompany, statusFilter, recruiterFilter, experienceFilter, debouncedSearchQuery, refreshTrigger]);
 
   // Additional effect to trigger fetch when company becomes available
   useEffect(() => {
@@ -685,6 +702,9 @@ export default function SourcingScreeningPage() {
                 className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
+            {isRefreshing && (
+              <div className="mt-1 text-xs text-slate-500">Updating results…</div>
+            )}
           </div>
           <div className="flex gap-3 flex-wrap">
             <select
@@ -860,12 +880,6 @@ export default function SourcingScreeningPage() {
         </div>
       </div>
       )}
-
-      {/* HR Copilot Floating Button */}
-      <button className="fixed bottom-6 right-6 bg-slate-800 text-white px-6 py-3 rounded-lg shadow-lg hover:bg-slate-900 transition-colors flex items-center gap-2 z-50">
-        <Sparkles className="w-5 h-5" />
-        <span className="font-medium">HR Copilot</span>
-      </button>
 
       {/* Add/Edit Candidate Dialog */}
       <AddCandidateDialog

@@ -1324,12 +1324,6 @@ export default function EmployeesPage() {
         </Card>
       )}
 
-      {/* HR Copilot Floating Button */}
-      <button className="fixed bottom-6 right-6 bg-slate-800 text-white px-6 py-3 rounded-lg shadow-lg hover:bg-slate-900 transition-colors flex items-center gap-2 z-50">
-        <Sparkles className="w-5 h-5" />
-        <span className="font-medium">HR Copilot</span>
-      </button>
-
       {/* Add/Edit Employee Dialog */}
       <AddEmployeeDialog
         key={`${isAddDialogOpen ? 'open' : 'closed'}-${employeeToEdit?.id || employeeToEdit?._id || 'new'}`}

@@ -309,21 +309,6 @@ export function AdminAppShell({ children, user, onLogout }: AdminAppShellProps) 
         )}
       </main>
 
-      <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-2">
-        <span className="rounded-full bg-slate-900/90 px-3 py-1 text-xs font-semibold text-white shadow-lg shadow-slate-900/40">
-          HR Copilot
-        </span>
-        <Button
-          variant="secondary"
-          size="icon"
-          onClick={() => setAiOpen(true)}
-          aria-label="Ask HR Copilot"
-          className="h-14 w-14 rounded-full border border-indigo-200 bg-white text-indigo-600 shadow-2xl shadow-indigo-500/40 transition hover:-translate-y-1 hover:bg-indigo-50"
-        >
-          <Sparkles className="h-6 w-6" />
-        </Button>
-      </div>
-
       <Dialog open={aiOpen} onOpenChange={setAiOpen}>
         <DialogContent className="max-w-4xl overflow-hidden p-0">
           <div className="bg-gradient-to-r from-indigo-600 via-blue-600 to-sky-500 px-6 py-4 text-white">
