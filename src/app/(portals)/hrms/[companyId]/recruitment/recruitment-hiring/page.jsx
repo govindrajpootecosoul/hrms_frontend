@@ -75,7 +75,10 @@ export default function RecruitmentHiringPage() {
         }
         
         const params = new URLSearchParams();
-        // For HRMS Admin Portal - don't send company to get all data
+        // Always scope to the active company so each tenant only sees its own hiring data
+        if (company) {
+          params.append('company', company);
+        }
         if (statusFilter && statusFilter !== 'All Status') {
           params.append('status', statusFilter);
         }
@@ -89,7 +92,9 @@ export default function RecruitmentHiringPage() {
         const headers = {
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         };
-        // For HRMS Admin Portal - don't send company header to get all data
+        if (company) {
+          headers['x-company'] = company;
+        }
 
         const res = await fetch(`/api/hrms-portal/recruitment/hiring?${params.toString()}`, { headers });
         if (res.ok) {
@@ -181,10 +186,9 @@ export default function RecruitmentHiringPage() {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {})
       };
-      // For HRMS Admin Portal - don't send company header to allow all data access
-      // if (company) {
-      //   headers['x-company'] = company;
-      // }
+      if (company) {
+        headers['x-company'] = company;
+      }
 
       // Map action to status
       let hiringStatus = '';
@@ -243,10 +247,9 @@ export default function RecruitmentHiringPage() {
       const headers = {
         ...(token ? { Authorization: `Bearer ${token}` } : {})
       };
-      // For HRMS Admin Portal - don't send company header to allow all data access
-      // if (company) {
-      //   headers['x-company'] = company;
-      // }
+      if (company) {
+        headers['x-company'] = company;
+      }
 
       // Fetch full candidate data from API
       const res = await fetch(`/api/hrms-portal/recruitment/candidates/${candidateId}`, {
@@ -284,8 +287,7 @@ export default function RecruitmentHiringPage() {
         ...(token ? { Authorization: `Bearer ${token}` } : {})
       };
       if (company) {
-        // For HRMS Admin Portal - don't send company header to allow all data access
-        // headers['x-company'] = company;
+        headers['x-company'] = company;
       }
 
       // Prepare candidate data for API (remove id field as MongoDB uses _id)
@@ -331,8 +333,7 @@ export default function RecruitmentHiringPage() {
         ...(token ? { Authorization: `Bearer ${token}` } : {})
       };
       if (company) {
-        // For HRMS Admin Portal - don't send company header to allow all data access
-        // headers['x-company'] = company;
+        headers['x-company'] = company;
       }
 
       const res = await fetch(`/api/hrms-portal/recruitment/candidates/${deletingCandidate.id}`, {

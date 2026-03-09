@@ -134,8 +134,7 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
         ...(token ? { Authorization: `Bearer ${token}` } : {})
       };
       if (company) {
-        // For HRMS Admin Portal - don't send company header to allow all data access
-        // headers['x-company'] = company;
+        headers['x-company'] = company;
       }
 
       const res = await fetch('/api/hrms-portal/recruitment/recruiters', { headers });

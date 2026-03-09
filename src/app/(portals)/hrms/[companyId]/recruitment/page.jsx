@@ -47,7 +47,8 @@ export default function SourcingScreeningPage() {
   const [kpiCards, setKpiCards] = useState([]);
   const [hrList, setHrList] = useState(['All Recruiters']);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const itemsPerPage = 10;
+  const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100, 200, 500];
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Debounce search input to avoid refetch on every keystroke
   useEffect(() => {
@@ -104,11 +105,10 @@ export default function SourcingScreeningPage() {
         }
         
         const params = new URLSearchParams();
-        // For HRMS Admin Portal - don't send company to get all data
-        // Only send company if explicitly needed for filtering
-        // if (company) {
-        //   params.append('company', company);
-        // }
+        // Always scope to the active company so each tenant only sees its own data
+        if (company) {
+          params.append('company', company);
+        }
         if (statusFilter && statusFilter !== 'All Status') {
           params.append('status', statusFilter);
         }
@@ -125,10 +125,9 @@ export default function SourcingScreeningPage() {
         const headers = {
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         };
-        // For HRMS Admin Portal - don't send company header to get all data
-        // if (company) {
-        //   headers['x-company'] = company;
-        // }
+        if (company) {
+          headers['x-company'] = company;
+        }
 
         const res = await fetch(`/api/hrms-portal/recruitment/candidates?${params.toString()}`, { headers });
         if (res.ok) {
@@ -200,10 +199,10 @@ export default function SourcingScreeningPage() {
     }
   }, [currentCompany?.name]);
 
-  // Reset to page 1 when filters change
+  // Reset to page 1 when filters or items per page change
   useEffect(() => {
     setCurrentPage(1);
-  }, [statusFilter, recruiterFilter, experienceFilter, searchQuery]);
+  }, [statusFilter, recruiterFilter, experienceFilter, searchQuery, itemsPerPage]);
 
   const totalCandidates = candidatesList.length;
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -247,10 +246,9 @@ export default function SourcingScreeningPage() {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {})
       };
-      // For HRMS Admin Portal - don't send company header to allow all data access
-      // if (company) {
-      //   headers['x-company'] = company;
-      // }
+      if (company) {
+        headers['x-company'] = company;
+      }
 
       // Prepare candidate data for API
       // For HRMS Admin Portal - company is optional
@@ -291,10 +289,9 @@ export default function SourcingScreeningPage() {
       const headers = {
         ...(token ? { Authorization: `Bearer ${token}` } : {})
       };
-      // For HRMS Admin Portal - don't send company header to allow all data access
-      // if (company) {
-      //   headers['x-company'] = company;
-      // }
+      if (company) {
+        headers['x-company'] = company;
+      }
 
       // Fetch full candidate data from API
       const res = await fetch(`/api/hrms-portal/recruitment/candidates/${candidateId}`, {
@@ -331,10 +328,9 @@ export default function SourcingScreeningPage() {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {})
       };
-      // For HRMS Admin Portal - don't send company header to allow all data access
-      // if (company) {
-      //   headers['x-company'] = company;
-      // }
+      if (company) {
+        headers['x-company'] = company;
+      }
 
       // Prepare candidate data for API (remove id field as MongoDB uses _id)
       const { id, ...dataWithoutId } = candidateData;
@@ -378,10 +374,9 @@ export default function SourcingScreeningPage() {
       const headers = {
         ...(token ? { Authorization: `Bearer ${token}` } : {})
       };
-      // For HRMS Admin Portal - don't send company header to allow all data access
-      // if (company) {
-      //   headers['x-company'] = company;
-      // }
+      if (company) {
+        headers['x-company'] = company;
+      }
 
       const res = await fetch(`/api/hrms-portal/recruitment/candidates/${deletingCandidate.id}`, {
         method: 'DELETE',
@@ -418,10 +413,9 @@ export default function SourcingScreeningPage() {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {})
       };
-      // For HRMS Admin Portal - don't send company header to allow all data access
-      // if (company) {
-      //   headers['x-company'] = company;
-      // }
+      if (company) {
+        headers['x-company'] = company;
+      }
 
       // Update candidate status to "Interview Scheduled" and add interview details
       const updateData = {
@@ -605,17 +599,14 @@ export default function SourcingScreeningPage() {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {})
       };
-      // For HRMS Admin Portal - don't send company header to allow all data access
-      // if (company) {
-      //   headers['x-company'] = company;
-      // }
-
-      console.log('Updating status:', { candidateId, newStatus, company });
+      if (company) {
+        headers['x-company'] = company;
+      }
 
       const res = await fetch(`/api/hrms-portal/recruitment/candidates/${candidateId}`, {
         method: 'PUT',
         headers,
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status: newStatus, company }),
       });
 
       const responseText = await res.text();
@@ -857,9 +848,23 @@ export default function SourcingScreeningPage() {
         </div>
         
         {/* Pagination */}
-        <div className="px-4 py-3 border-t border-slate-200 flex items-center justify-between">
-          <div className="text-sm text-slate-600">
-            Showing {startIndex + 1} to {Math.min(endIndex, totalCandidates)} of {totalCandidates} candidates
+        <div className="px-4 py-3 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-4 flex-wrap">
+            <span className="text-sm text-slate-600">
+              Showing {startIndex + 1} to {Math.min(endIndex, totalCandidates)} of {totalCandidates} candidates
+            </span>
+            <label className="flex items-center gap-2 text-sm text-slate-600">
+              Items per page
+              <select
+                value={itemsPerPage}
+                onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                className="px-2 py-1.5 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {ITEMS_PER_PAGE_OPTIONS.map((n) => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+            </label>
           </div>
           <div className="flex gap-2">
             <button

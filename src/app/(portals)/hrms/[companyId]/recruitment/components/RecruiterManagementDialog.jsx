@@ -58,10 +58,8 @@ export default function RecruiterManagementDialog({ open, onOpenChange, onRecrui
         ...(token ? { Authorization: `Bearer ${token}` } : {})
       };
       if (company) {
-        // For HRMS Admin Portal - don't send company header to allow all data access
-        // headers['x-company'] = company;
+        headers['x-company'] = company;
       }
-
       const res = await fetch('/api/hrms-portal/recruitment/recruiters', { headers });
       if (res.ok) {
         const json = await res.json();
@@ -125,10 +123,8 @@ export default function RecruiterManagementDialog({ open, onOpenChange, onRecrui
         ...(token ? { Authorization: `Bearer ${token}` } : {})
       };
       if (company) {
-        // For HRMS Admin Portal - don't send company header to allow all data access
-        // headers['x-company'] = company;
+        headers['x-company'] = company;
       }
-
       const url = editingRecruiter
         ? `/api/hrms-portal/recruitment/recruiters/${editingRecruiter.id}`
         : '/api/hrms-portal/recruitment/recruiters';
@@ -172,10 +168,8 @@ export default function RecruiterManagementDialog({ open, onOpenChange, onRecrui
         ...(token ? { Authorization: `Bearer ${token}` } : {})
       };
       if (company) {
-        // For HRMS Admin Portal - don't send company header to allow all data access
-        // headers['x-company'] = company;
+        headers['x-company'] = company;
       }
-
       const res = await fetch(`/api/hrms-portal/recruitment/recruiters/${deletingRecruiter.id}`, {
         method: 'DELETE',
         headers,

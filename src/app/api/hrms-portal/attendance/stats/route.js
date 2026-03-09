@@ -10,6 +10,7 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const company = searchParams.get('company') || request.headers.get('x-company');
+    const companyId = searchParams.get('companyId');
     const date = searchParams.get('date');
 
     // Forward request to backend
@@ -19,6 +20,10 @@ export async function GET(request) {
     }
     if (company) {
       params.append('company', company);
+    }
+    // Also forward companyId so backend can normalize it (e.g. '1' → 'Ecosoul Home', '2' → 'Thrive')
+    if (companyId) {
+      params.append('companyId', companyId);
     }
 
     const backendUrl = `${API_BASE_URL}/hrms/attendance/stats${params.toString() ? `?${params.toString()}` : ''}`;

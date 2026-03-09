@@ -82,7 +82,9 @@ export default function ScheduledInterviewsPage() {
         const token = localStorage.getItem('auth_token');
         
         const params = new URLSearchParams();
-        // For HRMS Admin Portal - don't send company to get all data
+        if (company) {
+          params.append('company', company);
+        }
         if (statusFilter && statusFilter !== 'All Status') {
           params.append('status', statusFilter);
         }
@@ -99,8 +101,9 @@ export default function ScheduledInterviewsPage() {
         const headers = {
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         };
-        // For HRMS Admin Portal - don't send company header to get all data
-
+        if (company) {
+          headers['x-company'] = company;
+        }
         const res = await fetch(`/api/hrms-portal/recruitment/interviews?${params.toString()}`, { headers });
         if (res.ok) {
           const json = await res.json();

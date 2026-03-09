@@ -111,8 +111,14 @@ const Dashboard = () => {
         setLoading(true);
         setError(null);
 
-        // Get company from sessionStorage or params
-        const company = typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null;
+        // Resolve company consistently (prefer currentCompany, then sessionStorage fallbacks)
+        let company = currentCompany?.name || null;
+        if (!company && typeof window !== 'undefined') {
+          company =
+            sessionStorage.getItem('selectedCompany') ||
+            sessionStorage.getItem('adminSelectedCompany') ||
+            (companyId ? sessionStorage.getItem(`company_${companyId}`) : null);
+        }
         
         // Build query params
         const params = new URLSearchParams();
@@ -294,7 +300,14 @@ const Dashboard = () => {
     // Set up auto-refresh for attendance stats (Present, Absent, WFH)
     const refreshAttendanceOnly = async () => {
       try {
-        const company = typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null;
+        // Resolve company consistently (prefer currentCompany, then sessionStorage fallbacks)
+        let company = currentCompany?.name || null;
+        if (!company && typeof window !== 'undefined') {
+          company =
+            sessionStorage.getItem('selectedCompany') ||
+            sessionStorage.getItem('adminSelectedCompany') ||
+            (companyId ? sessionStorage.getItem(`company_${companyId}`) : null);
+        }
         const params = new URLSearchParams();
         if (companyId) params.append('companyId', companyId);
         if (company) params.append('company', company);
@@ -368,7 +381,7 @@ const Dashboard = () => {
     const refreshInterval = setInterval(refreshAttendanceOnly, 30000);
     
     return () => clearInterval(refreshInterval);
-  }, [companyId]);
+  }, [companyId, currentCompany]);
 
   // Fetch employees list
   useEffect(() => {

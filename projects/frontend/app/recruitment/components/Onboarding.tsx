@@ -366,7 +366,8 @@ export default function Onboarding() {
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
   const [selectedCandidate, setSelectedCandidate] = useState<any>(null);
   const [activeStep, setActiveStep] = useState(1);
-  const itemsPerPage = 10;
+  const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100, 200, 500];
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Calculate KPIs
   const kpis = useMemo(() => {
@@ -408,6 +409,11 @@ export default function Onboarding() {
 
     return filtered;
   }, [candidates, searchTerm, statusFilter, stageFilter, recruiterFilter, sortConfig]);
+
+  // Reset to page 1 when items per page changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [itemsPerPage]);
 
   // Pagination
   const totalPages = Math.ceil(filteredAndSortedCandidates.length / itemsPerPage);
@@ -724,11 +730,30 @@ export default function Onboarding() {
           </div>
           
           {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between p-4 border-t">
-              <div className="text-sm text-muted-foreground">
+          <div className="flex flex-wrap items-center justify-between gap-3 p-4 border-t">
+            <div className="flex items-center gap-4 flex-wrap">
+              <span className="text-sm text-muted-foreground">
                 Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredAndSortedCandidates.length)} of {filteredAndSortedCandidates.length} candidates
+              </span>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="onboarding-items-per-page" className="text-sm text-muted-foreground whitespace-nowrap">
+                  Items per page
+                </Label>
+                <Select value={String(itemsPerPage)} onValueChange={(v) => setItemsPerPage(Number(v))}>
+                  <SelectTrigger id="onboarding-items-per-page" className="w-[72px] h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ITEMS_PER_PAGE_OPTIONS.map((n) => (
+                      <SelectItem key={n} value={String(n)}>
+                        {n}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+            </div>
+            {totalPages > 1 && (
               <div className="flex gap-2">
                 <Button
                   variant="outline"
@@ -747,8 +772,8 @@ export default function Onboarding() {
                   Next
                 </Button>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>
