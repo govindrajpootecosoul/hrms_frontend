@@ -10,6 +10,7 @@ export async function GET(request) {
     const recruiter = searchParams.get('recruiter');
     const experience = searchParams.get('experience');
     const search = searchParams.get('search');
+    const year = searchParams.get('year');
 
     const params = new URLSearchParams();
     if (company) params.append('company', company);
@@ -17,6 +18,7 @@ export async function GET(request) {
     if (recruiter) params.append('recruiter', recruiter);
     if (experience) params.append('experience', experience);
     if (search) params.append('search', search);
+    if (year) params.append('year', year);
 
     const backendUrl = `${API_BASE_URL}/hrms/recruitment/candidates${params.toString() ? `?${params.toString()}` : ''}`;
     

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Check, User, Briefcase, DollarSign, MessageSquare, Settings, Upload, FileSpreadsheet } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import Modal from '@/components/common/Modal';
 import Button from '@/components/common/Button';
 import Input from '@/components/common/Input';
@@ -109,7 +110,21 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
     let company = currentCompany?.name;
     if (!company && typeof window !== 'undefined') {
       company = sessionStorage.getItem('selectedCompany') || 
-               sessionStorage.getItem('adminSelectedCompany');
+               sessionStorage.getItem('adminSelectedCompany') ||
+               sessionStorage.getItem(`company_${companyId}`);
+    }
+
+    // Try localStorage (fallback)
+    if (!company && typeof window !== 'undefined') {
+      const savedCompany = localStorage.getItem('selected_company');
+      if (savedCompany) {
+        try {
+          const parsed = JSON.parse(savedCompany);
+          company = parsed?.name || company;
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
     }
     if (!company && companyId && companyId !== 'undefined') {
       if (typeof window !== 'undefined') {
@@ -389,6 +404,61 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
         fileInputRef.current.value = '';
       }
     }
+  };
+
+  // Download Excel template for bulk upload
+  const downloadTemplate = () => {
+    const headers = [
+      'Folder Name',
+      'Candidate Name',
+      'Contact Number',
+      'Email',
+      'Current Location',
+      'Calling Date',
+      'Current Organisation',
+      'Education',
+      'Total Experience',
+      'Assigned To',
+      'Status',
+      'Current CTC (Fixed)',
+      'Current CTC (In-hand)',
+      'Expected CTC',
+      'Notice Period',
+      'Willing to Work in Startup',
+      'Communication Skills',
+      'Recruiter Feedback',
+      'Interviewer Feedback',
+      'Remark'
+    ];
+
+    const sampleRow = [
+      'Folder_Example',
+      'John Doe',
+      '9876543210',
+      'john.doe@example.com',
+      'Bangalore',
+      '2024-01-15',
+      'Tech Corp',
+      'B.Tech Computer Science',
+      '5 years',
+      'Recruiter Name',
+      'New',
+      '800000',
+      '650000',
+      '1000000',
+      '30 days',
+      'Yes',
+      'Good',
+      'Initial screening completed',
+      '',
+      ''
+    ];
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([headers, sampleRow]);
+    ws['!cols'] = headers.map(() => ({ wch: 25 }));
+    XLSX.utils.book_append_sheet(wb, ws, 'Candidate Template');
+    XLSX.writeFile(wb, 'Candidate_Bulk_Upload_Template.xlsx');
   };
 
   const renderPhaseContent = () => {
@@ -795,6 +865,14 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
                 </ul>
               </div>
             </div>
+          </div>
+          <div className="flex justify-end">
+            <Button
+              onClick={downloadTemplate}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              Download Template
+            </Button>
           </div>
           <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center">
             <FileSpreadsheet className="w-12 h-12 text-slate-400 mx-auto mb-3" />

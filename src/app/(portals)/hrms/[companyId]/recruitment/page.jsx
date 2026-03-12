@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { useCompany } from '@/lib/context/CompanyContext';
-import * as XLSX from 'xlsx';
 import { 
   Users, 
   Target, 
@@ -17,8 +16,6 @@ import {
   Trash2,
   Sparkles,
   List,
-  Download,
-  Upload
 } from 'lucide-react';
 import Link from 'next/link';
 import AddCandidateDialog from './components/AddCandidateDialog';
@@ -35,6 +32,7 @@ export default function SourcingScreeningPage() {
   const [statusFilter, setStatusFilter] = useState('All Status');
   const [recruiterFilter, setRecruiterFilter] = useState('All Recruiters');
   const [experienceFilter, setExperienceFilter] = useState('All Experience');
+  const [yearFilter, setYearFilter] = useState('All Years');
   const [currentPage, setCurrentPage] = useState(1);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
@@ -46,6 +44,7 @@ export default function SourcingScreeningPage() {
   const [candidatesList, setCandidatesList] = useState([]);
   const [kpiCards, setKpiCards] = useState([]);
   const [hrList, setHrList] = useState(['All Recruiters']);
+  const [yearOptions, setYearOptions] = useState(['All Years']);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const ITEMS_PER_PAGE_OPTIONS = [10, 20, 50, 100, 200, 500];
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -118,6 +117,9 @@ export default function SourcingScreeningPage() {
         if (experienceFilter && experienceFilter !== 'All Experience') {
           params.append('experience', experienceFilter);
         }
+        if (yearFilter && yearFilter !== 'All Years') {
+          params.append('year', yearFilter);
+        }
         if (debouncedSearchQuery) {
           params.append('search', debouncedSearchQuery);
         }
@@ -173,6 +175,11 @@ export default function SourcingScreeningPage() {
             }
             
             setHrList(data.hrList || ['All Recruiters']);
+            if (data.years && Array.isArray(data.years) && data.years.length > 0) {
+              setYearOptions(['All Years', ...data.years]);
+            } else {
+              setYearOptions(['All Years']);
+            }
           }
         }
       } catch (err) {
@@ -186,7 +193,7 @@ export default function SourcingScreeningPage() {
 
     // Fetch immediately - don't wait for currentCompany if we have sessionStorage
     fetchCandidates();
-  }, [companyId, currentCompany, statusFilter, recruiterFilter, experienceFilter, debouncedSearchQuery, refreshTrigger]);
+  }, [companyId, currentCompany, statusFilter, recruiterFilter, experienceFilter, yearFilter, debouncedSearchQuery, refreshTrigger]);
 
   // Additional effect to trigger fetch when company becomes available
   useEffect(() => {
@@ -202,7 +209,7 @@ export default function SourcingScreeningPage() {
   // Reset to page 1 when filters or items per page change
   useEffect(() => {
     setCurrentPage(1);
-  }, [statusFilter, recruiterFilter, experienceFilter, searchQuery, itemsPerPage]);
+  }, [statusFilter, recruiterFilter, experienceFilter, yearFilter, searchQuery, itemsPerPage]);
 
   const totalCandidates = candidatesList.length;
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -452,69 +459,6 @@ export default function SourcingScreeningPage() {
     }
   };
 
-  // Download Excel template
-  const downloadTemplate = () => {
-    const headers = [
-      'Folder Name',
-      'Candidate Name',
-      'Contact Number',
-      'Email',
-      'Current Location',
-      'Calling Date',
-      'Current Organisation',
-      'Education',
-      'Total Experience',
-      'Assigned To',
-      'Status',
-      'Current CTC (Fixed)',
-      'Current CTC (In-hand)',
-      'Expected CTC',
-      'Notice Period',
-      'Willing to Work in Startup',
-      'Communication Skills',
-      'Recruiter Feedback',
-      'Interviewer Feedback',
-      'Remark'
-    ];
-
-    // Create a sample row with example values
-    const sampleRow = [
-      'Folder_Example', // Folder Name
-      'John Doe', // Candidate Name
-      '9876543210', // Contact Number
-      'john.doe@example.com', // Email
-      'Bangalore', // Current Location
-      '2024-01-15', // Calling Date (YYYY-MM-DD format)
-      'Tech Corp', // Current Organisation
-      'B.Tech Computer Science', // Education
-      '5 years', // Total Experience
-      'Recruiter Name', // Assigned To
-      'New', // Status (New/Shortlisted/In Interview/Hired/On Hold)
-      '800000', // Current CTC (Fixed)
-      '650000', // Current CTC (In-hand)
-      '1000000', // Expected CTC
-      '30 days', // Notice Period
-      'Yes', // Willing to Work in Startup (Yes/No)
-      'Good', // Communication Skills (Excellent/Very Good/Good/Average/Poor)
-      'Initial screening completed', // Recruiter Feedback
-      '', // Interviewer Feedback (leave empty)
-      '' // Remark (leave empty)
-    ];
-
-    // Create workbook and worksheet
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet([headers, sampleRow]);
-
-    // Set column widths
-    const colWidths = headers.map(() => ({ wch: 25 }));
-    ws['!cols'] = colWidths;
-
-    // Add the worksheet to workbook
-    XLSX.utils.book_append_sheet(wb, ws, 'Candidate Template');
-
-    // Generate Excel file and download
-    XLSX.writeFile(wb, 'Candidate_Bulk_Upload_Template.xlsx');
-  };
 
   const handleStatusChange = async (candidateId, newStatus) => {
     try {
@@ -730,13 +674,15 @@ export default function SourcingScreeningPage() {
               <option>5-10 Years</option>
               <option>10+ Years</option>
             </select>
-            <button 
-              onClick={downloadTemplate}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            <select
+              value={yearFilter}
+              onChange={(e) => setYearFilter(e.target.value)}
+              className="px-4 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <Download className="w-4 h-4" />
-              <span className="text-sm font-medium">Download Template</span>
-            </button>
+              {yearOptions.map((year) => (
+                <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
             <button 
               onClick={() => setIsAddDialogOpen(true)}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
