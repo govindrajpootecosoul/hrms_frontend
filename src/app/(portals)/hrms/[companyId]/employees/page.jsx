@@ -42,6 +42,8 @@ export default function EmployeesPage() {
   const [employeeToEdit, setEmployeeToEdit] = useState(null);
   const [actionMenuOpen, setActionMenuOpen] = useState(null); // Track which employee's menu is open
   const [dropdownDirection, setDropdownDirection] = useState('down'); // 'up' or 'down'
+  const [statusEditEmployeeId, setStatusEditEmployeeId] = useState(null);
+  const [statusSavingByEmployeeId, setStatusSavingByEmployeeId] = useState({});
   
   // Dialog states
   const [deleteDialog, setDeleteDialog] = useState({ open: false, employee: null });
@@ -98,15 +100,29 @@ export default function EmployeesPage() {
           }
         }
       }
+
+      if (statusEditEmployeeId) {
+        const statusEditor = document.querySelector('[data-status-editor]');
+        const statusButton = document.querySelector(`[data-status-button-id="${statusEditEmployeeId}"]`);
+        if (statusEditor && statusButton) {
+          const isClickInsideEditor = statusEditor.contains(event.target);
+          const isClickOnButton = statusButton.contains(event.target);
+          if (!isClickInsideEditor && !isClickOnButton) {
+            setStatusEditEmployeeId(null);
+          }
+        } else {
+          setStatusEditEmployeeId(null);
+        }
+      }
     };
 
-    if (actionMenuOpen) {
+    if (actionMenuOpen || statusEditEmployeeId) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => {
         document.removeEventListener('mousedown', handleClickOutside);
       };
     }
-  }, [actionMenuOpen]);
+  }, [actionMenuOpen, statusEditEmployeeId]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -512,6 +528,55 @@ export default function EmployeesPage() {
     } catch (err) {
       console.error('Error saving employee:', err);
       setErrorDialog({ open: true, message: err.message || 'Failed to save employee' });
+    }
+  };
+
+  const setEmployeeStatusLocal = (employeeId, newStatus) => {
+    setEmployees((prev) =>
+      prev.map((emp) => {
+        const id = emp.id || emp._id;
+        if (String(id) !== String(employeeId)) return emp;
+        return { ...emp, status: newStatus };
+      })
+    );
+  };
+
+  const updateEmployeeStatus = async (employee, newStatus) => {
+    const empId = employee?.id || employee?._id;
+    if (!empId) return;
+
+    const previousStatus = employee.status;
+    setStatusEditEmployeeId(null);
+
+    setStatusSavingByEmployeeId((prev) => ({ ...prev, [empId]: true }));
+    setEmployeeStatusLocal(empId, newStatus);
+
+    try {
+      const company = resolveCompanyName();
+      let apiUrl = `${API_BASE_URL}/admin-users/${empId}`;
+      if (company) {
+        apiUrl += `?company=${encodeURIComponent(company)}`;
+      }
+
+      const response = await fetch(apiUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          active: newStatus === 'Active',
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.error || `Failed to update status (HTTP ${response.status})`);
+      }
+    } catch (err) {
+      setEmployeeStatusLocal(empId, previousStatus);
+      setErrorDialog({ open: true, message: err.message || 'Failed to update status' });
+    } finally {
+      setStatusSavingByEmployeeId((prev) => ({ ...prev, [empId]: false }));
     }
   };
 
@@ -1049,13 +1114,27 @@ export default function EmployeesPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-xs text-muted-foreground group-hover:text-white/80 transition-colors">Status</p>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium transition-colors ${
-                          employee.status === 'Active'
-                            ? 'bg-green-100 text-green-700 group-hover:bg-white/20 group-hover:text-white'
-                            : 'bg-gray-100 text-gray-700 group-hover:bg-white/20 group-hover:text-white'
-                        }`}>
-                          {employee.status}
-                        </span>
+                        <select
+                          value={employee.status === 'Inactive' ? 'Inactive' : 'Active'}
+                          disabled={statusSavingByEmployeeId[employee.id || employee._id]}
+                          onChange={(e) => {
+                            const nextStatus = e.target.value;
+                            updateEmployeeStatus(employee, nextStatus);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className={`mt-1 px-2 py-1 rounded-full text-xs font-medium transition-colors border border-transparent outline-none ${
+                            employee.status === 'Active'
+                              ? 'bg-green-100 text-green-700 group-hover:bg-white/20 group-hover:text-white'
+                              : 'bg-gray-100 text-gray-700 group-hover:bg-white/20 group-hover:text-white'
+                          } ${
+                            statusSavingByEmployeeId[employee.id || employee._id]
+                              ? 'opacity-60 cursor-not-allowed'
+                              : 'cursor-pointer hover:brightness-95'
+                          }`}
+                        >
+                          <option value="Active">Active</option>
+                          <option value="Inactive">Inactive</option>
+                        </select>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground group-hover:text-white/80 transition-colors">Credential Access</p>
@@ -1219,13 +1298,27 @@ export default function EmployeesPage() {
                       <div className="text-sm text-slate-600">{employee.location || '-'}</div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        employee.status === 'Active' 
-                          ? 'bg-green-100 text-green-700' 
-                          : 'bg-red-100 text-red-700'
-                      }`}>
-                        {employee.status}
-                      </span>
+                      <select
+                        value={employee.status === 'Inactive' ? 'Inactive' : 'Active'}
+                        disabled={statusSavingByEmployeeId[employee.id || employee._id]}
+                        onChange={(e) => {
+                          const nextStatus = e.target.value;
+                          updateEmployeeStatus(employee, nextStatus);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        className={`px-2 py-1 rounded-full text-xs font-medium border border-transparent outline-none ${
+                          employee.status === 'Active'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-red-100 text-red-700'
+                        } ${
+                          statusSavingByEmployeeId[employee.id || employee._id]
+                            ? 'opacity-60 cursor-not-allowed'
+                            : 'cursor-pointer hover:brightness-95'
+                        }`}
+                      >
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                      </select>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
