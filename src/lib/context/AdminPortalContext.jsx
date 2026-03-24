@@ -51,18 +51,26 @@ export const AdminPortalProvider = ({ children }) => {
   const [portalFeatures, setPortalFeatures] = useState(initialPortalFeatures);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedCompany, setSelectedCompany] = useState(null);
+  const [selectedCompany, setSelectedCompany] = useState(undefined);
 
   // Get selected company from sessionStorage on mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const company = sessionStorage.getItem('adminSelectedCompany');
-      setSelectedCompany(company);
+      setSelectedCompany(company || '');
     }
   }, []);
 
   // Fetch users from API on mount and when company changes
   useEffect(() => {
+    // Avoid firing API request before company is loaded from sessionStorage.
+    if (selectedCompany === undefined) return;
+    if (!selectedCompany) {
+      setUsers([]);
+      setError('Please select a company to view users.');
+      setLoading(false);
+      return;
+    }
     fetchUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCompany]);
@@ -287,10 +295,9 @@ export const AdminPortalProvider = ({ children }) => {
 
   const setCompany = (company) => {
     if (typeof window !== 'undefined') {
-      sessionStorage.setItem('adminSelectedCompany', company);
-      setSelectedCompany(company);
-      // Refresh users for the new company
-      fetchUsers();
+      const normalizedCompany = company || '';
+      sessionStorage.setItem('adminSelectedCompany', normalizedCompany);
+      setSelectedCompany(normalizedCompany);
     }
   };
 

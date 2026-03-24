@@ -159,11 +159,12 @@ export default function UsersPage() {
   };
 
   const handleTogglePortal = async (userId, portal) => {
-    const user = users.find(u => u.id === userId);
+    const user = users.find((u) => (u?.id || u?._id) === userId);
     if (user) {
-      const newPortals = user.portals.includes(portal)
-        ? user.portals.filter(p => p !== portal)
-        : [...user.portals, portal];
+      const existingPortals = Array.isArray(user.portals) ? user.portals : [];
+      const newPortals = existingPortals.includes(portal)
+        ? existingPortals.filter((p) => p !== portal)
+        : [...existingPortals, portal];
       try {
         await updateUser(userId, { portals: newPortals });
         setSubmitSuccess('Portal access updated successfully.');
