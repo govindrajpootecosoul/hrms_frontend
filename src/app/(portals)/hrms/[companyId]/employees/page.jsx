@@ -764,9 +764,13 @@ export default function EmployeesPage() {
 
     setIsUploading(true);
     try {
+      const resolvedCompany = resolveCompanyName();
       const formData = new FormData();
       formData.append('file', file);
       formData.append('companyId', window.location.pathname.split('/')[2] || '');
+      if (resolvedCompany) {
+        formData.append('company', resolvedCompany);
+      }
 
       const response = await fetch('/api/hrms/employees/bulk-upload', {
         method: 'POST',
@@ -944,24 +948,22 @@ export default function EmployeesPage() {
           >
             Download Template
           </Button>
-          <label>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx,.xls"
-              onChange={handleBulkUpload}
-              className="hidden"
-              disabled={isUploading}
-            />
-            <Button
-              as="span"
-              className="bg-purple-600 text-white hover:bg-purple-700 cursor-pointer"
-              icon={<Upload className="w-4 h-4" />}
-              disabled={isUploading}
-            >
-              {isUploading ? 'Uploading...' : 'Upload Excel'}
-            </Button>
-          </label>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls"
+            onChange={handleBulkUpload}
+            className="hidden"
+            disabled={isUploading}
+          />
+          <Button
+            onClick={() => fileInputRef.current?.click()}
+            className="bg-purple-600 text-white hover:bg-purple-700"
+            icon={<Upload className="w-4 h-4" />}
+            disabled={isUploading}
+          >
+            {isUploading ? 'Uploading...' : 'Upload Excel'}
+          </Button>
           <Button
             onClick={handleAddNewEmployee}
             className="bg-blue-600 text-white hover:bg-blue-700"

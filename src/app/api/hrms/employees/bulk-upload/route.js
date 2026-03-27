@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import * as XLSX from 'xlsx';
+import { API_BASE_URL } from '@/lib/utils/constants';
 
 // Maps Excel column names to employee form fields
 const COLUMN_MAP = {
@@ -200,6 +201,7 @@ export async function POST(request) {
     const formData = await request.formData();
     const file = formData.get('file');
     const companyId = formData.get('companyId') || '';
+    const company = formData.get('company') || '';
 
     if (!file) {
       return NextResponse.json(
@@ -225,6 +227,7 @@ export async function POST(request) {
     const rowErrors = [];
     let createdCount = 0;
     let errorCount = 0;
+    let generatedEmployeeCounter = 0;
 
     // Process each row
     rows.forEach((row, index) => {
@@ -239,8 +242,9 @@ export async function POST(request) {
 
       // Auto-generate Employee ID if not provided
       if (!employee.employeeId || employee.employeeId.trim() === '') {
-        const maxEmployeeNumber = createdCount + 1000; // Simple incrementing for now
-        employee.employeeId = `EMP${String(maxEmployeeNumber + createdCount + 1).padStart(3, '0')}`;
+        generatedEmployeeCounter += 1;
+        const maxEmployeeNumber = generatedEmployeeCounter + 1000;
+        employee.employeeId = `EMP${String(maxEmployeeNumber).padStart(3, '0')}`;
       } else {
         employee.employeeId = employee.employeeId.toUpperCase();
       }
@@ -260,9 +264,8 @@ export async function POST(request) {
         employee.tenure = `${years} year${years !== 1 ? 's' : ''} ${months} month${months !== 1 ? 's' : ''}`;
       }
 
-      // Prepare employee data
+      // Prepare employee data for backend save
       const employeeData = {
-        id: Date.now().toString() + createdCount,
         employeeId: employee.employeeId,
         name: `${employee.firstName} ${employee.lastName}`,
         jobTitle: employee.jobTitle,
@@ -276,15 +279,80 @@ export async function POST(request) {
         ...employee,
       };
 
-      created.push(employeeData);
-      createdCount++;
+      created.push({ rowNumber, employeeData });
     });
 
+    const resolvedCompany = String(company || companyId || '').trim();
+    if (!resolvedCompany) {
+      return NextResponse.json(
+        { success: false, error: 'Company is required for employee upload' },
+        { status: 400 }
+      );
+    }
+
+    const token = request.headers.get('authorization') || '';
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers.Authorization = token;
+    }
+
+    const savedEmployees = [];
+
+    // Persist each valid row into backend DB via admin-users API.
+    for (const item of created) {
+      const { rowNumber, employeeData } = item;
+      try {
+        const backendResponse = await fetch(
+          `${API_BASE_URL}/admin-users?company=${encodeURIComponent(resolvedCompany)}`,
+          {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              ...employeeData,
+              company: resolvedCompany,
+            }),
+          }
+        );
+
+        const backendData = await backendResponse.json().catch(() => null);
+        if (!backendResponse.ok || !backendData?.success) {
+          rowErrors.push({
+            row: rowNumber,
+            errors: [backendData?.error || `Failed to save employee (HTTP ${backendResponse.status})`],
+          });
+          errorCount++;
+          continue;
+        }
+
+        if (backendData.user) {
+          savedEmployees.push({
+            ...backendData.user,
+            status: backendData.user.active === false ? 'Inactive' : 'Active',
+          });
+        } else {
+          savedEmployees.push({
+            ...employeeData,
+            id: `${Date.now()}-${rowNumber}`,
+            status: 'Active',
+          });
+        }
+        createdCount++;
+      } catch (persistError) {
+        rowErrors.push({
+          row: rowNumber,
+          errors: [persistError?.message || 'Failed to save employee'],
+        });
+        errorCount++;
+      }
+    }
+
     return NextResponse.json({
-      success: true,
+      success: createdCount > 0,
       created: createdCount,
       errors: rowErrors.length > 0 ? rowErrors : undefined,
-      employees: created,
+      employees: savedEmployees,
       message: `Successfully imported ${createdCount} employee(s).${errorCount > 0 ? ` ${errorCount} row(s) had errors.` : ''}`,
     });
   } catch (error) {
