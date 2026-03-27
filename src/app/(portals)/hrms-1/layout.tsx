@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
-import "./globals.css";
-import { AuthProvider } from "@/lib/auth";
+import { AuthProvider } from "@/lib/hrms-1/auth";
 
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],

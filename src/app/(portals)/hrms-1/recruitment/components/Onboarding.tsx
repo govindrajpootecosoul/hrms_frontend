@@ -386,7 +386,7 @@ export default function Onboarding() {
       const matchesSearch = 
         candidate.candidateName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         candidate.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        candidate.contact.includes(searchTerm) ||
+        candidate.contactNumber.includes(searchTerm) ||
         candidate.position.toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesStatus = statusFilter === 'all' || candidate.offerStatus === statusFilter;
@@ -667,7 +667,7 @@ export default function Onboarding() {
                           </TableCell>
                           <TableCell className="font-medium">{candidate.candidateName}</TableCell>
                           <TableCell>{candidate.email}</TableCell>
-                          <TableCell>{candidate.contact}</TableCell>
+                          <TableCell>{candidate.contactNumber}</TableCell>
                           <TableCell>{candidate.position}</TableCell>
                           <TableCell>{candidate.recruiter}</TableCell>
                           <TableCell>
@@ -800,7 +800,7 @@ function OnboardingChecklist({ candidate, activeStep, setActiveStep, updateCandi
       gender: 'Male',
       maritalStatus: 'Single',
       address: '123 Main Street, Bangalore, Karnataka - 560001',
-      phoneNumber: candidate.contact,
+      phoneNumber: candidate.contactNumber,
       email: candidate.email,
       panNumber: 'ABCDE1234F',
       aadharNumber: '1234 5678 9012',

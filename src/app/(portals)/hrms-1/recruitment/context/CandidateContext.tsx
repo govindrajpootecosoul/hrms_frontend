@@ -28,6 +28,7 @@ export interface Candidate {
   hiringStatus?: 'Hired' | 'Rejected' | 'Awaiting';
   // Onboarding specific
   position?: string;
+  recruiter?: string;
   offerStatus?: string;
   joiningDate?: string;
   onboardingStage?: string;

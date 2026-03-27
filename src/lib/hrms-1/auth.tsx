@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import api from './api';
 
 interface User {
   id: string;
@@ -19,14 +20,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users for client-side authentication (bypass login)
-const mockUsers: User[] = [
-  { id: '1', email: 'admin@vectorlytics.com', password: 'admin123', name: 'Admin User', role: 'admin' },
-  { id: '2', email: 'hr@vectorlytics.com', password: 'hr123', name: 'HR Manager', role: 'hr', employeeId: 'EMP001' },
-  { id: '3', email: 'manager@vectorlytics.com', password: 'manager123', name: 'Department Manager', role: 'manager', employeeId: 'EMP002' },
-  { id: '4', email: 'employee@vectorlytics.com', password: 'employee123', name: 'John Doe', role: 'employee', employeeId: 'EMP003' },
-];
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,40 +34,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (error) {
           localStorage.removeItem('user');
         }
-      } else {
-        // Auto-login as admin by default
-        const adminUser = mockUsers.find(u => u.role === 'admin');
-        if (adminUser) {
-          const { password: _, ...userWithoutPassword } = adminUser;
-          localStorage.setItem('user', JSON.stringify(userWithoutPassword));
-          setUser(userWithoutPassword);
-        }
       }
     }
     setLoading(false);
   }, []);
 
   const login = async (email: string, password: string) => {
-    // Client-side authentication - bypass backend completely
-    const foundUser = mockUsers.find(u => u.email === email && u.password === password);
+    const response = await api.post('/auth/login', { email, password });
+    const token = response?.data?.token;
+    const authUser = response?.data?.user;
 
-    if (!foundUser) {
-      throw new Error('Invalid credentials. Please check your email and password.');
+    if (!authUser) {
+      throw new Error('Invalid login response from server.');
     }
 
-    // Remove password before storing
-    const { password: _, ...userWithoutPassword } = foundUser;
-    
+    const userToStore: User = {
+      id: String(authUser.id ?? authUser._id ?? ''),
+      email: authUser.email,
+      name: authUser.name,
+      role: authUser.role,
+      employeeId: authUser.employeeId,
+    };
+
     if (typeof window !== 'undefined') {
-      localStorage.setItem('user', JSON.stringify(userWithoutPassword));
+      if (token) {
+        localStorage.setItem('token', token);
+      }
+      localStorage.setItem('user', JSON.stringify(userToStore));
     }
-    setUser(userWithoutPassword);
-    return userWithoutPassword;
+    setUser(userToStore);
+    return userToStore;
   };
 
   const logout = () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('user');
+      localStorage.removeItem('token');
     }
     setUser(null);
   };

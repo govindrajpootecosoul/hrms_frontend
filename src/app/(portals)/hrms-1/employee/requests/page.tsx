@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { addDays, format } from 'date-fns';
+import type { DateRange } from 'react-day-picker';
 import { mockData } from '@/lib/hrms-1/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/hrms-1/ui/card';
 import { Button } from '@/components/hrms-1/ui/button';
@@ -32,7 +33,7 @@ const LEAVE_TYPES = ['Casual Leave', 'Sick Leave', 'Earned Leave', 'Work From Ho
 export default function EmployeeRequestsPage() {
   const [activeTab, setActiveTab] = useState('leave');
   const [leaveType, setLeaveType] = useState<string | undefined>(undefined);
-  const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: new Date(),
     to: addDays(new Date(), 1),
   });
@@ -96,7 +97,7 @@ export default function EmployeeRequestsPage() {
                       <Calendar
                         mode="range"
                         selected={dateRange}
-                        onSelect={(range) => setDateRange(range ?? { from: undefined, to: undefined })}
+                        onSelect={setDateRange}
                         numberOfMonths={2}
                         initialFocus
                       />
