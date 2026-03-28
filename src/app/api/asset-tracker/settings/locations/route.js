@@ -22,7 +22,7 @@ export async function PUT(request) {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-    );
+    });
     return proxyJsonResponse(response);
   } catch (error) {
     console.error('Error saving location settings via backend:', error);
