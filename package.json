@@ -3,9 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "predev": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/fix-next-dev-lock.ps1",
+    "dev": "node scripts/print-dev-hint.js && next dev -H 0.0.0.0 -p 3000",
+    "dev:fix": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/fix-next-dev-lock.ps1",
+    "dev:fresh": "npm run dev:fix && node scripts/print-dev-hint.js && next dev -H 0.0.0.0 -p 3000",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -H 0.0.0.0 -p 3000",
     "lint": "eslint"
   },
   "dependencies": {

@@ -17,6 +17,8 @@ npm install
 ### 2. Configure Environment Variables
 Create a `.env` file in the `projects/query-tracker` directory:
 ```env
+# Single URL setup:
+# Provide the backend API base (ends with /api). Query Tracker will auto-use /api/query-tracker.
 REACT_APP_API_URL=http://192.168.50.107:5008/api
 ```
 

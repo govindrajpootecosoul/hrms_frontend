@@ -41,6 +41,12 @@ const AssetTrackerDashboard = () => {
   const fileInputRef = useRef(null);
   const [assets, setAssets] = useState([]); // Start with empty array, load from MongoDB
   const [filteredAssets, setFilteredAssets] = useState([]);
+
+  const API_ROOT = (process.env.NEXT_PUBLIC_API_URL || API_BASE_URL || '').replace(/\/$/, '');
+  const assetTrackerUrl = useCallback(
+    (path) => `${API_ROOT}/asset-tracker${path.startsWith('/') ? path : `/${path}`}`,
+    [API_ROOT]
+  );
   
   // Memoize the callback to prevent infinite loops
   const handleFilteredAssetsChange = useCallback((filtered) => {
@@ -101,7 +107,9 @@ const AssetTrackerDashboard = () => {
       console.log(`[AssetTracker] Fetching assets for companyId: ${companyId}, Company: ${company}`);
       
       // Build API URL - company parameter is REQUIRED
-      const apiUrl = `/api/asset-tracker/assets?companyId=${companyId}&company=${encodeURIComponent(company)}`;
+      const apiUrl = assetTrackerUrl(
+        `/assets?companyId=${companyId}&company=${encodeURIComponent(company)}`
+      );
       
       const res = await fetch(apiUrl);
       
@@ -256,7 +264,7 @@ const AssetTrackerDashboard = () => {
 
   const handleDeleteAsset = async (asset) => {
     try {
-      const res = await fetch(`/api/asset-tracker/assets?id=${asset.id}`, {
+      const res = await fetch(assetTrackerUrl(`/assets?id=${asset.id}`), {
         method: 'DELETE',
       });
       const data = await res.json();
@@ -276,7 +284,7 @@ const AssetTrackerDashboard = () => {
     try {
       // Delete all assets in parallel without any confirmations
       const deletePromises = assetsToDelete.map(asset =>
-        fetch(`/api/asset-tracker/assets?id=${asset.id}`, {
+        fetch(assetTrackerUrl(`/assets?id=${asset.id}`), {
           method: 'DELETE',
         })
       );
@@ -357,7 +365,7 @@ const AssetTrackerDashboard = () => {
         company: selectedCompany || '', // ensure history is attributable to a company name
       };
 
-      const res = await fetch('/api/asset-tracker/assets', {
+      const res = await fetch(assetTrackerUrl('/assets'), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData),
@@ -398,7 +406,7 @@ const AssetTrackerDashboard = () => {
         };
 
         // Update existing asset
-        const res = await fetch('/api/asset-tracker/assets', {
+        const res = await fetch(assetTrackerUrl('/assets'), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(updateData),
@@ -423,7 +431,7 @@ const AssetTrackerDashboard = () => {
           updatedAt: new Date().toISOString()
         };
         console.log('[AssetTracker] Adding new asset with company:', selectedCompany);
-        const res = await fetch('/api/asset-tracker/assets', {
+        const res = await fetch(assetTrackerUrl('/assets'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(newAsset),
@@ -517,7 +525,7 @@ const AssetTrackerDashboard = () => {
 
   const handleDownloadTemplate = async () => {
     try {
-      const res = await fetch('/api/asset-tracker/template', { method: 'GET' });
+      const res = await fetch(assetTrackerUrl('/template'), { method: 'GET' });
       if (!res.ok) throw new Error('Failed to download template');
 
       const blob = await res.blob();
@@ -580,7 +588,7 @@ const AssetTrackerDashboard = () => {
       fd.append('companyId', companyId);
       fd.append('company', company);
 
-      const res = await fetch('/api/asset-tracker/bulk-upload', {
+      const res = await fetch(assetTrackerUrl('/bulk-upload'), {
         method: 'POST',
         body: fd,
       });

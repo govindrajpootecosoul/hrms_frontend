@@ -1,34 +1,16 @@
 import { NextResponse } from 'next/server';
-import { getAssetLocationsCollection } from '@/lib/mongodb';
-
-function defaultLocations() {
-  return [
-    { id: '1', name: 'Head Office', type: 'Site', address: '', country: '', parentSite: '' },
-    { id: '2', name: 'Branch Office', type: 'Site', address: '', country: '', parentSite: '' },
-    { id: '3', name: 'Warehouse', type: 'Site', address: '', country: '', parentSite: '' },
-    { id: '4', name: 'Floor 1', type: 'Location', address: '', country: '', parentSite: 'Head Office' },
-    { id: '5', name: 'Floor 2', type: 'Location', address: '', country: '', parentSite: 'Head Office' },
-    { id: '6', name: 'Floor 3', type: 'Location', address: '', country: '', parentSite: 'Head Office' },
-  ];
-}
+import { getAssetTrackerApiUrl, proxyJsonResponse } from '@/lib/server/assetTrackerApi';
 
 export async function GET(request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const companyId = searchParams.get('companyId') || 'default';
-
-    const col = await getAssetLocationsCollection();
-    const doc = await col.findOne({ companyId });
-
-    if (!doc) {
-      const locations = defaultLocations();
-      await col.insertOne({ companyId, locations, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
-      return NextResponse.json({ success: true, data: { companyId, locations } });
-    }
-
-    return NextResponse.json({ success: true, data: { companyId, locations: doc.locations || [] } });
+    const { search } = new URL(request.url);
+    const response = await fetch(getAssetTrackerApiUrl(`/settings/locations${search}`), {
+      method: 'GET',
+      cache: 'no-store',
+    });
+    return proxyJsonResponse(response);
   } catch (error) {
-    console.error('Error fetching location settings:', error);
+    console.error('Error fetching location settings via backend:', error);
     return NextResponse.json({ success: false, error: error.message || 'Failed to fetch locations' }, { status: 500 });
   }
 }
@@ -36,23 +18,14 @@ export async function GET(request) {
 export async function PUT(request) {
   try {
     const body = await request.json();
-    const companyId = body.companyId || 'default';
-    const locations = Array.isArray(body.locations) ? body.locations : null;
-
-    if (!locations) {
-      return NextResponse.json({ success: false, error: 'locations is required (array)' }, { status: 400 });
-    }
-
-    const col = await getAssetLocationsCollection();
-    await col.updateOne(
-      { companyId },
-      { $set: { locations, updatedAt: new Date().toISOString() }, $setOnInsert: { createdAt: new Date().toISOString() } },
-      { upsert: true }
+    const response = await fetch(getAssetTrackerApiUrl('/settings/locations'), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
     );
-
-    return NextResponse.json({ success: true, message: 'Locations saved', data: { companyId, locations } });
+    return proxyJsonResponse(response);
   } catch (error) {
-    console.error('Error saving location settings:', error);
+    console.error('Error saving location settings via backend:', error);
     return NextResponse.json({ success: false, error: error.message || 'Failed to save locations' }, { status: 500 });
   }
 }

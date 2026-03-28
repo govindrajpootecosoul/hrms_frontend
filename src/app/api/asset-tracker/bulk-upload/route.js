@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import * as XLSX from 'xlsx';
-import { getAssetsCollection, getAssetCategoriesCollection } from '@/lib/mongodb';
+import { getAssetTrackerApiUrl } from '@/lib/server/assetTrackerApi';
 
 // Maps Excel column names to asset form fields
 const COLUMN_MAP = {
@@ -168,22 +168,9 @@ function deriveTagPrefix(category, subcategory, categoryPrefixMap) {
   return `${categoryCode}-${subcategoryCode}`;
 }
 
-async function getNextAssetTag(prefix, assetsCollection, sequenceCache, reservedTags) {
+async function getNextAssetTag(prefix, existingMaxByPrefix, sequenceCache, reservedTags) {
   if (!sequenceCache.has(prefix)) {
-    const regex = new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-\\d+$`, 'i');
-    const existingTags = await assetsCollection
-      .find({ assetTag: { $regex: regex } }, { projection: { assetTag: 1 } })
-      .toArray();
-
-    let maxSequence = 0;
-    for (const doc of existingTags) {
-      const tag = String(doc?.assetTag || '');
-      const numberPart = Number(tag.split('-').pop());
-      if (Number.isInteger(numberPart) && numberPart > maxSequence) {
-        maxSequence = numberPart;
-      }
-    }
-
+    const maxSequence = existingMaxByPrefix.get(prefix) || 0;
     sequenceCache.set(prefix, maxSequence + 1);
   }
 
@@ -302,10 +289,30 @@ export async function POST(request) {
       }
     }
 
-    const collection = await getAssetsCollection(company);
-    const categoriesCollection = await getAssetCategoriesCollection();
-    const categoriesDoc = await categoriesCollection.findOne({ companyId: companyId || 'default' });
+    const categoriesRes = await fetch(
+      getAssetTrackerApiUrl(`/settings/categories?companyId=${encodeURIComponent(companyId || 'default')}`),
+      { method: 'GET', cache: 'no-store' }
+    );
+    const categoriesPayload = await categoriesRes.json().catch(() => ({}));
+    const categoriesDoc = categoriesPayload?.data || {};
     const categoryPrefixMap = buildCategoryPrefixMap(categoriesDoc?.categories || []);
+    const existingAssetsRes = await fetch(
+      getAssetTrackerApiUrl(`/assets?companyId=${encodeURIComponent(companyId || '')}&company=${encodeURIComponent(company)}`),
+      { method: 'GET', cache: 'no-store' }
+    );
+    const existingAssetsPayload = await existingAssetsRes.json().catch(() => ({}));
+    const existingAssets = Array.isArray(existingAssetsPayload?.data) ? existingAssetsPayload.data : [];
+    const existingMaxByPrefix = new Map();
+    for (const existingAsset of existingAssets) {
+      const tag = String(existingAsset?.assetTag || '');
+      const parts = tag.split('-');
+      if (parts.length < 3) continue;
+      const prefix = `${parts[0]}-${parts[1]}`;
+      const seq = Number(parts[parts.length - 1]);
+      if (!Number.isInteger(seq)) continue;
+      const currentMax = existingMaxByPrefix.get(prefix) || 0;
+      if (seq > currentMax) existingMaxByPrefix.set(prefix, seq);
+    }
     const sequenceCache = new Map();
     const reservedTags = new Set();
 
@@ -362,7 +369,7 @@ export async function POST(request) {
       // Generate assetTag if missing
       if (!normalizedRow.assetTag || !normalizedRow.assetTag.trim()) {
         const prefix = deriveTagPrefix(normalizedRow.category, normalizedRow.subcategory, categoryPrefixMap);
-        normalizedRow.assetTag = await getNextAssetTag(prefix, collection, sequenceCache, reservedTags);
+        normalizedRow.assetTag = await getNextAssetTag(prefix, existingMaxByPrefix, sequenceCache, reservedTags);
       }
 
       // Normalize status value - handle both lowercase and capitalized values
@@ -414,26 +421,23 @@ export async function POST(request) {
       createdCount++;
     }
 
-    // Save created assets to MongoDB using company-specific collection
+    // Persist through backend API (frontend route no longer writes directly to DB)
     if (created.length > 0) {
       try {
-        // Debug: Log first asset to verify company field
-        if (created.length > 0) {
-          console.log(`[BulkUpload] Sample asset being saved:`, {
-            assetTag: created[0].assetTag,
-            company: created[0].company,
-            companyId: created[0].companyId
-          });
+        const saveRes = await fetch(getAssetTrackerApiUrl('/assets/bulk'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ assets: created, company }),
+        });
+        const saveData = await saveRes.json().catch(() => ({}));
+        if (!saveRes.ok || !saveData?.success) {
+          throw new Error(saveData?.error || 'Failed to save assets via backend');
         }
-        
-        const result = await collection.insertMany(created);
-        console.log(`✅ Saved ${result.insertedCount} assets to MongoDB for company: ${company}`);
-        console.log(`✅ Database used: ${company} → ${company.toLowerCase().replace(/\s+/g, '_')}_asset_tracker`);
       } catch (dbError) {
-        console.error('❌ Error saving assets to MongoDB:', dbError);
+        console.error('❌ Error saving assets via backend API:', dbError);
         console.error('❌ Company:', company, 'CompanyId:', companyId);
         return NextResponse.json(
-          { success: false, error: `Failed to save assets to database: ${dbError.message}` },
+          { success: false, error: `Failed to save assets via backend API: ${dbError.message}` },
           { status: 500 }
         );
       }

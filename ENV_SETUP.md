@@ -38,11 +38,10 @@ NEXT_PUBLIC_API_URL=http://your-production-server:5008/api
 
 ### `NEXT_PUBLIC_QUERY_TRACKER_API_URL`
 **Required:** No (optional)  
-**Description:** Dedicated URL for Query Tracker API  
+**Description:** Dedicated URL for Query Tracker API (override only if needed)  
 **Default:** `${NEXT_PUBLIC_API_URL}/query-tracker`  
-**Example:**
+**Example (usually not needed):**
 ```env
-# If not set, will use: http://localhost:5008/api/query-tracker
 NEXT_PUBLIC_QUERY_TRACKER_API_URL=http://localhost:5008/api/query-tracker
 ```
 
@@ -105,6 +104,16 @@ You can create environment-specific files:
    - Never commit `.env.local` or `.env` files
    - Only commit `.env.example` as a template
    - Use different URLs for different environments
+
+## ✅ Single URL Setup (Recommended)
+If you want to pass **only one URL** for all portals (local vs production), set only:
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:5008/api
+```
+
+Then Query Tracker will automatically use:
+`http://localhost:5008/api/query-tracker`
 
 ## 🔍 Verification
 

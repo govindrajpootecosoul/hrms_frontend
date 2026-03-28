@@ -1,8 +1,23 @@
 import axios from 'axios';
 
-// API URL must be set in .env.local file as NEXT_PUBLIC_QUERY_TRACKER_API_URL
-// For React apps, use REACT_APP_API_URL or NEXT_PUBLIC_QUERY_TRACKER_API_URL
-const API_URL = process.env.REACT_APP_API_URL || process.env.NEXT_PUBLIC_QUERY_TRACKER_API_URL;
+function normalizeQueryTrackerBaseUrl(raw) {
+  if (!raw) return null;
+  const base = String(raw).replace(/\/+$/, '');
+  // If user provides ".../api/query-tracker" use as-is
+  if (base.endsWith('/api/query-tracker')) return base;
+  // If user provides ".../api" then derive query-tracker base
+  if (base.endsWith('/api')) return `${base}/query-tracker`;
+  // Otherwise assume it's already the correct base for query-tracker
+  return base;
+}
+
+// Single-base-url friendly:
+// - CRA supports REACT_APP_* env vars
+// - When embedded/served alongside Next, NEXT_PUBLIC_API_URL may exist at build-time
+const API_URL =
+  normalizeQueryTrackerBaseUrl(process.env.REACT_APP_API_URL) ||
+  normalizeQueryTrackerBaseUrl(process.env.NEXT_PUBLIC_QUERY_TRACKER_API_URL) ||
+  normalizeQueryTrackerBaseUrl(process.env.NEXT_PUBLIC_API_URL);
 
 const api = axios.create({
   baseURL: API_URL,
