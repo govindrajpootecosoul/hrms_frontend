@@ -32,16 +32,27 @@ const PortalSelectionPage = () => {
   // Get company name from email domain
   const getCompanyName = (email) => {
     if (!email) return null;
-    const emailLower = email.toLowerCase();
-    if (emailLower.endsWith('@thrivebrands.ai')) {
-      return 'Thrive';
-    } else if (emailLower.endsWith('@ecosoulhome.com')) {
-      return 'Ecosoul Home';
-    }
+    const emailLower = String(email).trim().toLowerCase();
+    // Support exact formats like:
+    // - Example@thrivebrands.ai
+    // - Example@ecosoulhome.com
+    if (emailLower.endsWith('@thrivebrands.ai')) return 'Thrive';
+    if (emailLower.endsWith('@ecosoulhome.com')) return 'Ecosoul Home';
     return null;
   };
 
   const companyName = user?.email ? getCompanyName(user.email) : null;
+
+  // Normalize company names to improve matching across slight naming differences.
+  // Backend canonical names are 'Thrive' and 'Ecosoul Home'.
+  const normalizeCompanyName = (value) => {
+    if (!value) return null;
+    const lc = String(value).trim().toLowerCase();
+    const compact = lc.replace(/\s+/g, '');
+    if (compact === 'thrive' || compact === 'thrivebrands' || compact === 'thrivebrand') return 'Thrive';
+    if (compact === 'ecosoulhome' || compact === 'ecosoul' || compact === 'ecosoul-home') return 'Ecosoul Home';
+    return String(value).trim();
+  };
 
   // Check if user has access to a portal
   const hasPortalAccess = (portalIdentifier) => {
@@ -76,8 +87,9 @@ const PortalSelectionPage = () => {
   useEffect(() => {
     if (!isAuthenticated || !companyName || !companies?.length) return;
 
+    const targetCompany = normalizeCompanyName(companyName);
     const matchedCompany = companies.find(
-      (company) => company?.name?.toLowerCase() === companyName.toLowerCase()
+      (company) => normalizeCompanyName(company?.name) === targetCompany
     );
 
     // Keep company selection aligned with login email domain for portal isolation.
