@@ -27,7 +27,7 @@ if (!hasPublicApiUrl) {
 
 const networkConfig = {
   serverIp: process.env.SERVER_IP || 'localhost',
-  frontendPort: parseInt(process.env.FRONTEND_PORT || '3000', 10),
+  frontendPort: parseInt(process.env.FRONTEND_PORT || '3005', 10),
   backendPort: parseInt(process.env.BACKEND_PORT || '5008', 10),
 };
 

@@ -7,11 +7,11 @@ $who = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
 
 Write-Host "Project: $root"
 
-$conns = Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue
+$conns = Get-NetTCPConnection -LocalPort 3005 -State Listen -ErrorAction SilentlyContinue
 foreach ($c in $conns) {
   try {
     Stop-Process -Id $c.OwningProcess -Force -ErrorAction SilentlyContinue
-    Write-Host "Stopped process $($c.OwningProcess) on port 3000."
+    Write-Host "Stopped process $($c.OwningProcess) on port 3005."
   } catch {}
 }
 Start-Sleep -Seconds 1
