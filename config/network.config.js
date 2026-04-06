@@ -1,33 +1,34 @@
 /**
  * Network Configuration for Main Frontend
- * 
- * ⚠️ IMPORTANT: Update .env.local file to change network settings
- * This file reads from environment variables only
- * 
- * To change network settings:
- * Update SERVER_IP, FRONTEND_PORT, and BACKEND_PORT in .env.local file
+ *
+ * Reads from environment variables (.env, .env.local — Next loads them before next.config.js).
+ *
+ * Either set NEXT_PUBLIC_API_URL (e.g. hosted API), or set all of:
+ * SERVER_IP, FRONTEND_PORT, BACKEND_PORT for LAN / local backend URL building.
  */
 
-// Validate required environment variables
-if (!process.env.SERVER_IP) {
-  throw new Error('SERVER_IP must be set in .env.local file');
-}
-if (!process.env.FRONTEND_PORT) {
-  throw new Error('FRONTEND_PORT must be set in .env.local file');
-}
-if (!process.env.BACKEND_PORT) {
-  throw new Error('BACKEND_PORT must be set in .env.local file');
+const hasPublicApiUrl = Boolean(
+  process.env.NEXT_PUBLIC_API_URL && String(process.env.NEXT_PUBLIC_API_URL).trim()
+);
+
+if (!hasPublicApiUrl) {
+  if (!process.env.SERVER_IP) {
+    throw new Error(
+      'Set NEXT_PUBLIC_API_URL in .env or .env.local, or set SERVER_IP (and FRONTEND_PORT, BACKEND_PORT) for local/LAN API URLs.'
+    );
+  }
+  if (!process.env.FRONTEND_PORT) {
+    throw new Error('FRONTEND_PORT must be set in .env or .env.local (or set NEXT_PUBLIC_API_URL).');
+  }
+  if (!process.env.BACKEND_PORT) {
+    throw new Error('BACKEND_PORT must be set in .env or .env.local (or set NEXT_PUBLIC_API_URL).');
+  }
 }
 
 const networkConfig = {
-  // Server IP Address (must be set in .env.local file)
-  serverIp: process.env.SERVER_IP,
-  
-  // Frontend Port (must be set in .env.local file)
-  frontendPort: parseInt(process.env.FRONTEND_PORT),
-  
-  // Backend Port (must be set in .env.local file)
-  backendPort: parseInt(process.env.BACKEND_PORT),
+  serverIp: process.env.SERVER_IP || 'localhost',
+  frontendPort: parseInt(process.env.FRONTEND_PORT || '3000', 10),
+  backendPort: parseInt(process.env.BACKEND_PORT || '5008', 10),
 };
 
 // Helper function to get frontend URL
@@ -44,6 +45,10 @@ function getBackendUrl() {
 
 // Helper function to get API URL
 function getApiUrl() {
+  const explicit = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (explicit) {
+    return explicit.replace(/\/$/, '');
+  }
   return `${getBackendUrl()}/api`;
 }
 
