@@ -6,6 +6,12 @@ import { getCompanyFromEmail } from '../config/database.config';
 
 const AuthContext = createContext();
 
+function getConfiguredApiBaseUrl() {
+  const raw = API_BASE_URL && String(API_BASE_URL).trim();
+  if (!raw) return null;
+  return raw.replace(/\/$/, '');
+}
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -93,6 +99,14 @@ export const AuthProvider = ({ children }) => {
     // Check for existing session/token
     const checkAuth = async () => {
       try {
+        const apiBaseUrl = getConfiguredApiBaseUrl();
+        if (!apiBaseUrl) {
+          // Backend URL is not configured, so we must not attempt auth.
+          // This prevents accidental logins against unknown endpoints.
+          localStorage.removeItem('auth_token');
+          return;
+        }
+
         const token = localStorage.getItem('auth_token');
         if (token) {
           // Create AbortController for timeout
@@ -100,7 +114,7 @@ export const AuthProvider = ({ children }) => {
           const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
 
           // Validate token with backend
-          const response = await fetch(`${API_BASE_URL}/auth/verify`, {
+          const response = await fetch(`${apiBaseUrl}/auth/verify`, {
             headers: {
               'Authorization': `Bearer ${token}`
             },
@@ -132,13 +146,14 @@ export const AuthProvider = ({ children }) => {
         }
       } catch (error) {
         console.error('Auth check failed:', error);
-        console.error('API URL:', `${API_BASE_URL}/auth/verify`);
+        const apiBaseUrl = getConfiguredApiBaseUrl();
+        console.error('API URL:', apiBaseUrl ? `${apiBaseUrl}/auth/verify` : '(not configured)');
         console.error('Error details:', error.message);
         // Don't remove token on network errors, just log them
         if (error.name !== 'AbortError' && error.name !== 'TypeError') {
           localStorage.removeItem('auth_token');
         } else if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-          console.warn('Backend server may not be running. Please check:', API_BASE_URL);
+          console.warn('Backend server may not be running. Please check:', apiBaseUrl);
         }
       } finally {
         setLoading(false);
@@ -152,11 +167,20 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
 
+      const apiBaseUrl = getConfiguredApiBaseUrl();
+      if (!apiBaseUrl) {
+        return {
+          success: false,
+          error:
+            'Backend URL is not configured. Set NEXT_PUBLIC_API_URL in .env or .env.local (example: http://localhost:5008/api).',
+        };
+      }
+
       // Create AbortController for timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      const response = await fetch(`${apiBaseUrl}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -172,7 +196,7 @@ export const AuthProvider = ({ children }) => {
       if (!contentType || !contentType.includes('application/json')) {
         const text = await response.text();
         console.error('Backend returned non-JSON response:', text.substring(0, 200));
-        const baseUrl = API_BASE_URL.replace('/api', '');
+        const baseUrl = apiBaseUrl.replace('/api', '');
         return {
           success: false,
           error: `Backend server is not responding correctly. Please check if the server is running on ${baseUrl}`
@@ -203,10 +227,12 @@ export const AuthProvider = ({ children }) => {
       let errorMessage = 'Network error. Please check if the backend server is running.';
       
       if (error.name === 'AbortError' || error.name === 'TimeoutError') {
-        const baseUrl = API_BASE_URL.replace('/api', '');
+        const apiBaseUrl = getConfiguredApiBaseUrl();
+        const baseUrl = apiBaseUrl ? apiBaseUrl.replace('/api', '') : '(not configured)';
         errorMessage = `Request timed out. Cannot connect to backend server at ${baseUrl}. Please ensure the server is running.`;
       } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError') || error.name === 'TypeError') {
-        const baseUrl = API_BASE_URL.replace('/api', '');
+        const apiBaseUrl = getConfiguredApiBaseUrl();
+        const baseUrl = apiBaseUrl ? apiBaseUrl.replace('/api', '') : '(not configured)';
         errorMessage = `Cannot connect to backend server at ${baseUrl}. Please ensure:\n1. The backend server is running\n2. The server is accessible at the configured URL\n3. There are no firewall or network issues\n\nTo start the backend server, run: cd worklytics_HRMS_backend && npm start`;
       } else if (error.message) {
         errorMessage = error.message;
@@ -225,7 +251,16 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
 
-      const response = await fetch(`${API_BASE_URL}/auth/signup`, {
+      const apiBaseUrl = getConfiguredApiBaseUrl();
+      if (!apiBaseUrl) {
+        return {
+          success: false,
+          error:
+            'Backend URL is not configured. Set NEXT_PUBLIC_API_URL in .env or .env.local (example: http://localhost:5008/api).',
+        };
+      }
+
+      const response = await fetch(`${apiBaseUrl}/auth/signup`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -238,7 +273,7 @@ export const AuthProvider = ({ children }) => {
       if (!contentType || !contentType.includes('application/json')) {
         const text = await response.text();
         console.error('Backend returned non-JSON response:', text.substring(0, 200));
-        const baseUrl = API_BASE_URL.replace('/api', '');
+        const baseUrl = apiBaseUrl.replace('/api', '');
         return {
           success: false,
           error: `Backend server is not responding correctly. Please check if the server is running on ${baseUrl}`

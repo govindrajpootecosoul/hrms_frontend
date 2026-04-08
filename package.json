@@ -4,11 +4,11 @@
   "private": true,
   "scripts": {
     "predev": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/fix-next-dev-lock.ps1",
-    "dev": "node scripts/print-dev-hint.js && next dev -H 0.0.0.0 -p 3005",
+    "dev": "node scripts/run-next-dev.js",
     "dev:fix": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/fix-next-dev-lock.ps1",
-    "dev:fresh": "npm run dev:fix && node scripts/print-dev-hint.js && next dev -H 0.0.0.0 -p 3005",
+    "dev:fresh": "npm run dev:fix && node scripts/run-next-dev.js",
     "build": "next build",
-    "start": "next start -H 0.0.0.0 -p 3005",
+    "start": "node scripts/run-next-start.js",
     "lint": "eslint"
   },
   "dependencies": {

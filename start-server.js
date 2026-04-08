@@ -1,28 +1,32 @@
 const { spawn } = require('child_process');
 const path = require('path');
+const { loadFrontendEnv, assertRequiredFrontendEnv } = require('./scripts/load-env-frontend');
 
-const port = process.env.PORT || 4000;
-// Use the actual Next.js CLI file, not the shell script
+loadFrontendEnv(__dirname);
+assertRequiredFrontendEnv();
+
+const port =
+  (process.env.PORT && String(process.env.PORT).trim()) ||
+  String(process.env.FRONTEND_PORT).trim();
+
 const nextCliPath = path.join(__dirname, 'node_modules', 'next', 'dist', 'bin', 'next');
-
-// On Windows, we need to use the .cmd file or node directly
 const isWindows = process.platform === 'win32';
-let command, args;
+let command;
+let args;
 
 if (isWindows) {
-  // Try using next.cmd first, fallback to node with the CLI
   const nextCmd = path.join(__dirname, 'node_modules', '.bin', 'next.cmd');
   command = nextCmd;
-  args = ['start', '-p', port.toString()];
+  args = ['start', '-H', '0.0.0.0', '-p', port.toString()];
 } else {
   command = 'node';
-  args = [nextCliPath, 'start', '-p', port.toString()];
+  args = [nextCliPath, 'start', '-H', '0.0.0.0', '-p', port.toString()];
 }
 
 const child = spawn(command, args, {
   cwd: __dirname,
   stdio: 'inherit',
-  shell: true
+  shell: true,
 });
 
 child.on('error', (error) => {
@@ -36,4 +40,3 @@ child.on('exit', (code) => {
   }
   process.exit(code || 0);
 });
-

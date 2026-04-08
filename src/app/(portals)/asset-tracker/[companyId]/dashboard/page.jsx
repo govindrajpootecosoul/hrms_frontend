@@ -42,7 +42,7 @@ const AssetTrackerDashboard = () => {
   const [assets, setAssets] = useState([]); // Start with empty array, load from MongoDB
   const [filteredAssets, setFilteredAssets] = useState([]);
 
-  const API_ROOT = (process.env.NEXT_PUBLIC_API_URL || API_BASE_URL || '').replace(/\/$/, '');
+  const API_ROOT = (API_BASE_URL || '').replace(/\/$/, '');
   const assetTrackerUrl = useCallback(
     (path) => `${API_ROOT}/asset-tracker${path.startsWith('/') ? path : `/${path}`}`,
     [API_ROOT]

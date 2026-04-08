@@ -1,9 +1,12 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:7009/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+if (!API_URL || !String(API_URL).trim()) {
+  throw new Error('NEXT_PUBLIC_API_URL must be set in .env or .env.local');
+}
 
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: String(API_URL).trim().replace(/\/$/, ''),
   headers: {
     'Content-Type': 'application/json',
   },

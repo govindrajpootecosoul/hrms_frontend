@@ -1,29 +1,22 @@
 /**
- * Start script that uses network.config.js for port configuration
- * 
- * Usage: node scripts/start-with-network-config.js
- * Or: npm run dev:network
+ * Start Next dev using FRONTEND_PORT from .env / .env.local (project root: projects/frontend).
  */
-
-const { networkConfig } = require('../config/network.config');
+const path = require('path');
 const { spawn } = require('child_process');
+const { loadFrontendEnv, assertRequiredFrontendEnv } = require('../../scripts/load-env-frontend');
 
-// Set PORT environment variable from network config
-process.env.PORT = networkConfig.frontendPort.toString();
+const appRoot = path.join(__dirname, '..');
+loadFrontendEnv(appRoot);
+assertRequiredFrontendEnv();
 
-console.log(`🚀 Starting frontend on port ${networkConfig.frontendPort}`);
-console.log(`   Network IP: ${networkConfig.serverIp}`);
-console.log(`   Frontend URL: http://${networkConfig.serverIp}:${networkConfig.frontendPort}`);
-console.log(`   API URL: http://${networkConfig.serverIp}:${networkConfig.backendPort}/api`);
+const port = String(process.env.FRONTEND_PORT).trim();
+console.log(`Starting Next.js dev on port ${port}`);
 
-// Start Next.js dev server
-const nextDev = spawn('npx', ['next', 'dev'], {
+const nextDev = spawn('npx', ['next', 'dev', '-H', '0.0.0.0', '-p', port], {
+  cwd: appRoot,
   stdio: 'inherit',
   shell: true,
-  env: {
-    ...process.env,
-    PORT: networkConfig.frontendPort.toString(),
-  },
+  env: process.env,
 });
 
 nextDev.on('error', (err) => {
@@ -32,6 +25,5 @@ nextDev.on('error', (err) => {
 });
 
 nextDev.on('exit', (code) => {
-  process.exit(code);
+  process.exit(code ?? 0);
 });
-
