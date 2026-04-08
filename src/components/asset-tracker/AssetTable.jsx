@@ -26,6 +26,8 @@ const AssetTable = ({
   onUpload,
   onFilteredAssetsChange,
 }) => {
+  const resolveAssetId = (asset) => asset?.id || asset?._id?.toString?.() || asset?._id || '';
+
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState(initialStatusFilter);
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -242,7 +244,7 @@ const AssetTable = ({
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
-      setSelectedAssets(filteredAssets.map(asset => asset.id));
+      setSelectedAssets(filteredAssets.map((asset) => resolveAssetId(asset)).filter(Boolean));
     } else {
       setSelectedAssets([]);
     }
@@ -355,7 +357,7 @@ const AssetTable = ({
 
   const handleAssignSubmit = () => {
     if (onAssign && selectedAsset) {
-      onAssign(selectedAsset.id, selectedEmployeeName);
+      onAssign(resolveAssetId(selectedAsset), selectedEmployeeName);
     }
     setShowAssignModal(false);
     setSelectedAsset(null);
@@ -366,10 +368,10 @@ const AssetTable = ({
   const handleUnassign = (asset) => {
     if (confirm(`Are you sure you want to collect back this asset from ${asset.assignedTo}?`)) {
       if (onUnassign) {
-        onUnassign(asset.id);
+        onUnassign(resolveAssetId(asset));
       } else if (onAssign) {
         // Fallback to onAssign with null/empty name
-        onAssign(asset.id, '');
+        onAssign(resolveAssetId(asset), '');
       }
     }
   };
@@ -946,15 +948,18 @@ const AssetTable = ({
                 </tr>
               ) : (
                 filteredAssets.map((asset) => (
+                  (() => {
+                    const assetId = resolveAssetId(asset);
+                    return (
                   <tr
-                    key={asset.id}
+                    key={assetId || asset.assetTag}
                     className="hover:bg-neutral-50 transition-colors duration-150"
                   >
                     <td className="px-3 py-2">
                       <input
                         type="checkbox"
-                        checked={selectedAssets.includes(asset.id)}
-                        onChange={() => handleSelectAsset(asset.id)}
+                        checked={assetId ? selectedAssets.includes(assetId) : false}
+                        onChange={() => assetId && handleSelectAsset(assetId)}
                         className="w-4 h-4 text-primary-600 border-neutral-300 rounded focus:ring-primary-500"
                       />
                     </td>
@@ -1046,7 +1051,7 @@ const AssetTable = ({
                               e.stopPropagation();
                               e.preventDefault();
                               menuButtonClickedRef.current = true;
-                              const newMenuState = showOptionsMenu === asset.id ? null : asset.id;
+                              const newMenuState = showOptionsMenu === assetId ? null : assetId;
                               console.log('Options menu button clicked, setting menu to:', newMenuState);
                               setShowOptionsMenu(newMenuState);
                             }}
@@ -1055,7 +1060,7 @@ const AssetTable = ({
                           >
                             <MoreHorizontal className="w-4 h-4" />
                           </button>
-                          {showOptionsMenu === asset.id && (
+                          {showOptionsMenu === assetId && (
                             <div 
                               className="absolute right-0 top-full mt-1 w-40 bg-white border border-neutral-200 rounded-lg shadow-xl z-[100]"
                               onClick={(e) => {
@@ -1112,6 +1117,8 @@ const AssetTable = ({
                       </div>
                     </td>
                   </tr>
+                    );
+                  })()
                 ))
               )}
             </tbody>
