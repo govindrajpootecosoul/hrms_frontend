@@ -23,10 +23,8 @@ const PortalSelectionPage = () => {
     'asset-tracker': 'Asset Tracker',
     'finance': 'Finance Tools',
     'project-tracker': 'Project Tracker',
-    'datahive': 'DataHive',
     'employee-portal': 'Employee Portal',
-    'query-tracker': 'Query Tracker',
-    'demand-panel': 'Demand / Panel'
+    'query-tracker': 'Query Tracker'
   };
 
   // Get company name from email domain
@@ -99,8 +97,8 @@ const PortalSelectionPage = () => {
   }, [isAuthenticated, companyName, companies, currentCompany, selectCompany]);
 
   const handlePortalSelect = (portal) => {
-    // Admin portals (HRMS / Asset Tracker / Finance / Demand Panel / DataHive) remain company-scoped.
-    if (portal === 'hrms' || portal === 'asset-tracker' || portal === 'finance' || portal === 'demand-panel' || portal === 'datahive') {
+    // Admin portals (HRMS / Asset Tracker / Finance) remain company-scoped.
+    if (portal === 'hrms' || portal === 'asset-tracker' || portal === 'finance') {
       const matchedCompanyByEmail = companyName
         ? companies.find((company) => company?.name?.toLowerCase() === companyName.toLowerCase())
         : null;
@@ -119,13 +117,6 @@ const PortalSelectionPage = () => {
         return;
       } else if (portal === 'finance') {
         router.push(`/finance/${companyId}/dashboard`);
-      } else if (portal === 'demand-panel') {
-        // Open external URL for Demand / Panel
-        window.open('https://cp.thrivebrands-hrms.com/auth', '_blank');
-        return;
-      } else if (portal === 'datahive') {
-        // DataHive portal - you can customize this route as needed
-        router.push(`/datahive/${companyId}/dashboard`);
       }
       return;
     }
@@ -498,99 +489,6 @@ const PortalSelectionPage = () => {
                     iconPosition="right"
                   >
                     Enter Query Tracker
-                  </Button>
-                </div>
-              </Card>
-            </div>
-          </div>
-          )}
-
-          {/* DataHive Portal */}
-          {hasPortalAccess('datahive') && (
-          <div className="flip-card-container cursor-pointer">
-            <div className="flip-card-inner">
-              {/* Front Face */}
-              <Card className="flip-card-front backdrop-blur-md w-full h-full">
-                <div className="text-center h-full flex flex-col">
-                  <div className="w-[15rem] h-[15rem] rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 p-6 flex items-center justify-center mx-auto mb-6 shadow-lg overflow-hidden">
-                    <img
-                      src={'/log/Datahive.png'}
-                      alt="DataHive Logo"
-                      className="w-full h-full object-cover rounded-full"
-                    />
-                  </div>
-                  
-                  <p className="text-neutral-700 mb-6 leading-relaxed text-sm">
-                    Access and manage your data sources, analytics, and reports in one centralized platform.
-                  </p>
-                </div>
-              </Card>
-
-              {/* Back Face */}
-              <Card className="flip-card-back backdrop-blur-md w-full h-full !p-0">
-                <div className="flex flex-col items-center justify-center flip-card-back-content">
-                  <p className="text-neutral-700 mb-6 leading-relaxed text-sm">
-                    Access and manage your data sources, analytics, and reports in one centralized platform.
-                  </p>
-                  <Button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handlePortalSelect('datahive');
-                    }}
-                    className="w-full max-w-xs bg-blue-600 hover:bg-blue-500 text-white shadow-lg hover:shadow-xl transition-all duration-300 relative z-10"
-                    icon={<ArrowRight className="w-4 h-4" />}
-                    iconPosition="right"
-                  >
-                    Enter DataHive
-                  </Button>
-                </div>
-              </Card>
-            </div>
-          </div>
-          )}
-
-          {/* Demand / Panel Portal */}
-          {hasPortalAccess('demand-panel') && (
-          <div className="flip-card-container cursor-pointer">
-            <div className="flip-card-inner">
-              {/* Front Face */}
-              <Card className="flip-card-front backdrop-blur-md w-full h-full">
-                <div className="text-center h-full flex flex-col">
-                  <div className="w-[15rem] h-[15rem] rounded-full bg-gradient-to-br from-purple-100 to-pink-100 p-6 flex items-center justify-center mx-auto mb-6 shadow-lg overflow-hidden">
-                    <img
-                      src={'/log/Demand%20planner.png'}
-                      alt="Demand / Panel Logo"
-                      className="w-full h-full object-cover rounded-full"
-                    />
-                  </div>
-                  
-                  <p className="text-neutral-700 mb-6 leading-relaxed text-sm">
-                    Manage demand planning, panel management, and resource allocation 
-                    in one comprehensive platform.
-                  </p>
-                </div>
-              </Card>
-
-              {/* Back Face */}
-              <Card className="flip-card-back backdrop-blur-md w-full h-full !p-0">
-                <div className="flex flex-col items-center justify-center flip-card-back-content">
-                  <p className="text-neutral-700 mb-6 leading-relaxed text-sm">
-                    Manage demand planning, panel management, and resource allocation 
-                    in one comprehensive platform.
-                  </p>
-                  <Button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      // Open external URL for Demand / Panel
-                      window.open('https://cp.thrivebrands-hrms.com/auth', '_blank');
-                    }}
-                    className="w-full max-w-xs bg-purple-600 hover:bg-purple-500 text-white shadow-lg hover:shadow-xl transition-all duration-300 relative z-10"
-                    icon={<ArrowRight className="w-4 h-4" />}
-                    iconPosition="right"
-                  >
-                    Enter Demand / Panel
                   </Button>
                 </div>
               </Card>

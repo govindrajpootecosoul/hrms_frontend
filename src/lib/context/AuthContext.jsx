@@ -57,19 +57,18 @@ export const AuthProvider = ({ children }) => {
       // Map admin portal names to select portal identifiers
       const portalMapping = {
         'HRMS': 'hrms',
-        'DataHive': 'datahive',
         'Asset Tracker': 'asset-tracker',
         'Finance Tools': 'finance',
         'Project Tracker': 'project-tracker',
         'Employee Portal': 'employee-portal',
-        'Query Tracker': 'query-tracker',
-        'Demand / Panel': 'demand-panel'
+        'Query Tracker': 'query-tracker'
       };
-      
+      const allowedPortalIds = new Set(Object.values(portalMapping));
+
       // Convert admin portal names to select portal identifiers
       portalAccess = backendUser.portals
         .map(portal => portalMapping[portal] || portal.toLowerCase().replace(/\s+/g, '-'))
-        .filter(Boolean);
+        .filter((id) => id && allowedPortalIds.has(id));
     }
     // If no portals are set, portalAccess remains empty array - no portals will be shown
 

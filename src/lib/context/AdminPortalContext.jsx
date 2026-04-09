@@ -17,12 +17,6 @@ const initialPortalFeatures = [
     locations: ['Delhi', 'Bangalore', 'Mumbai']
   },
   {
-    portal: 'DataHive',
-    categories: ['Data Sources', 'Reports'],
-    subcategories: ['Database', 'API'],
-    locations: ['Delhi', 'Mumbai']
-  },
-  {
     portal: 'Finance Tools',
     categories: ['Expenses', 'Invoices'],
     subcategories: ['Travel', 'Equipment'],

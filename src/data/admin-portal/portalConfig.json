@@ -12,12 +12,6 @@
     "gradient": "from-blue-500 to-blue-700"
   },
   {
-    "name": "DataHive",
-    "color": "#10B981",
-    "icon": "🐝",
-    "gradient": "from-green-500 to-green-700"
-  },
-  {
     "name": "Asset Tracker",
     "color": "#F59E0B",
     "icon": "📦",

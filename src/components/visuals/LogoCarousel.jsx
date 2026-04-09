@@ -8,7 +8,6 @@ function LogoCarousel() {
   const portalNames = useMemo(
     () => [
       "HR Portal",
-      "DataHive",
       "Query Tracker",
       "Employee Portal",
       "Project Tracker",

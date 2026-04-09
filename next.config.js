@@ -12,6 +12,19 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_API_URL: raw.replace(/\/$/, ''),
   },
+  /** Keep public URLs /api/hrms, /api/hrms-portal, etc.; filesystem lives under src/app/api/portals/ */
+  async rewrites() {
+    return [
+      { source: '/api/hrms-portal/:path*', destination: '/api/portals/hrms/:path*' },
+      { source: '/api/hrms', destination: '/api/portals/hrms' },
+      { source: '/api/hrms/:path*', destination: '/api/portals/hrms/:path*' },
+      { source: '/api/asset-tracker/:path*', destination: '/api/portals/asset-tracker/:path*' },
+      { source: '/api/finance/:path*', destination: '/api/portals/finance/:path*' },
+      { source: '/api/employee-portal/:path*', destination: '/api/portals/employee-portal/:path*' },
+      { source: '/api/employee', destination: '/api/portals/employee' },
+      { source: '/api/employee/:path*', destination: '/api/portals/employee/:path*' },
+    ];
+  },
 };
 
 module.exports = nextConfig;

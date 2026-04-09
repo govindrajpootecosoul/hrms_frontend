@@ -180,13 +180,11 @@ export default function UsersPage() {
   // Map portal names to display names (matching old design)
   const portalDisplayMap = {
     'HRMS': 'HRMS',
-    'DataHive': 'DRIVE',
     'Asset Tracker': 'ASSET TRACKER',
     'Finance Tools': 'FINANCE TOOLS',
     'Project Tracker': 'PROJECT TRACKER',
     'Employee Portal': 'EMPLOYEE PORTAL',
-    'Query Tracker': 'QUERY TRACKER',
-    'Demand / Panel': 'DEMAND / PANEL'
+    'Query Tracker': 'QUERY TRACKER'
   };
   const tableHeaders = ['Name', 'Email', 'Role', 'Active', ...portals.map(p => portalDisplayMap[p] || p.toUpperCase()), 'Actions'];
 
