@@ -27,10 +27,12 @@ export async function POST(request) {
     
     console.log('Proxying check-out request to:', backendUrl);
 
+    const authHeader = request.headers.get('authorization');
     const response = await fetch(backendUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(authHeader ? { Authorization: authHeader } : {}),
       },
       body: JSON.stringify({ employeeId }),
     });

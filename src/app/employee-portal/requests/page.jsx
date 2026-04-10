@@ -72,7 +72,9 @@ export default function EmployeeRequestsPage() {
     try {
       setLoadingLeaveRequests(true);
       const token = localStorage.getItem('auth_token');
-      const company = typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null;
+      const company =
+        (user?.company && String(user.company).trim()) ||
+        (typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null);
       
       const params = new URLSearchParams();
       params.append('employeeId', user.employeeId);
@@ -154,7 +156,9 @@ export default function EmployeeRequestsPage() {
 
     try {
       const token = localStorage.getItem('auth_token');
-      const company = typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null;
+      const company =
+        (user?.company && String(user.company).trim()) ||
+        (typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null);
 
       const requestData = {
         employeeId: user?.employeeId || 'default',

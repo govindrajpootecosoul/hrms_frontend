@@ -13,8 +13,8 @@
 // Change these values to update MongoDB connection across the entire project
 export const MONGODB_CONFIG = {
   // MongoDB Server Details
-  host: process.env.MONGO_HOST || process.env.NEXT_PUBLIC_MONGO_HOST || '192.168.50.29',
-  port: parseInt(process.env.MONGO_PORT || process.env.NEXT_PUBLIC_MONGO_PORT || '27017'),
+  host: process.env.MONGO_HOST || process.env.NEXT_PUBLIC_MONGO_HOST || 'localhost',
+  port: parseInt(process.env.MONGO_PORT || process.env.NEXT_PUBLIC_MONGO_PORT || '27012', 10),
   
   // Full URI (if set, will override host:port)
   uri: process.env.MONGO_URI || process.env.MONGODB_URI || process.env.NEXT_PUBLIC_MONGO_URI || null,

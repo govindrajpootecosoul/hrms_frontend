@@ -108,11 +108,17 @@ export default function EmployeeAttendancePage() {
   const [submitMessage, setSubmitMessage] = useState({ type: '', text: '' });
   
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const company = sessionStorage.getItem('selectedCompany');
+    if (!user) return;
+    const fromUser = user.company && String(user.company).trim();
+    const fromSession = typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null;
+    const company = fromUser || fromSession;
+    if (company) {
       setSelectedCompany(company);
+      if (typeof window !== 'undefined' && fromUser) {
+        sessionStorage.setItem('selectedCompany', fromUser);
+      }
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     const fetchAttendance = async () => {

@@ -122,6 +122,14 @@ export default function ViewEmployeeDetailsDialog({
           </h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
+              <label className="text-sm font-medium text-slate-600">Emp Code</label>
+              <p className="text-sm text-slate-900 mt-1">{employee.emp_code || 'Not provided'}</p>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-slate-600">Card No</label>
+              <p className="text-sm text-slate-900 mt-1">{employee.card_no || 'Not provided'}</p>
+            </div>
+            <div>
               <label className="text-sm font-medium text-slate-600">Job Title</label>
               <p className="text-sm text-slate-900 mt-1">{employee.jobTitle || 'Not provided'}</p>
             </div>

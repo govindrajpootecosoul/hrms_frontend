@@ -29,10 +29,12 @@ export async function GET(request) {
     
     console.log('Proxying check-in history request to:', backendUrl);
 
+    const authHeader = request.headers.get('authorization');
     const response = await fetch(backendUrl, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        ...(authHeader ? { Authorization: authHeader } : {}),
       },
     });
 

@@ -24,6 +24,10 @@ export async function POST(request) {
     if (company) {
       headers['x-company'] = company;
     }
+    const authHeader = request.headers.get('authorization');
+    if (authHeader) {
+      headers['Authorization'] = authHeader;
+    }
 
     const response = await fetch(backendUrl, {
       method: 'POST',

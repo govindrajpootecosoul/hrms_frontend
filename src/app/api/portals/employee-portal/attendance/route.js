@@ -28,10 +28,12 @@ export async function GET(request) {
     // Fetch check-in history from backend
     const backendUrl = `${API_BASE_URL}/employee/checkin/history?${params.toString()}`;
     
+    const authHeader = request.headers.get('authorization');
     const response = await fetch(backendUrl, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        ...(authHeader ? { Authorization: authHeader } : {}),
       },
     });
 
@@ -85,6 +87,7 @@ export async function GET(request) {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          ...(authHeader ? { Authorization: authHeader } : {}),
         },
       });
       

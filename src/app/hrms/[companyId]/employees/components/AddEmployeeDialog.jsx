@@ -10,7 +10,7 @@ import { API_BASE_URL } from '@/lib/utils/constants';
 const PHASES = [
   { id: 1, name: 'Basic Details', fields: ['firstName', 'lastName', 'email', 'phone', 'dateOfBirth', 'gender'] },
   { id: 2, name: 'Personal Details', fields: ['address', 'city', 'state', 'zipCode', 'emergencyContact', 'emergencyPhone'] },
-  { id: 3, name: 'Work Details', fields: ['employeeId', 'jobTitle', 'department', 'company', 'location', 'reportingManager', 'joiningDate', 'role', 'hasCredentialAccess', 'hasSubscriptionAccess'] },
+  { id: 3, name: 'Work Details', fields: ['employeeId', 'emp_code', 'card_no', 'jobTitle', 'department', 'company', 'location', 'reportingManager', 'joiningDate', 'role', 'hasCredentialAccess', 'hasSubscriptionAccess'] },
   { id: 4, name: 'Bank & Insurance', fields: ['bankAccount', 'ifsc', 'pan', 'aadhaar', 'uan', 'esiNo', 'pfNo'] },
 ];
 
@@ -82,6 +82,8 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
         emergencyPhone: getFieldValue(employee.emergencyPhone),
         // Work Details
         employeeId: getFieldValue(employee.employeeId),
+        emp_code: getFieldValue(employee.emp_code),
+        card_no: getFieldValue(employee.card_no),
         jobTitle: getFieldValue(employee.jobTitle),
         department: getFieldValue(employee.department),
         company: getFieldValue(employee.company) || defaultCompany,
@@ -152,6 +154,8 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
       emergencyPhone: '',
       // Work Details
       employeeId: '',
+      emp_code: '',
+      card_no: '',
       jobTitle: '',
       department: '',
       company: defaultCompany, // Auto-populate from logged-in user
@@ -503,6 +507,8 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
       location: finalFormData.location || '',
       reportingManager: finalFormData.reportingManager || '',
       joiningDate: finalFormData.joiningDate || '',
+      emp_code: finalFormData.emp_code || '',
+      card_no: finalFormData.card_no || '',
       hasCredentialAccess: finalFormData.hasCredentialAccess !== false,
       hasSubscriptionAccess: finalFormData.hasSubscriptionAccess !== false,
       
@@ -728,6 +734,22 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
                 placeholder="Auto-generated if empty"
               />
               <p className="text-xs text-slate-500 mt-1">Leave empty to auto-generate</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Emp Code</label>
+              <Input
+                value={formData.emp_code}
+                onChange={(e) => handleInputChange('emp_code', e.target.value)}
+                placeholder="Enter emp code"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Card No</label>
+              <Input
+                value={formData.card_no}
+                onChange={(e) => handleInputChange('card_no', e.target.value)}
+                placeholder="Enter card number"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Job Title</label>

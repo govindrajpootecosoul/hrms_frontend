@@ -250,6 +250,8 @@ export default function EmployeesPage() {
                 department: user.department || '',
                 location: user.location || '',
                 company: user.company || '',
+                emp_code: user.emp_code || '',
+                card_no: user.card_no || '',
                 status: user.active !== false ? 'Active' : 'Inactive',
                 tenure: tenure,
                 joiningDate: user.joiningDate || user.createdAt,
@@ -370,6 +372,8 @@ export default function EmployeesPage() {
           location: employeeData.location !== undefined ? employeeData.location : '',
           reportingManager: employeeData.reportingManager !== undefined ? employeeData.reportingManager : '',
           joiningDate: employeeData.joiningDate !== undefined ? employeeData.joiningDate : '',
+          emp_code: employeeData.emp_code !== undefined ? employeeData.emp_code : '',
+          card_no: employeeData.card_no !== undefined ? employeeData.card_no : '',
           
           // Bank & Insurance
           bankAccount: employeeData.bankAccount !== undefined ? employeeData.bankAccount : '',
@@ -461,6 +465,8 @@ export default function EmployeesPage() {
           location: employeeData.location || '',
           reportingManager: employeeData.reportingManager || '',
           joiningDate: employeeData.joiningDate || '',
+          emp_code: employeeData.emp_code || '',
+          card_no: employeeData.card_no || '',
           hasCredentialAccess: employeeData.hasCredentialAccess !== false,
           hasSubscriptionAccess: employeeData.hasSubscriptionAccess !== false,
           

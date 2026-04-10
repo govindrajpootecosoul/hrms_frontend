@@ -64,9 +64,18 @@ const EmployeePortalHome = () => {
   const [selectedCompany, setSelectedCompany] = useState(null);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
 
-  // Auto-detect company from user email
+  // Company for API calls: profile first (any tenant), then email domain (legacy)
   useEffect(() => {
-    if (user?.email) {
+    if (!user) return;
+    const fromProfile = user.company && String(user.company).trim();
+    if (fromProfile) {
+      setSelectedCompany(fromProfile);
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('selectedCompany', fromProfile);
+      }
+      return;
+    }
+    if (user.email) {
       const company = getCompanyFromEmail(user.email);
       if (company) {
         setSelectedCompany(company);
