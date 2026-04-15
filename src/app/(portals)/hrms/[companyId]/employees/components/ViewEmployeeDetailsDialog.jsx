@@ -13,10 +13,15 @@ export default function ViewEmployeeDetailsDialog({
 
   const formatDate = (date) => {
     if (!date) return 'Not provided';
-    if (typeof date === 'string' && date.includes('T')) {
-      return new Date(date).toLocaleDateString('en-GB');
+    const s = String(date).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+      const [y, m, d] = s.split('-').map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString('en-GB');
     }
-    return date;
+    if (s.includes('T')) {
+      return new Date(s).toLocaleDateString('en-GB');
+    }
+    return s;
   };
 
   return (
@@ -168,6 +173,19 @@ export default function ViewEmployeeDetailsDialog({
               }`}>
                 {employee.status || 'Not provided'}
               </span>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-slate-600 flex items-center gap-1">
+                <Calendar className="w-4 h-4" />
+                Exit date
+              </label>
+              <p className="text-sm text-slate-900 mt-1">
+                {employee.status === 'Inactive' && employee.exitDate
+                  ? formatDate(employee.exitDate)
+                  : employee.status === 'Inactive'
+                    ? 'Not recorded'
+                    : '—'}
+              </p>
             </div>
             <div>
               <label className="text-sm font-medium text-slate-600 flex items-center gap-1">

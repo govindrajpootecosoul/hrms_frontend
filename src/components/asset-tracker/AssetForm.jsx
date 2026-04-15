@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { Link as LinkIcon, Calendar, ChevronDown } from 'lucide-react';
 import Button from '@/components/common/Button';
-import Input from '@/components/common/Input';
 import EmployeeSelect from '@/components/common/EmployeeSelect';
 import { API_BASE_URL, ASSET_STATUS } from '@/lib/utils/constants';
 
@@ -49,6 +48,8 @@ const AssetForm = ({
 
   const [errors, setErrors] = useState({});
   const [assetTagId, setAssetTagId] = useState(asset?.assetTag || '');
+  /** When true (add mode only), skip auto-generating tag from category/subcategory */
+  const [assetTagManuallyEntered, setAssetTagManuallyEntered] = useState(false);
   const [selectOpen, setSelectOpen] = useState({});
   const [usersData, setUsersData] = useState([]);
   const [settingsCategories, setSettingsCategories] = useState([]);
@@ -128,6 +129,16 @@ const AssetForm = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [asset]);
 
+  // Keep tag in sync when opening edit / switching asset; reset when switching to add
+  useEffect(() => {
+    if (asset) {
+      setAssetTagId(asset.assetTag || '');
+    } else {
+      setAssetTagId('');
+      setAssetTagManuallyEntered(false);
+    }
+  }, [asset]);
+
   // Listen for settings updates (real-time refresh)
   useEffect(() => {
     const handleCategoriesUpdate = () => {
@@ -205,19 +216,19 @@ const AssetForm = ({
     return [{ value: '', label: 'Select Status' }, ...base];
   }, []);
 
-  // Generate Asset Tag ID when category and subcategory are selected (only for new assets)
+  // Generate Asset Tag ID when category and subcategory are selected (new assets only, unless user is typing manually)
   useEffect(() => {
-    if (!isEditMode && formData.category && formData.subcategory) {
+    if (isEditMode || assetTagManuallyEntered) return;
+    if (formData.category && formData.subcategory) {
       const prefix = categoryMapping[formData.category]?.[formData.subcategory];
       if (prefix) {
-        // Generate a random 3-digit number
         const randomNum = Math.floor(Math.random() * 900) + 100;
         setAssetTagId(`${prefix}-${randomNum}`);
       } else {
         setAssetTagId('');
       }
     }
-  }, [formData.category, formData.subcategory, isEditMode]);
+  }, [formData.category, formData.subcategory, isEditMode, assetTagManuallyEntered, categoryMapping]);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({
@@ -233,12 +244,16 @@ const AssetForm = ({
       }));
     }
 
-    // Reset subcategory when category changes
+    // Reset subcategory when category changes; allow auto tag again when classification changes
     if (field === 'category') {
+      setAssetTagManuallyEntered(false);
       setFormData(prev => ({
         ...prev,
         subcategory: ''
       }));
+    }
+    if (field === 'subcategory') {
+      setAssetTagManuallyEntered(false);
     }
   };
 
@@ -251,6 +266,7 @@ const AssetForm = ({
         if (!formData.subcategory) newErrors.subcategory = 'Sub Category is required';
         if (!formData.site) newErrors.site = 'Site is required';
         if (!formData.location) newErrors.location = 'Location is required';
+        if (!(assetTagId || '').trim()) newErrors.assetTag = 'Asset Tag ID is required';
         break;
       case 2:
         if (!formData.brand) newErrors.brand = 'Brand is required';
@@ -274,16 +290,20 @@ const AssetForm = ({
   };
 
   const handleSubmit = () => {
-    if (validateStep(currentStep)) {
-      onSubmit({
-        ...formData,
-        assetTag: isEditMode ? (asset?.assetTag || assetTagId) : assetTagId,
-        ...(isEditMode ? { updatedAt: new Date().toISOString() } : { 
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        })
-      });
+    if (!validateStep(currentStep)) return;
+    if (!(assetTagId || '').trim()) {
+      setErrors((prev) => ({ ...prev, assetTag: 'Asset Tag ID is required' }));
+      setCurrentStep(1);
+      return;
     }
+    onSubmit({
+      ...formData,
+      assetTag: (assetTagId || '').trim(),
+      ...(isEditMode ? { updatedAt: new Date().toISOString() } : { 
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      })
+    });
   };
 
   const toggleSelect = (field) => {
@@ -413,17 +433,56 @@ const AssetForm = ({
           {renderCompactSelect('category', 'Category', true)}
           {renderCompactSelect('subcategory', 'Sub Category', true)}
           
-          {/* Generated Asset Tag ID */}
+          {/* Asset Tag ID — auto-filled from category/subcategory or editable */}
           <div className="md:col-span-2 space-y-1">
             <label className="block text-xs font-medium text-neutral-700">
-              Asset Tag ID
+              Asset Tag ID <span className="text-red-500">*</span>
             </label>
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg">
-              <LinkIcon className="w-3 h-3 text-blue-600 flex-shrink-0" />
-              <span className="text-xs font-mono text-blue-900">
-                {isEditMode ? (asset?.assetTag || assetTagId) : (assetTagId || 'Select Category and Sub Category to generate')}
-              </span>
+            <div className="flex items-stretch gap-2">
+              <div className="flex flex-1 items-center gap-2 min-w-0 px-3 py-1.5 bg-blue-50/80 border border-blue-200 rounded-lg focus-within:ring-2 focus-within:ring-blue-200 focus-within:border-blue-300">
+                <LinkIcon className="w-3 h-3 text-blue-600 flex-shrink-0" />
+                <input
+                  type="text"
+                  value={assetTagId}
+                  onChange={(e) => {
+                    setAssetTagManuallyEntered(true);
+                    setAssetTagId(e.target.value);
+                    if (errors.assetTag) {
+                      setErrors((prev) => ({ ...prev, assetTag: '' }));
+                    }
+                  }}
+                  placeholder={
+                    isEditMode
+                      ? 'Physical tag or internal ID'
+                      : 'Select category & subcategory to auto-fill, or type your own'
+                  }
+                  className="flex-1 min-w-0 bg-transparent text-xs font-mono text-blue-950 placeholder:text-blue-700/50 outline-none"
+                />
+              </div>
+              {!isEditMode && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAssetTagManuallyEntered(false);
+                    const prefix = categoryMapping[formData.category]?.[formData.subcategory];
+                    if (prefix) {
+                      const randomNum = Math.floor(Math.random() * 900) + 100;
+                      setAssetTagId(`${prefix}-${randomNum}`);
+                    }
+                  }}
+                  className="shrink-0 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-blue-300 bg-white text-blue-700 hover:bg-blue-50"
+                  title="Generate a new tag from the current category prefix"
+                >
+                  Auto-fill
+                </button>
+              )}
             </div>
+            <p className="text-[11px] text-neutral-500">
+              {isEditMode
+                ? 'You can change this ID if the physical tag was updated.'
+                : 'Default tag is generated from your subcategory prefix. Use Auto-fill after changing category, or type a custom tag anytime.'}
+            </p>
+            {errors.assetTag && <p className="text-xs text-red-600">{errors.assetTag}</p>}
           </div>
           
           {renderCompactSelect('site', 'Site', true)}

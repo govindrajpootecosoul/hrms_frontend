@@ -19,10 +19,12 @@ import {
   Trash2,
   Download,
   Upload,
-  Eye
+  Eye,
+  UserMinus
 } from 'lucide-react';
 import Card from '@/components/common/Card';
 import Button from '@/components/common/Button';
+import Modal from '@/components/common/Modal';
 import AddEmployeeDialog from './components/AddEmployeeDialog';
 import ConfirmationDialog from './components/ConfirmationDialog';
 import ViewEmployeeDetailsDialog from './components/ViewEmployeeDetailsDialog';
@@ -51,6 +53,12 @@ export default function EmployeesPage() {
   const [errorDialog, setErrorDialog] = useState({ open: false, message: '' });
   const [infoDialog, setInfoDialog] = useState({ open: false, message: '' });
   const [viewDetailsDialog, setViewDetailsDialog] = useState({ open: false, employee: null });
+  const [employeeListTab, setEmployeeListTab] = useState('current'); // 'current' | 'ex'
+  const [inactiveExitDialog, setInactiveExitDialog] = useState({
+    open: false,
+    employee: null,
+    exitDate: '',
+  });
 
   // Debug: Log when dialog state changes
   useEffect(() => {
@@ -253,6 +261,7 @@ export default function EmployeesPage() {
                 status: user.active !== false ? 'Active' : 'Inactive',
                 tenure: tenure,
                 joiningDate: user.joiningDate || user.createdAt,
+                exitDate: user.exitDate ? String(user.exitDate).split('T')[0] : '',
                 hasCredentialAccess: user.hasCredentialAccess !== false,
                 hasSubscriptionAccess: user.hasSubscriptionAccess !== false,
                 role: user.role || 'user',
@@ -531,25 +540,57 @@ export default function EmployeesPage() {
     }
   };
 
-  const setEmployeeStatusLocal = (employeeId, newStatus) => {
+  const setEmployeeStatusLocal = (employeeId, newStatus, nextExitDate) => {
     setEmployees((prev) =>
       prev.map((emp) => {
         const id = emp.id || emp._id;
         if (String(id) !== String(employeeId)) return emp;
-        return { ...emp, status: newStatus };
+        const patch = { ...emp, status: newStatus };
+        if (nextExitDate !== undefined) {
+          patch.exitDate = nextExitDate || '';
+        }
+        return patch;
       })
     );
   };
 
-  const updateEmployeeStatus = async (employee, newStatus) => {
+  const handleEmployeeStatusSelect = (employee, nextStatus) => {
+    if (nextStatus === 'Inactive') {
+      const defaultDate = new Date().toISOString().slice(0, 10);
+      setInactiveExitDialog({
+        open: true,
+        employee,
+        exitDate: employee.exitDate || defaultDate,
+      });
+      return;
+    }
+    updateEmployeeStatus(employee, 'Active');
+  };
+
+  const confirmMarkInactive = async () => {
+    const { employee, exitDate } = inactiveExitDialog;
+    if (!employee) return;
+    const trimmed = (exitDate || '').trim();
+    if (!trimmed) {
+      setErrorDialog({ open: true, message: 'Please choose an exit date.' });
+      return;
+    }
+    setInactiveExitDialog({ open: false, employee: null, exitDate: '' });
+    await updateEmployeeStatus(employee, 'Inactive', trimmed);
+  };
+
+  const updateEmployeeStatus = async (employee, newStatus, exitDateForInactive) => {
     const empId = employee?.id || employee?._id;
     if (!empId) return;
 
     const previousStatus = employee.status;
+    const previousExitDate = employee.exitDate || '';
     setStatusEditEmployeeId(null);
 
     setStatusSavingByEmployeeId((prev) => ({ ...prev, [empId]: true }));
-    setEmployeeStatusLocal(empId, newStatus);
+    const optimisticExit =
+      newStatus === 'Active' ? '' : (exitDateForInactive || employee.exitDate || '');
+    setEmployeeStatusLocal(empId, newStatus, optimisticExit);
 
     try {
       const company = resolveCompanyName();
@@ -558,22 +599,28 @@ export default function EmployeesPage() {
         apiUrl += `?company=${encodeURIComponent(company)}`;
       }
 
+      const payload =
+        newStatus === 'Active'
+          ? { active: true }
+          : { active: false, exitDate: exitDateForInactive };
+
       const response = await fetch(apiUrl, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          active: newStatus === 'Active',
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json().catch(() => null);
       if (!response.ok || !data?.success) {
         throw new Error(data?.error || `Failed to update status (HTTP ${response.status})`);
       }
+      if (newStatus === 'Inactive' && data?.user?.exitDate) {
+        setEmployeeStatusLocal(empId, newStatus, data.user.exitDate);
+      }
     } catch (err) {
-      setEmployeeStatusLocal(empId, previousStatus);
+      setEmployeeStatusLocal(empId, previousStatus, previousExitDate);
       setErrorDialog({ open: true, message: err.message || 'Failed to update status' });
     } finally {
       setStatusSavingByEmployeeId((prev) => ({ ...prev, [empId]: false }));
@@ -826,6 +873,8 @@ export default function EmployeesPage() {
   // Filter employees
   const filteredEmployees = useMemo(() => {
     return employees.filter((emp) => {
+      const inRoster =
+        employeeListTab === 'current' ? emp.status === 'Active' : emp.status === 'Inactive';
       const searchLower = searchQuery.toLowerCase();
       const matchesSearch = !searchQuery || 
                            (emp.name || '').toLowerCase().includes(searchLower) ||
@@ -836,9 +885,9 @@ export default function EmployeesPage() {
                            (emp.company || '').toLowerCase().includes(searchLower);
       const matchesDepartment = departmentFilter === 'All Departments' || emp.department === departmentFilter;
       const matchesLocation = locationFilter === 'All Locations' || emp.location === locationFilter;
-      return matchesSearch && matchesDepartment && matchesLocation;
+      return inRoster && matchesSearch && matchesDepartment && matchesLocation;
     });
-  }, [searchQuery, departmentFilter, locationFilter, employees]);
+  }, [searchQuery, departmentFilter, locationFilter, employees, employeeListTab]);
 
   // Gradient colors for employee cards
   const gradients = [
@@ -866,6 +915,19 @@ export default function EmployeesPage() {
     'shadow-indigo-500/30',
     'shadow-red-500/30',
   ];
+
+  const isExEmployeeTab = employeeListTab === 'ex';
+  const rosterTableColSpan = isExEmployeeTab ? 16 : 12;
+  const formatExitOrJoinDate = (v) => {
+    if (!v) return '—';
+    const s = String(v).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+      const [y, m, d] = s.split('-').map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString('en-GB');
+    }
+    const d = new Date(s);
+    return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-GB');
+  };
 
   return (
     <div className="space-y-6 relative">
@@ -977,6 +1039,32 @@ export default function EmployeesPage() {
       {/* Filters and View Toggle */}
       <Card className="border-2">
         <div className="p-6">
+          <div className="flex flex-wrap gap-2 mb-4">
+            <button
+              type="button"
+              onClick={() => setEmployeeListTab('current')}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                employeeListTab === 'current'
+                  ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              Current employees
+            </button>
+            <button
+              type="button"
+              onClick={() => setEmployeeListTab('ex')}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                employeeListTab === 'ex'
+                  ? 'bg-slate-800 text-white border-slate-800 shadow-sm'
+                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+              }`}
+            >
+              <UserMinus className="w-4 h-4" />
+              Ex-employees
+            </button>
+          </div>
           <div className="flex flex-col md:flex-row gap-4 items-center">
             <div className="flex-1 w-full md:w-auto">
               <div className="relative">
@@ -1069,7 +1157,9 @@ export default function EmployeesPage() {
           {filteredEmployees.length === 0 ? (
             <Card className="border-2 col-span-full">
               <div className="p-12 text-center">
-                <p className="text-slate-600">No employees found</p>
+                <p className="text-slate-600">
+                  {isExEmployeeTab ? 'No ex-employees match your filters.' : 'No employees found'}
+                </p>
               </div>
             </Card>
           ) : (
@@ -1103,6 +1193,30 @@ export default function EmployeesPage() {
                         <p className="text-sm font-medium group-hover:text-white transition-colors truncate">{employee.email || '-'}</p>
                       </div>
                     </div>
+                    {isExEmployeeTab && (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs text-muted-foreground group-hover:text-white/80 transition-colors">Phone</p>
+                            <p className="text-sm font-medium group-hover:text-white transition-colors">{employee.phone || '—'}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground group-hover:text-white/80 transition-colors">Reporting manager</p>
+                            <p className="text-sm font-medium group-hover:text-white transition-colors truncate max-w-[140px]">{employee.reportingManager || '—'}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs text-muted-foreground group-hover:text-white/80 transition-colors">Joining date</p>
+                            <p className="text-sm font-medium group-hover:text-white transition-colors">{formatExitOrJoinDate(employee.joiningDate)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground group-hover:text-white/80 transition-colors">Exit date</p>
+                            <p className="text-sm font-medium group-hover:text-white transition-colors">{formatExitOrJoinDate(employee.exitDate)}</p>
+                          </div>
+                        </div>
+                      </>
+                    )}
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-xs text-muted-foreground group-hover:text-white/80 transition-colors">Company</p>
@@ -1121,7 +1235,7 @@ export default function EmployeesPage() {
                           disabled={statusSavingByEmployeeId[employee.id || employee._id]}
                           onChange={(e) => {
                             const nextStatus = e.target.value;
-                            updateEmployeeStatus(employee, nextStatus);
+                            handleEmployeeStatusSelect(employee, nextStatus);
                           }}
                           onClick={(e) => e.stopPropagation()}
                           className={`mt-1 px-2 py-1 rounded-full text-xs font-medium transition-colors border border-transparent outline-none ${
@@ -1241,6 +1355,14 @@ export default function EmployeesPage() {
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">DEPARTMENT</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">COMPANY</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">LOCATION</th>
+                  {isExEmployeeTab && (
+                    <>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">PHONE</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">REPORTING MANAGER</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">JOINING DATE</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">EXIT DATE</th>
+                    </>
+                  )}
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">STATUS</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">CREDENTIAL ACCESS</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">SUBSCRIPTION ACCESS</th>
@@ -1251,20 +1373,20 @@ export default function EmployeesPage() {
               <tbody className="bg-white divide-y divide-slate-200">
                 {loading ? (
                   <tr>
-                    <td colSpan={12} className="px-4 py-8 text-center text-slate-500">
+                    <td colSpan={rosterTableColSpan} className="px-4 py-8 text-center text-slate-500">
                       Loading employees...
                     </td>
                   </tr>
                 ) : error ? (
                   <tr>
-                    <td colSpan={12} className="px-4 py-8 text-center text-red-500">
+                    <td colSpan={rosterTableColSpan} className="px-4 py-8 text-center text-red-500">
                       Error: {error}
                     </td>
                   </tr>
                 ) : filteredEmployees.length === 0 ? (
                   <tr>
-                    <td colSpan={12} className="px-4 py-8 text-center text-slate-500">
-                      No employees found
+                    <td colSpan={rosterTableColSpan} className="px-4 py-8 text-center text-slate-500">
+                      {isExEmployeeTab ? 'No ex-employees match your filters.' : 'No employees found'}
                     </td>
                   </tr>
                 ) : (
@@ -1299,13 +1421,31 @@ export default function EmployeesPage() {
                     <td className="px-4 py-4 whitespace-nowrap">
                       <div className="text-sm text-slate-600">{employee.location || '-'}</div>
                     </td>
+                    {isExEmployeeTab && (
+                      <>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <div className="text-sm text-slate-600">{employee.phone || '—'}</div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="text-sm text-slate-600 max-w-[160px] truncate" title={employee.reportingManager || ''}>
+                            {employee.reportingManager || '—'}
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <div className="text-sm text-slate-600">{formatExitOrJoinDate(employee.joiningDate)}</div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <div className="text-sm text-slate-600 font-medium">{formatExitOrJoinDate(employee.exitDate)}</div>
+                        </td>
+                      </>
+                    )}
                     <td className="px-4 py-4 whitespace-nowrap">
                       <select
                         value={employee.status === 'Inactive' ? 'Inactive' : 'Active'}
                         disabled={statusSavingByEmployeeId[employee.id || employee._id]}
                         onChange={(e) => {
                           const nextStatus = e.target.value;
-                          updateEmployeeStatus(employee, nextStatus);
+                          handleEmployeeStatusSelect(employee, nextStatus);
                         }}
                         onClick={(e) => e.stopPropagation()}
                         className={`px-2 py-1 rounded-full text-xs font-medium border border-transparent outline-none ${
@@ -1488,6 +1628,46 @@ export default function EmployeesPage() {
         cancelText=""
         confirmButtonClass="bg-blue-600 text-white hover:bg-blue-700"
       />
+
+      <Modal
+        isOpen={inactiveExitDialog.open}
+        onClose={() => setInactiveExitDialog({ open: false, employee: null, exitDate: '' })}
+        title="Set exit date"
+        size="sm"
+        footer={
+          <div className="flex gap-3 w-full justify-end">
+            <Button
+              type="button"
+              onClick={() => setInactiveExitDialog({ open: false, employee: null, exitDate: '' })}
+              className="bg-white border border-neutral-300 text-neutral-700 hover:bg-neutral-50"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void confirmMarkInactive()}
+              className="bg-slate-800 text-white hover:bg-slate-900"
+            >
+              Mark inactive
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm text-slate-600 mb-3">
+          Choose the exit / last working day for{' '}
+          <span className="font-medium text-slate-900">{inactiveExitDialog.employee?.name || 'this employee'}</span>.
+          This is saved with their record and shown on the Ex-employees list.
+        </p>
+        <label className="block text-sm font-medium text-slate-700 mb-1">Exit date</label>
+        <input
+          type="date"
+          value={inactiveExitDialog.exitDate || ''}
+          onChange={(e) =>
+            setInactiveExitDialog((prev) => ({ ...prev, exitDate: e.target.value }))
+          }
+          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </Modal>
 
       {/* View Employee Details Dialog */}
       <ViewEmployeeDetailsDialog
