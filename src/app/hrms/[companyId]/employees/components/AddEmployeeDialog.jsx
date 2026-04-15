@@ -90,6 +90,7 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
         location: getFieldValue(employee.location),
         reportingManager: getFieldValue(employee.reportingManager),
         joiningDate: getDateValue(employee.joiningDate || employee.createdAt),
+        exitDate: getDateValue(employee.exitDate),
         role: getFieldValue(employee.role, 'user'),
         hasCredentialAccess: employee.hasCredentialAccess !== false,
         hasSubscriptionAccess: employee.hasSubscriptionAccess !== false,
@@ -162,6 +163,7 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
       location: '',
       reportingManager: '',
       joiningDate: '',
+      exitDate: '',
       role: 'user',
       hasCredentialAccess: true,
       hasSubscriptionAccess: true,
@@ -451,6 +453,14 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
       finalFormData.employeeId = `EMP${String(nextNumber).padStart(3, '0')}`;
     }
 
+    if (employeeToEdit?.status === 'Inactive') {
+      if (!finalFormData.exitDate || !String(finalFormData.exitDate).trim()) {
+        setErrors({ exitDate: 'Exit date is required for inactive employees.' });
+        setCurrentPhase(3);
+        return;
+      }
+    }
+
     // Calculate tenure from joining date
     const joiningDate = finalFormData.joiningDate ? new Date(finalFormData.joiningDate) : new Date();
     const today = new Date();
@@ -507,6 +517,7 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
       location: finalFormData.location || '',
       reportingManager: finalFormData.reportingManager || '',
       joiningDate: finalFormData.joiningDate || '',
+      exitDate: finalFormData.exitDate || '',
       emp_code: finalFormData.emp_code || '',
       card_no: finalFormData.card_no || '',
       hasCredentialAccess: finalFormData.hasCredentialAccess !== false,
@@ -846,6 +857,25 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
               </div>
               {errors.joiningDate && <p className="text-sm text-red-500 mt-1">{errors.joiningDate}</p>}
             </div>
+            {employeeToEdit?.status === 'Inactive' && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Exit date</label>
+                <div className="relative">
+                  <Input
+                    type="date"
+                    value={formData.exitDate}
+                    onChange={(e) => handleInputChange('exitDate', e.target.value)}
+                    className={`${errors.exitDate ? 'border-red-500' : ''} pr-10`}
+                    data-lpignore="true"
+                    data-form-type="other"
+                    autoComplete="off"
+                    style={{ position: 'relative', zIndex: 1 }}
+                  />
+                </div>
+                {errors.exitDate && <p className="text-sm text-red-500 mt-1">{errors.exitDate}</p>}
+                <p className="text-xs text-slate-500 mt-1">Required while the employee is inactive.</p>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Company</label>
               <Input

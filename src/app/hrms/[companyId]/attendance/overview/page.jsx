@@ -41,6 +41,14 @@ const AttendanceOverviewPage = () => {
   const [modalFilterType, setModalFilterType] = useState(null);
   const [modalTitle, setModalTitle] = useState('');
 
+  const getLocalDateYyyyMmDd = () => {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
   // Fetch employees list
   useEffect(() => {
     const fetchEmployees = async () => {
@@ -96,7 +104,7 @@ const AttendanceOverviewPage = () => {
           }
         }
         
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalDateYyyyMmDd();
         const timestamp = Date.now(); // Cache-busting timestamp
         
         const params = new URLSearchParams();
@@ -368,7 +376,33 @@ const AttendanceOverviewPage = () => {
 
   // Get filtered employees based on card type
   const getFilteredEmployees = (filterType) => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateYyyyMmDd();
+
+    const normalizeId = (v) => {
+      if (v == null) return null;
+      const s = String(v).trim();
+      return s ? s : null;
+    };
+
+    const isSameLocalDay = (dateValue, yyyyMmDd) => {
+      if (!dateValue || !yyyyMmDd) return false;
+      const s = String(dateValue);
+      // Backend sometimes returns ISO strings like "2026-04-14T00:00:00.000Z"
+      if (s === yyyyMmDd) return true;
+      return s.startsWith(`${yyyyMmDd}T`) || s.startsWith(`${yyyyMmDd} `) || s.startsWith(yyyyMmDd);
+    };
+
+    const getEmployeeIdCandidates = (emp) => {
+      const candidates = [
+        emp?.biometricId,
+        emp?.employeeId,
+        emp?.employeeCode,
+        emp?.id,
+      ]
+        .map(normalizeId)
+        .filter(Boolean);
+      return Array.from(new Set(candidates));
+    };
     
     switch (filterType) {
       case 'total':
@@ -392,7 +426,7 @@ const AttendanceOverviewPage = () => {
       case 'present':
         const presentRecords = attendance.filter(a => {
           const matchesStatus = a.status === 'present';
-          const matchesDate = a.date === today;
+          const matchesDate = isSameLocalDay(a.date, today);
           return matchesStatus && matchesDate;
         });
         console.log(`[Attendance Overview] Filtering 'present': Found ${presentRecords.length} records out of ${attendance.length} total`);
@@ -412,24 +446,31 @@ const AttendanceOverviewPage = () => {
         // Get all employees and find those not present today
         const presentIds = new Set(
           attendance
-            .filter(a => a.status === 'present' && a.date === today)
-            .map(a => a.biometricId)
+            .filter(a => a.status === 'present' && isSameLocalDay(a.date, today))
+            .map(a => normalizeId(a.biometricId))
+            .filter(Boolean)
         );
         const onLeaveIds = new Set(
           attendance
-            .filter(a => a.status === 'on-leave' && a.date === today)
-            .map(a => a.biometricId)
+            .filter(a => a.status === 'on-leave' && isSameLocalDay(a.date, today))
+            .map(a => normalizeId(a.biometricId))
+            .filter(Boolean)
         );
         const wfhIds = new Set(
           attendance
-            .filter(a => (a.status === 'wfh' || a.status === 'work-from-home') && a.date === today)
-            .map(a => a.biometricId)
+            .filter(a => (a.status === 'wfh' || a.status === 'work-from-home') && isSameLocalDay(a.date, today))
+            .map(a => normalizeId(a.biometricId))
+            .filter(Boolean)
         );
         
         return employees
           .filter(emp => {
-            const empId = emp.biometricId || emp.employeeCode || emp.id;
-            return !presentIds.has(empId) && !onLeaveIds.has(empId) && !wfhIds.has(empId);
+            const candidates = getEmployeeIdCandidates(emp);
+            // If any identifier matches a "present/leave/wfh" identifier, exclude from absent list.
+            const isPresent = candidates.some((id) => presentIds.has(id));
+            const isOnLeave = candidates.some((id) => onLeaveIds.has(id));
+            const isWfh = candidates.some((id) => wfhIds.has(id));
+            return !isPresent && !isOnLeave && !isWfh;
           })
           .map(emp => ({
             employeeCode: emp.biometricId || emp.employeeCode || emp.id,
@@ -443,7 +484,7 @@ const AttendanceOverviewPage = () => {
       
       case 'on-leave':
         return attendance
-          .filter(a => a.status === 'on-leave' && a.date === today)
+          .filter(a => a.status === 'on-leave' && isSameLocalDay(a.date, today))
           .map(a => ({
             employeeCode: a.biometricId,
             employeeName: a.employeeName,
@@ -456,7 +497,7 @@ const AttendanceOverviewPage = () => {
       
       case 'wfh':
         return attendance
-          .filter(a => (a.status === 'wfh' || a.status === 'work-from-home') && a.date === today)
+          .filter(a => (a.status === 'wfh' || a.status === 'work-from-home') && isSameLocalDay(a.date, today))
           .map(a => ({
             employeeCode: a.biometricId,
             employeeName: a.employeeName,
@@ -469,7 +510,7 @@ const AttendanceOverviewPage = () => {
       
       case 'late':
         return attendance
-          .filter(a => (a.isLate || (a.status === 'present' && a.timeIn)) && a.date === today)
+          .filter(a => (a.isLate || (a.status === 'present' && a.timeIn)) && isSameLocalDay(a.date, today))
           .map(a => ({
             employeeCode: a.biometricId,
             employeeName: a.employeeName,
@@ -581,6 +622,25 @@ const AttendanceOverviewPage = () => {
       key: 'timeOut',
       title: 'Check-out',
       render: (value) => <span className="text-slate-700">{value || '--:--'}</span>
+    },
+    {
+      key: 'source',
+      title: 'Check-in Type',
+      render: (value) => {
+        const v = String(value || '').toLowerCase();
+        const label = v === 'machine' ? 'Machine' : v === 'manual' ? 'Manual' : (value || '--');
+        const cls =
+          v === 'machine'
+            ? 'bg-indigo-100 text-indigo-800 border-indigo-200'
+            : v === 'manual'
+              ? 'bg-slate-100 text-slate-800 border-slate-200'
+              : 'bg-gray-100 text-gray-800 border-gray-200';
+        return (
+          <span className={`px-2 py-1 rounded-full text-xs font-medium border ${cls}`}>
+            {label}
+          </span>
+        );
+      }
     },
     {
       key: 'totalHours',
@@ -961,6 +1021,25 @@ const AttendanceOverviewPage = () => {
                   key: 'checkOut',
                   title: 'Check-out',
                   render: (value) => <span className="text-slate-700">{value}</span>
+                },
+                {
+                  key: 'source',
+                  title: 'Check-in Type',
+                  render: (value) => {
+                    const v = String(value || '').toLowerCase();
+                    const label = v === 'machine' ? 'Machine' : v === 'manual' ? 'Manual' : (value || '--');
+                    const cls =
+                      v === 'machine'
+                        ? 'bg-indigo-100 text-indigo-800 border-indigo-200'
+                        : v === 'manual'
+                          ? 'bg-slate-100 text-slate-800 border-slate-200'
+                          : 'bg-gray-100 text-gray-800 border-gray-200';
+                    return (
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium border ${cls}`}>
+                        {label}
+                      </span>
+                    );
+                  }
                 },
                 {
                   key: 'status',

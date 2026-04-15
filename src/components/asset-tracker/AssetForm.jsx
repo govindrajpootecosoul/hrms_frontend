@@ -2,9 +2,8 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams } from 'next/navigation';
-import { Link as LinkIcon, Calendar, ChevronDown } from 'lucide-react';
+import { Calendar, ChevronDown } from 'lucide-react';
 import Button from '@/components/common/Button';
-import Input from '@/components/common/Input';
 import EmployeeSelect from '@/components/common/EmployeeSelect';
 import { API_BASE_URL, ASSET_STATUS } from '@/lib/utils/constants';
 
@@ -49,6 +48,8 @@ const AssetForm = ({
 
   const [errors, setErrors] = useState({});
   const [assetTagId, setAssetTagId] = useState(asset?.assetTag || '');
+  /** When true (new asset only), category/subcategory changes do not overwrite the tag field */
+  const [assetTagTouched, setAssetTagTouched] = useState(false);
   const [selectOpen, setSelectOpen] = useState({});
   const [usersData, setUsersData] = useState([]);
   const [settingsCategories, setSettingsCategories] = useState([]);
@@ -128,6 +129,15 @@ const AssetForm = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [asset]);
 
+  useEffect(() => {
+    if (asset) {
+      setAssetTagId(asset.assetTag || '');
+    } else {
+      setAssetTagId('');
+      setAssetTagTouched(false);
+    }
+  }, [asset]);
+
   // Listen for settings updates (real-time refresh)
   useEffect(() => {
     const handleCategoriesUpdate = () => {
@@ -205,19 +215,18 @@ const AssetForm = ({
     return [{ value: '', label: 'Select Status' }, ...base];
   }, []);
 
-  // Generate Asset Tag ID when category and subcategory are selected (only for new assets)
+  // Suggest Asset Tag ID when category and subcategory are selected (new assets, until user edits manually)
   useEffect(() => {
-    if (!isEditMode && formData.category && formData.subcategory) {
+    if (!isEditMode && !assetTagTouched && formData.category && formData.subcategory) {
       const prefix = categoryMapping[formData.category]?.[formData.subcategory];
       if (prefix) {
-        // Generate a random 3-digit number
         const randomNum = Math.floor(Math.random() * 900) + 100;
         setAssetTagId(`${prefix}-${randomNum}`);
       } else {
         setAssetTagId('');
       }
     }
-  }, [formData.category, formData.subcategory, isEditMode]);
+  }, [formData.category, formData.subcategory, isEditMode, assetTagTouched, categoryMapping]);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({
@@ -231,6 +240,12 @@ const AssetForm = ({
         ...prev,
         [field]: ''
       }));
+    }
+
+    if (field === 'category' || field === 'subcategory') {
+      if (errors.assetTag) {
+        setErrors(prev => ({ ...prev, assetTag: '' }));
+      }
     }
 
     // Reset subcategory when category changes
@@ -249,6 +264,7 @@ const AssetForm = ({
       case 1:
         if (!formData.category) newErrors.category = 'Category is required';
         if (!formData.subcategory) newErrors.subcategory = 'Sub Category is required';
+        if (!(assetTagId || '').trim()) newErrors.assetTag = 'Asset Tag ID is required';
         if (!formData.site) newErrors.site = 'Site is required';
         if (!formData.location) newErrors.location = 'Location is required';
         break;
@@ -277,7 +293,7 @@ const AssetForm = ({
     if (validateStep(currentStep)) {
       onSubmit({
         ...formData,
-        assetTag: isEditMode ? (asset?.assetTag || assetTagId) : assetTagId,
+        assetTag: (assetTagId || '').trim(),
         ...(isEditMode ? { updatedAt: new Date().toISOString() } : { 
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
@@ -413,17 +429,57 @@ const AssetForm = ({
           {renderCompactSelect('category', 'Category', true)}
           {renderCompactSelect('subcategory', 'Sub Category', true)}
           
-          {/* Generated Asset Tag ID */}
           <div className="md:col-span-2 space-y-1">
             <label className="block text-xs font-medium text-neutral-700">
-              Asset Tag ID
+              Asset Tag ID <span className="text-red-500">*</span>
             </label>
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg">
-              <LinkIcon className="w-3 h-3 text-blue-600 flex-shrink-0" />
-              <span className="text-xs font-mono text-blue-900">
-                {isEditMode ? (asset?.assetTag || assetTagId) : (assetTagId || 'Select Category and Sub Category to generate')}
-              </span>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                value={assetTagId}
+                onChange={(e) => {
+                  setAssetTagId(e.target.value);
+                  if (!isEditMode) setAssetTagTouched(true);
+                  if (errors.assetTag) setErrors(prev => ({ ...prev, assetTag: '' }));
+                }}
+                placeholder={
+                  isEditMode
+                    ? 'Enter or edit asset tag ID'
+                    : 'Type your own ID or use suggested tag from category'
+                }
+                className={`flex-1 px-3 py-1.5 text-sm font-mono rounded-lg border focus:ring-2 focus:ring-blue-200 focus:border-blue-300 ${
+                  errors.assetTag ? 'border-red-500' : 'border-neutral-300'
+                }`}
+              />
+              {!isEditMode && (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    const prefix = categoryMapping[formData.category]?.[formData.subcategory];
+                    if (prefix) {
+                      const randomNum = Math.floor(Math.random() * 900) + 100;
+                      setAssetTagId(`${prefix}-${randomNum}`);
+                      setAssetTagTouched(false);
+                      if (errors.assetTag) setErrors(prev => ({ ...prev, assetTag: '' }));
+                    }
+                  }}
+                  disabled={
+                    !formData.category ||
+                    !formData.subcategory ||
+                    !categoryMapping[formData.category]?.[formData.subcategory]
+                  }
+                  className="whitespace-nowrap bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 text-xs py-1.5 shrink-0"
+                >
+                  Generate from category
+                </Button>
+              )}
             </div>
+            {errors.assetTag && <p className="text-xs text-red-600">{errors.assetTag}</p>}
+            <p className="text-xs text-neutral-500">
+              {isEditMode
+                ? 'You can update this value if your physical tag or records change. Keep it unique where possible.'
+                : 'Choosing category and subcategory suggests a tag automatically until you edit this field. Use Generate to apply a new suggested tag.'}
+            </p>
           </div>
           
           {renderCompactSelect('site', 'Site', true)}

@@ -3,7 +3,7 @@
 const raw = process.env.NEXT_PUBLIC_API_URL && String(process.env.NEXT_PUBLIC_API_URL).trim();
 if (!raw) {
   throw new Error(
-    'NEXT_PUBLIC_API_URL is required. Set it in .env or .env.local (e.g. http://localhost:5008/api). The app will not start without it.'
+    'NEXT_PUBLIC_API_URL is required. Set it in .env or .env.local (e.g. http://192.168.50.107:5008/api). The app will not start without it.'
   );
 }
 

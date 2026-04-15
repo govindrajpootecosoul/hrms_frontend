@@ -159,6 +159,15 @@ export default function ViewEmployeeDetailsDialog({
               </label>
               <p className="text-sm text-slate-900 mt-1">{formatDate(employee.joiningDate) || 'Not provided'}</p>
             </div>
+            {(employee.status === 'Inactive' || employee.exitDate) && (
+              <div>
+                <label className="text-sm font-medium text-slate-600 flex items-center gap-1">
+                  <Calendar className="w-4 h-4" />
+                  Exit date
+                </label>
+                <p className="text-sm text-slate-900 mt-1">{formatDate(employee.exitDate) || 'Not provided'}</p>
+              </div>
+            )}
             <div>
               <label className="text-sm font-medium text-slate-600">Tenure</label>
               <p className="text-sm text-slate-900 mt-1">{employee.tenure || 'Not provided'}</p>

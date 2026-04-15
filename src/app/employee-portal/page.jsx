@@ -33,7 +33,8 @@ const loadInitialState = (employeeId = null) => {
   return { 
     date: getTodayKey(), 
     status: 'checked-out', 
-    checkInTime: null, 
+    checkInTime: null,
+    earliestPunchInTime: null,
     totalMinutes: 0, 
     history: [],
     employeeId: employeeId // Track which employee this state belongs to
@@ -52,6 +53,23 @@ const formatTime = (iso) => {
   const date = new Date(iso);
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
+
+/** Backend totalMinutes includes the open session; strip it so workedMinutes can add live elapsed from checkInTime. */
+function baseMinutesFromCheckinStatus({ status, checkInTime, totalMinutes }) {
+  let baseMinutes = totalMinutes || 0;
+  if (status === 'checked-in' && checkInTime) {
+    try {
+      const checkInTimeDate = new Date(checkInTime);
+      const nowDate = new Date();
+      const currentSessionMinutes = Math.max(0, (nowDate.getTime() - checkInTimeDate.getTime()) / 60000);
+      baseMinutes = Math.max(0, (totalMinutes || 0) - currentSessionMinutes);
+    } catch (e) {
+      console.error('Error calculating base minutes:', e);
+      baseMinutes = totalMinutes || 0;
+    }
+  }
+  return baseMinutes;
+}
 
 const EmployeePortalHome = () => {
   const { user } = useAuth();
@@ -163,27 +181,18 @@ const EmployeePortalHome = () => {
         if (res.ok) {
           const json = await res.json();
           if (json?.success && json?.data) {
-            const { status, checkInTime, totalMinutes } = json.data;
-            
-            // Calculate base minutes (without current session elapsed time) for checked-in status
-            // For checked-out status, use totalMinutes as-is (it's the final total)
-            let baseMinutes = totalMinutes || 0;
-            if (status === 'checked-in' && checkInTime) {
-              try {
-                const checkInTimeDate = new Date(checkInTime);
-                const nowDate = new Date();
-                const currentSessionMinutes = Math.max(0, (nowDate.getTime() - checkInTimeDate.getTime()) / 60000);
-                baseMinutes = Math.max(0, (totalMinutes || 0) - currentSessionMinutes);
-              } catch (e) {
-                console.error('Error calculating base minutes:', e);
-                baseMinutes = totalMinutes || 0;
-              }
-            }
+            const { status, checkInTime, totalMinutes, earliestPunchInTime } = json.data;
+            const baseMinutes = baseMinutesFromCheckinStatus({
+              status,
+              checkInTime,
+              totalMinutes,
+            });
             
             setTimeState((prev) => ({
               ...prev,
               status: status || 'checked-out',
               checkInTime: checkInTime || null,
+              earliestPunchInTime: earliestPunchInTime || null,
               totalMinutes: baseMinutes, // Base minutes for checked-in, full totalMinutes for checked-out
               date: getTodayKey(),
               employeeId: user.employeeId, // Ensure employeeId is set
@@ -374,12 +383,18 @@ const EmployeePortalHome = () => {
           if (res.ok) {
             const json = await res.json();
             if (json?.success && json?.data) {
-              const { status, checkInTime, totalMinutes } = json.data;
+              const { status, checkInTime, totalMinutes, earliestPunchInTime } = json.data;
+              const baseMinutes = baseMinutesFromCheckinStatus({
+                status,
+                checkInTime,
+                totalMinutes,
+              });
               setTimeState({
                 date: getTodayKey(),
                 status: status || 'checked-out',
                 checkInTime: checkInTime || null,
-                totalMinutes: totalMinutes || 0,
+                earliestPunchInTime: earliestPunchInTime || null,
+                totalMinutes: baseMinutes,
                 history: [],
                 employeeId: user.employeeId,
               });
@@ -453,6 +468,7 @@ const EmployeePortalHome = () => {
               date: getTodayKey(),
               status: 'checked-in',
               checkInTime: validCheckInTime,
+              earliestPunchInTime: null,
               totalMinutes: accumulatedMinutes, // Resume from accumulated time, not 0
               history: [{ action: 'Checked in', time: timestamp }],
               employeeId: user.employeeId,
@@ -491,25 +507,19 @@ const EmployeePortalHome = () => {
                 if (statusRes.ok) {
                   const statusJson = await statusRes.json();
                   if (statusJson?.success && statusJson?.data) {
-                    const { status, checkInTime, totalMinutes } = statusJson.data;
+                    const { status, checkInTime, totalMinutes, earliestPunchInTime } = statusJson.data;
                     // Only update if we got a valid checkInTime from backend
                     if (checkInTime) {
-                      // Extract base minutes (without current session elapsed time) so timer can calculate correctly
-                      // Backend returns totalMinutes that includes current session time, but we need base for timer calculation
-                      let baseMinutes = totalMinutes || 0;
-                      try {
-                        const checkInTimeDate = new Date(checkInTime);
-                        const nowDate = new Date();
-                        const currentSessionMinutes = Math.max(0, (nowDate.getTime() - checkInTimeDate.getTime()) / 60000);
-                        baseMinutes = Math.max(0, (totalMinutes || 0) - currentSessionMinutes);
-                      } catch (e) {
-                        console.error('Error calculating base minutes in refresh:', e);
-                      }
-                      
+                      const baseMinutes = baseMinutesFromCheckinStatus({
+                        status,
+                        checkInTime,
+                        totalMinutes,
+                      });
                       setTimeState(prev => ({
                         ...prev,
                         status: status || 'checked-in',
                         checkInTime: checkInTime,
+                        earliestPunchInTime: earliestPunchInTime || null,
                         totalMinutes: baseMinutes, // Store base minutes (accumulated from previous sessions only)
                         employeeId: user.employeeId,
                       }));
@@ -544,6 +554,7 @@ const EmployeePortalHome = () => {
                       date: getTodayKey(),
                       status: 'checked-out',
                       checkInTime: null,
+                      earliestPunchInTime: null,
                       totalMinutes: totalMinutes,
                       history: [
                         { action: 'Checked out', time: timestamp, meta: `${sessionHours.toFixed(1)} hrs logged` },
@@ -661,9 +672,18 @@ const EmployeePortalHome = () => {
                   />
                 </div>
                 <p className="mt-1 text-xs text-slate-600">
-                  {timeState.status === 'checked-in' && timeState.checkInTime
-                    ? `Checked in at ${formatTime(timeState.checkInTime)}`
-                    : 'Not checked in yet'}
+                  {timeState.status === 'checked-in' && timeState.checkInTime ? (
+                    <>
+                      Checked in at {formatTime(timeState.checkInTime)}
+                      {timeState.earliestPunchInTime ? (
+                        <span className="block text-slate-500 mt-0.5">
+                          First office punch {formatTime(timeState.earliestPunchInTime)}
+                        </span>
+                      ) : null}
+                    </>
+                  ) : (
+                    'Not checked in yet'
+                  )}
                 </p>
               </div>
               <div className="flex flex-col gap-3">

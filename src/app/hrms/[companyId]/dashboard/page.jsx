@@ -104,6 +104,14 @@ const Dashboard = () => {
   const [employees, setEmployees] = useState([]);
   const [attendance, setAttendance] = useState([]);
 
+  const getLocalDateYyyyMmDd = useCallback(() => {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }, []);
+
   useEffect(() => {
     // Fetch live data from API
     const loadData = async () => {
@@ -128,7 +136,7 @@ const Dashboard = () => {
 
         // Fetch attendance stats directly (same as Attendance Overview)
         // Add cache-busting timestamp to ensure fresh data
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalDateYyyyMmDd();
         const timestamp = Date.now();
         const attendanceStatsParams = new URLSearchParams();
         attendanceStatsParams.append('date', today);
@@ -315,7 +323,7 @@ const Dashboard = () => {
         
         // Fetch attendance stats to get updated Present, Absent, WFH, etc.
         // Add cache-busting timestamp to ensure fresh data
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalDateYyyyMmDd();
         const timestamp = Date.now();
         const attendanceStatsParams = new URLSearchParams();
         attendanceStatsParams.append('date', today);
@@ -435,7 +443,7 @@ const Dashboard = () => {
           }
         }
         
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalDateYyyyMmDd();
         const timestamp = Date.now();
         
         const params = new URLSearchParams();
@@ -476,7 +484,7 @@ const Dashboard = () => {
 
   // Filter employees by status
   const getFilteredEmployees = (filterType) => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateYyyyMmDd();
     
     switch (filterType) {
       case 'present':
@@ -599,7 +607,7 @@ const Dashboard = () => {
       XLSX.utils.book_append_sheet(wb, ws, 'Employees');
 
       // Generate filename with current date
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalDateYyyyMmDd();
       const filename = `${modalTitle}_${today}.xlsx`;
 
       // Write file
@@ -609,7 +617,7 @@ const Dashboard = () => {
       console.error('Export error:', error);
       toast.error('Failed to export to Excel');
     }
-  }, [modalFilterType, modalTitle, toast]);
+  }, [modalFilterType, modalTitle, toast, getLocalDateYyyyMmDd]);
 
   // Process birthdays and anniversaries for calendar
   // IMPORTANT: This hook must be called before any conditional returns

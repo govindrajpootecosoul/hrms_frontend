@@ -19,10 +19,12 @@ import {
   Trash2,
   Download,
   Upload,
-  Eye
+  Eye,
+  UserX
 } from 'lucide-react';
 import Card from '@/components/common/Card';
 import Button from '@/components/common/Button';
+import Modal from '@/components/common/Modal';
 import AddEmployeeDialog from './components/AddEmployeeDialog';
 import ConfirmationDialog from './components/ConfirmationDialog';
 import ViewEmployeeDetailsDialog from './components/ViewEmployeeDetailsDialog';
@@ -44,6 +46,13 @@ export default function EmployeesPage() {
   const [dropdownDirection, setDropdownDirection] = useState('down'); // 'up' or 'down'
   const [statusEditEmployeeId, setStatusEditEmployeeId] = useState(null);
   const [statusSavingByEmployeeId, setStatusSavingByEmployeeId] = useState({});
+  /** 'current' = active employees only; 'ex' = inactive (former employees) */
+  const [rosterTab, setRosterTab] = useState('current');
+  const [inactiveDialog, setInactiveDialog] = useState({
+    open: false,
+    employee: null,
+    exitDate: '',
+  });
   
   // Dialog states
   const [deleteDialog, setDeleteDialog] = useState({ open: false, employee: null });
@@ -255,6 +264,7 @@ export default function EmployeesPage() {
                 status: user.active !== false ? 'Active' : 'Inactive',
                 tenure: tenure,
                 joiningDate: user.joiningDate || user.createdAt,
+                exitDate: user.exitDate || '',
                 hasCredentialAccess: user.hasCredentialAccess !== false,
                 hasSubscriptionAccess: user.hasSubscriptionAccess !== false,
                 role: user.role || 'user',
@@ -372,6 +382,12 @@ export default function EmployeesPage() {
           location: employeeData.location !== undefined ? employeeData.location : '',
           reportingManager: employeeData.reportingManager !== undefined ? employeeData.reportingManager : '',
           joiningDate: employeeData.joiningDate !== undefined ? employeeData.joiningDate : '',
+          exitDate:
+            employeeData.status === 'Inactive'
+              ? (employeeData.exitDate !== undefined && employeeData.exitDate !== null
+                  ? employeeData.exitDate
+                  : (employeeToEdit?.exitDate ?? ''))
+              : null,
           emp_code: employeeData.emp_code !== undefined ? employeeData.emp_code : '',
           card_no: employeeData.card_no !== undefined ? employeeData.card_no : '',
           
@@ -537,25 +553,52 @@ export default function EmployeesPage() {
     }
   };
 
-  const setEmployeeStatusLocal = (employeeId, newStatus) => {
+  const setEmployeeFieldsLocal = (employeeId, partial) => {
     setEmployees((prev) =>
       prev.map((emp) => {
         const id = emp.id || emp._id;
         if (String(id) !== String(employeeId)) return emp;
-        return { ...emp, status: newStatus };
+        return { ...emp, ...partial };
       })
     );
   };
 
-  const updateEmployeeStatus = async (employee, newStatus) => {
+  const formatCellDate = (val) => {
+    if (!val) return '-';
+    try {
+      if (typeof val === 'string' && val.includes('T')) {
+        return new Date(val).toLocaleDateString('en-GB');
+      }
+      if (val instanceof Date) return val.toLocaleDateString('en-GB');
+      return String(val);
+    } catch {
+      return '-';
+    }
+  };
+
+  const handleEmployeeStatusChange = (employee, nextStatus) => {
+    if (nextStatus === 'Inactive') {
+      const today = new Date().toISOString().slice(0, 10);
+      setInactiveDialog({ open: true, employee, exitDate: today });
+      return;
+    }
+    updateEmployeeStatus(employee, nextStatus);
+  };
+
+  const updateEmployeeStatus = async (employee, newStatus, options = {}) => {
     const empId = employee?.id || employee?._id;
     if (!empId) return;
 
-    const previousStatus = employee.status;
+    const previousSnapshot = {
+      status: employee.status,
+      exitDate: employee.exitDate ?? '',
+    };
     setStatusEditEmployeeId(null);
 
     setStatusSavingByEmployeeId((prev) => ({ ...prev, [empId]: true }));
-    setEmployeeStatusLocal(empId, newStatus);
+    if (newStatus === 'Active') {
+      setEmployeeFieldsLocal(empId, { status: 'Active', exitDate: null });
+    }
 
     try {
       const company = resolveCompanyName();
@@ -564,22 +607,37 @@ export default function EmployeesPage() {
         apiUrl += `?company=${encodeURIComponent(company)}`;
       }
 
+      const body =
+        newStatus === 'Active'
+          ? { active: true }
+          : { active: false, exitDate: options.exitDate };
+
       const response = await fetch(apiUrl, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          active: newStatus === 'Active',
-        }),
+        body: JSON.stringify(body),
       });
 
       const data = await response.json().catch(() => null);
       if (!response.ok || !data?.success) {
         throw new Error(data?.error || `Failed to update status (HTTP ${response.status})`);
       }
+
+      if (newStatus === 'Inactive') {
+        setEmployeeFieldsLocal(empId, {
+          status: 'Inactive',
+          exitDate: options.exitDate || '',
+        });
+      }
     } catch (err) {
-      setEmployeeStatusLocal(empId, previousStatus);
+      if (newStatus === 'Active') {
+        setEmployeeFieldsLocal(empId, {
+          status: previousSnapshot.status,
+          exitDate: previousSnapshot.exitDate,
+        });
+      }
       setErrorDialog({ open: true, message: err.message || 'Failed to update status' });
     } finally {
       setStatusSavingByEmployeeId((prev) => ({ ...prev, [empId]: false }));
@@ -819,6 +877,7 @@ export default function EmployeesPage() {
   // Calculate KPI metrics
   const totalEmployees = employees.length;
   const activeEmployees = employees.filter((emp) => emp.status === 'Active').length;
+  const exEmployeesCount = employees.filter((emp) => emp.status === 'Inactive').length;
   const departments = [...new Set(employees.map(emp => emp.department))];
   const departmentsCount = departments.length;
   const currentMonth = new Date().getMonth();
@@ -832,6 +891,8 @@ export default function EmployeesPage() {
   // Filter employees
   const filteredEmployees = useMemo(() => {
     return employees.filter((emp) => {
+      if (rosterTab === 'current' && emp.status !== 'Active') return false;
+      if (rosterTab === 'ex' && emp.status !== 'Inactive') return false;
       const searchLower = searchQuery.toLowerCase();
       const matchesSearch = !searchQuery || 
                            (emp.name || '').toLowerCase().includes(searchLower) ||
@@ -844,7 +905,9 @@ export default function EmployeesPage() {
       const matchesLocation = locationFilter === 'All Locations' || emp.location === locationFilter;
       return matchesSearch && matchesDepartment && matchesLocation;
     });
-  }, [searchQuery, departmentFilter, locationFilter, employees]);
+  }, [searchQuery, departmentFilter, locationFilter, employees, rosterTab]);
+
+  const listTableColSpan = rosterTab === 'ex' ? 18 : 14;
 
   // Gradient colors for employee cards
   const gradients = [
@@ -941,10 +1004,42 @@ export default function EmployeesPage() {
       </div>
 
       {/* Page Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Employees</h1>
-          <p className="text-sm text-slate-600 mt-1">Manage your company employees</p>
+          <p className="text-sm text-slate-600 mt-1">
+            {rosterTab === 'ex'
+              ? `Former employees (${exEmployeesCount}) — exit date and full records`
+              : 'Manage your company employees'}
+          </p>
+          <div className="flex flex-wrap gap-2 mt-3">
+            <button
+              type="button"
+              onClick={() => setRosterTab('current')}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                rosterTab === 'current'
+                  ? 'bg-slate-900 text-white border-slate-900'
+                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+              }`}
+            >
+              <UserCheck className="w-4 h-4" />
+              Current employees
+              <span className="text-xs opacity-80">({activeEmployees})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setRosterTab('ex')}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                rosterTab === 'ex'
+                  ? 'bg-slate-900 text-white border-slate-900'
+                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+              }`}
+            >
+              <UserX className="w-4 h-4" />
+              Ex-employees
+              <span className="text-xs opacity-80">({exEmployeesCount})</span>
+            </button>
+          </div>
         </div>
         <div className="flex gap-2">
           <Button
@@ -1119,6 +1214,16 @@ export default function EmployeesPage() {
                         <p className="text-sm font-medium group-hover:text-white transition-colors">{employee.location || '-'}</p>
                       </div>
                     </div>
+                    {rosterTab === 'ex' && (
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs text-muted-foreground group-hover:text-white/80 transition-colors">Exit date</p>
+                          <p className="text-sm font-medium group-hover:text-white transition-colors">
+                            {formatCellDate(employee.exitDate)}
+                          </p>
+                        </div>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-xs text-muted-foreground group-hover:text-white/80 transition-colors">Status</p>
@@ -1127,7 +1232,7 @@ export default function EmployeesPage() {
                           disabled={statusSavingByEmployeeId[employee.id || employee._id]}
                           onChange={(e) => {
                             const nextStatus = e.target.value;
-                            updateEmployeeStatus(employee, nextStatus);
+                            handleEmployeeStatusChange(employee, nextStatus);
                           }}
                           onClick={(e) => e.stopPropagation()}
                           className={`mt-1 px-2 py-1 rounded-full text-xs font-medium transition-colors border border-transparent outline-none ${
@@ -1247,6 +1352,16 @@ export default function EmployeesPage() {
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">DEPARTMENT</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">COMPANY</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">LOCATION</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">EMP CODE</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">CARD NO</th>
+                  {rosterTab === 'ex' && (
+                    <>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">PHONE</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">JOINING DATE</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">EXIT DATE</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">REPORTING MGR</th>
+                    </>
+                  )}
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">STATUS</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">CREDENTIAL ACCESS</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">SUBSCRIPTION ACCESS</th>
@@ -1257,19 +1372,19 @@ export default function EmployeesPage() {
               <tbody className="bg-white divide-y divide-slate-200">
                 {loading ? (
                   <tr>
-                    <td colSpan={12} className="px-4 py-8 text-center text-slate-500">
+                    <td colSpan={listTableColSpan} className="px-4 py-8 text-center text-slate-500">
                       Loading employees...
                     </td>
                   </tr>
                 ) : error ? (
                   <tr>
-                    <td colSpan={12} className="px-4 py-8 text-center text-red-500">
+                    <td colSpan={listTableColSpan} className="px-4 py-8 text-center text-red-500">
                       Error: {error}
                     </td>
                   </tr>
                 ) : filteredEmployees.length === 0 ? (
                   <tr>
-                    <td colSpan={12} className="px-4 py-8 text-center text-slate-500">
+                    <td colSpan={listTableColSpan} className="px-4 py-8 text-center text-slate-500">
                       No employees found
                     </td>
                   </tr>
@@ -1306,12 +1421,36 @@ export default function EmployeesPage() {
                       <div className="text-sm text-slate-600">{employee.location || '-'}</div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="text-sm text-slate-600">{employee.emp_code || '-'}</div>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="text-sm text-slate-600">{employee.card_no || '-'}</div>
+                    </td>
+                    {rosterTab === 'ex' && (
+                      <>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <div className="text-sm text-slate-600">{employee.phone || '-'}</div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <div className="text-sm text-slate-600">{formatCellDate(employee.joiningDate)}</div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-slate-800">{formatCellDate(employee.exitDate)}</div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <div className="text-sm text-slate-600 max-w-[140px] truncate" title={employee.reportingManager || ''}>
+                            {employee.reportingManager || '-'}
+                          </div>
+                        </td>
+                      </>
+                    )}
+                    <td className="px-4 py-4 whitespace-nowrap">
                       <select
                         value={employee.status === 'Inactive' ? 'Inactive' : 'Active'}
                         disabled={statusSavingByEmployeeId[employee.id || employee._id]}
                         onChange={(e) => {
                           const nextStatus = e.target.value;
-                          updateEmployeeStatus(employee, nextStatus);
+                          handleEmployeeStatusChange(employee, nextStatus);
                         }}
                         onClick={(e) => e.stopPropagation()}
                         className={`px-2 py-1 rounded-full text-xs font-medium border border-transparent outline-none ${
@@ -1501,6 +1640,70 @@ export default function EmployeesPage() {
         onClose={() => setViewDetailsDialog({ open: false, employee: null })}
         employee={viewDetailsDialog.employee}
       />
+
+      <Modal
+        isOpen={inactiveDialog.open}
+        onClose={() => {
+          const id = inactiveDialog.employee?.id || inactiveDialog.employee?._id;
+          if (id != null && statusSavingByEmployeeId[id]) return;
+          setInactiveDialog({ open: false, employee: null, exitDate: '' });
+        }}
+        title="Mark employee inactive"
+        size="sm"
+        footer={
+          <div className="flex gap-3 w-full justify-end">
+            <Button
+              type="button"
+              onClick={() => {
+                const id = inactiveDialog.employee?.id || inactiveDialog.employee?._id;
+                if (id != null && statusSavingByEmployeeId[id]) return;
+                setInactiveDialog({ open: false, employee: null, exitDate: '' });
+              }}
+              disabled={(() => {
+                const id = inactiveDialog.employee?.id || inactiveDialog.employee?._id;
+                return id != null && !!statusSavingByEmployeeId[id];
+              })()}
+              className="bg-white border border-neutral-300 text-neutral-700 hover:bg-neutral-50"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                const emp = inactiveDialog.employee;
+                const exitDate = inactiveDialog.exitDate;
+                if (!exitDate?.trim()) {
+                  setErrorDialog({ open: true, message: 'Please select an exit date.' });
+                  return;
+                }
+                if (!emp) return;
+                setInactiveDialog({ open: false, employee: null, exitDate: '' });
+                updateEmployeeStatus(emp, 'Inactive', { exitDate: exitDate.trim() });
+              }}
+              disabled={(() => {
+                const id = inactiveDialog.employee?.id || inactiveDialog.employee?._id;
+                return id != null && !!statusSavingByEmployeeId[id];
+              })()}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              Mark inactive
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm text-slate-600 mb-4">
+          Choose the last working day (exit date). This person will move to the Ex-employees list and can be reactivated later from that list.
+        </p>
+        <label className="block text-sm font-medium text-slate-700 mb-1">Exit date</label>
+        <input
+          type="date"
+          value={inactiveDialog.exitDate || ''}
+          onChange={(e) =>
+            setInactiveDialog((d) => ({ ...d, exitDate: e.target.value }))
+          }
+          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </Modal>
     </div>
   );
 }
