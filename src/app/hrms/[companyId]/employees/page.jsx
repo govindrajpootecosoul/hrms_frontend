@@ -37,6 +37,8 @@ export default function EmployeesPage() {
   const companyId = params?.companyId;
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
+  const [empCodeQuery, setEmpCodeQuery] = useState('');
+  const [empCodeSortDirection] = useState('asc'); // 'none' | 'asc' | 'desc'
   const [departmentFilter, setDepartmentFilter] = useState('All Departments');
   const [locationFilter, setLocationFilter] = useState('All Locations');
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'grid'
@@ -233,19 +235,31 @@ export default function EmployeesPage() {
           // Transform users to employee format with all fields
           const employeeList = data.users
             .map(user => {
-              // Calculate tenure from createdAt or joiningDate
+              // Calculate tenure from DOJ (joiningDate). Fallback to createdAt if DOJ missing.
               let tenure = '-';
-              if (user.createdAt) {
-                const createdDate = new Date(user.createdAt);
-                const now = new Date();
-                const years = Math.floor((now - createdDate) / (1000 * 60 * 60 * 24 * 365));
-                const months = Math.floor(((now - createdDate) % (1000 * 60 * 60 * 24 * 365)) / (1000 * 60 * 60 * 24 * 30));
-                if (years > 0) {
-                  tenure = `${years} year${years > 1 ? 's' : ''}`;
-                } else if (months > 0) {
-                  tenure = `${months} month${months > 1 ? 's' : ''}`;
-                } else {
-                  tenure = 'Less than a month';
+              const startDateRaw = user.joiningDate || user.createdAt;
+              if (startDateRaw) {
+                const startDate = new Date(startDateRaw);
+                if (!Number.isNaN(startDate.getTime())) {
+                  const now = new Date();
+                  const totalMonths =
+                    (now.getFullYear() - startDate.getFullYear()) * 12 +
+                    (now.getMonth() - startDate.getMonth()) -
+                    (now.getDate() < startDate.getDate() ? 1 : 0);
+
+                  const safeMonths = Math.max(0, totalMonths);
+                  const years = Math.floor(safeMonths / 12);
+                  const months = safeMonths % 12;
+
+                  if (years > 0 && months > 0) {
+                    tenure = `${years} year${years > 1 ? 's' : ''} ${months} month${months > 1 ? 's' : ''}`;
+                  } else if (years > 0) {
+                    tenure = `${years} year${years > 1 ? 's' : ''}`;
+                  } else if (months > 0) {
+                    tenure = `${months} month${months > 1 ? 's' : ''}`;
+                  } else {
+                    tenure = 'Less than a month';
+                  }
                 }
               }
               
@@ -888,9 +902,91 @@ export default function EmployeesPage() {
     return joinDate.getMonth() === currentMonth && joinDate.getFullYear() === currentYear;
   }).length;
 
+  const empCodes = useMemo(() => {
+    const eligible = (employees || []).filter((e) => {
+      if (rosterTab === 'current') return e?.status === 'Active';
+      if (rosterTab === 'ex') return e?.status === 'Inactive';
+      return true;
+    });
+    const set = new Set(
+      eligible.map((e) => (e?.emp_code ?? '').toString().trim()).filter(Boolean)
+    );
+    return Array.from(set).sort((a, b) =>
+      a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+    );
+  }, [employees, rosterTab]);
+
+  const toCsvValue = (value) => {
+    if (value === null || value === undefined) return '';
+    const s = String(value);
+    const escaped = s.replace(/"/g, '""');
+    return /[",\n\r]/.test(escaped) ? `"${escaped}"` : escaped;
+  };
+
+  const exportEmployeesCsv = () => {
+    const rows = filteredEmployees || [];
+    const headers = [
+      'Name',
+      'Employee ID',
+      'Email',
+      'Job Title',
+      'Department',
+      'Company',
+      'Location',
+      'EMP CODE',
+      'Card No',
+      'Phone',
+      'Joining Date',
+      'Exit Date',
+      'Reporting Manager',
+      'Status',
+      'Tenure',
+    ];
+
+    const lines = [
+      headers.map(toCsvValue).join(','),
+      ...rows.map((e) =>
+        [
+          e?.name,
+          e?.employeeId,
+          e?.email,
+          e?.jobTitle,
+          e?.department,
+          e?.company,
+          e?.location,
+          e?.emp_code,
+          e?.card_no,
+          e?.phone,
+          formatCellDate(e?.joiningDate),
+          formatCellDate(e?.exitDate),
+          e?.reportingManager,
+          e?.status,
+          e?.tenure,
+        ].map(toCsvValue).join(',')
+      ),
+    ];
+
+    const csv = lines.join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    const now = new Date();
+    const dateStamp = now.toISOString().slice(0, 10);
+    const rosterLabel = rosterTab === 'ex' ? 'ex-employees' : 'current-employees';
+    const filename = `employees_${rosterLabel}_${dateStamp}.csv`;
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   // Filter employees
   const filteredEmployees = useMemo(() => {
-    return employees.filter((emp) => {
+    const filtered = employees.filter((emp) => {
       if (rosterTab === 'current' && emp.status !== 'Active') return false;
       if (rosterTab === 'ex' && emp.status !== 'Inactive') return false;
       const searchLower = searchQuery.toLowerCase();
@@ -901,11 +997,28 @@ export default function EmployeesPage() {
                            (emp.employeeId || '').toLowerCase().includes(searchLower) ||
                            (emp.email || '').toLowerCase().includes(searchLower) ||
                            (emp.company || '').toLowerCase().includes(searchLower);
+      const empCodeLower = empCodeQuery.toLowerCase();
+      const matchesEmpCode =
+        !empCodeQuery || (emp.emp_code || '').toLowerCase().includes(empCodeLower);
       const matchesDepartment = departmentFilter === 'All Departments' || emp.department === departmentFilter;
       const matchesLocation = locationFilter === 'All Locations' || emp.location === locationFilter;
-      return matchesSearch && matchesDepartment && matchesLocation;
+      return matchesSearch && matchesEmpCode && matchesDepartment && matchesLocation;
     });
-  }, [searchQuery, departmentFilter, locationFilter, employees, rosterTab]);
+
+    if (empCodeSortDirection === 'none') return filtered;
+
+    const dir = empCodeSortDirection === 'asc' ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      const aCode = (a?.emp_code ?? '').toString().trim();
+      const bCode = (b?.emp_code ?? '').toString().trim();
+      const aEmpty = !aCode;
+      const bEmpty = !bCode;
+      if (aEmpty && bEmpty) return 0;
+      if (aEmpty) return 1; // empty last
+      if (bEmpty) return -1;
+      return dir * aCode.localeCompare(bCode, undefined, { numeric: true, sensitivity: 'base' });
+    });
+  }, [searchQuery, empCodeQuery, departmentFilter, locationFilter, employees, rosterTab, empCodeSortDirection]);
 
   const listTableColSpan = rosterTab === 'ex' ? 18 : 14;
 
@@ -1043,6 +1156,13 @@ export default function EmployeesPage() {
         </div>
         <div className="flex gap-2">
           <Button
+            onClick={exportEmployeesCsv}
+            className="bg-slate-900 text-white hover:bg-slate-800"
+            icon={<Download className="w-4 h-4" />}
+          >
+            Export CSV
+          </Button>
+          <Button
             onClick={handleDownloadTemplate}
             className="bg-green-600 text-white hover:bg-green-700"
             icon={<Download className="w-4 h-4" />}
@@ -1092,6 +1212,21 @@ export default function EmployeesPage() {
               </div>
             </div>
             <div className="flex gap-3 flex-wrap items-center">
+              <select
+                value={empCodeQuery || 'All EMP CODE'}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setEmpCodeQuery(v === 'All EMP CODE' ? '' : v);
+                }}
+                className="px-4 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+              >
+                <option>All EMP CODE</option>
+                {empCodes.map((code) => (
+                  <option key={code} value={code}>
+                    {code}
+                  </option>
+                ))}
+              </select>
               <select
                 value={departmentFilter}
                 onChange={(e) => setDepartmentFilter(e.target.value)}

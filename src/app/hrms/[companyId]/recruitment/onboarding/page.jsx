@@ -362,17 +362,18 @@ export default function OnboardingPage() {
   const handleEditCandidate = async (candidateId) => {
     try {
       const company = getCompanyName();
+      if (!company) {
+        alert('Company information is missing. Please select a company and refresh the page.');
+        return;
+      }
       const token = localStorage.getItem('auth_token');
       const headers = {
         ...(token ? { Authorization: `Bearer ${token}` } : {})
       };
-      // For HRMS Admin Portal - don't send company header to allow all data access
-      // if (company) {
-      //   headers['x-company'] = company;
-      // }
+      headers['x-company'] = company;
 
       // Fetch full candidate data from API
-      const res = await fetch(`/api/hrms-portal/recruitment/candidates/${candidateId}`, {
+      const res = await fetch(`/api/hrms-portal/recruitment/candidates/${candidateId}?company=${encodeURIComponent(company)}`, {
         method: 'GET',
         headers,
       });
@@ -580,10 +581,7 @@ export default function OnboardingPage() {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Contact</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Position</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Recruiter / Assigned HR</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Offer Status</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Joining Date</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Onboarding Stage</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Progress</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
@@ -611,18 +609,6 @@ export default function OnboardingPage() {
                     <div className="text-sm text-slate-600">{candidate.recruiter}</div>
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap">
-                    <select
-                      value={candidate.offerStatus}
-                      onChange={(e) => handleOfferStatusChange(candidate.id, e.target.value)}
-                      className={`px-2 py-1 rounded-full text-xs font-medium border-0 ${candidate.offerStatusColor} focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer`}
-                    >
-                      <option value="Sent">Sent</option>
-                      <option value="Pending">Pending</option>
-                      <option value="Accepted">Accepted</option>
-                      <option value="Declined">Declined</option>
-                    </select>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
                     <input
                       type="date"
                       value={(() => {
@@ -644,32 +630,6 @@ export default function OnboardingPage() {
                       className="text-sm text-slate-600 border border-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Set joining date"
                     />
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <select
-                      value={candidate.onboardingStage}
-                      onChange={(e) => handleOnboardingStageChange(candidate.id, e.target.value)}
-                      className={`px-2 py-1 rounded-full text-xs font-medium border-0 ${candidate.onboardingStageColor} focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer`}
-                    >
-                      <option value="Offer">Offer</option>
-                      <option value="Form">Form</option>
-                      <option value="Verification">Verification</option>
-                      <option value="Policy">Policy</option>
-                      <option value="Asset">Asset</option>
-                    </select>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <div className="w-24 bg-slate-200 rounded-full h-2">
-                        <div 
-                          className={`h-2 rounded-full ${
-                            candidate.progress === 100 ? 'bg-green-500' : 'bg-blue-500'
-                          }`}
-                          style={{ width: `${candidate.progress}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-slate-600 font-medium">{candidate.progress}%</span>
-                    </div>
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-2">

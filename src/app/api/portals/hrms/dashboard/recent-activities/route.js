@@ -7,30 +7,97 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const companyId = searchParams.get('companyId');
     const company = searchParams.get('company');
+    const department = searchParams.get('department'); // optional
+
+    const dateParam = searchParams.get('date');
+    const today = dateParam || new Date().toISOString().split('T')[0];
+    const isHm = (v) => typeof v === 'string' && /^\d{1,2}:\d{2}$/.test(v.trim());
+    const hmToIso = (day, hm) => {
+      if (!day || !hm || !isHm(hm)) return null;
+      const [h, m] = hm.trim().split(':').map(Number);
+      const hh = String(h).padStart(2, '0');
+      const mm = String(m).padStart(2, '0');
+      return `${day}T${hh}:${mm}:00`;
+    };
 
     // Build query params
     const params = new URLSearchParams();
     if (companyId) params.append('companyId', companyId);
     if (company) params.append('company', company);
+    if (department && department !== 'all') params.append('department', department);
 
     const queryString = params.toString();
 
     // Fetch recent activities from multiple sources
-    const [leavesResponse, employeesResponse] = await Promise.all([
+    const [leavesResponse, employeesResponse, attendanceResponse] = await Promise.all([
       // Recent leave approvals
       fetch(`${API_BASE_URL}/attendance/leaves?limit=10${queryString ? `&${queryString}` : ''}`).catch(() => null),
       // Recent employee additions
       fetch(`${API_BASE_URL}/admin-users?limit=10&sort=createdAt:desc${queryString ? `&${queryString}` : ''}`).catch(() => null),
+      // Today's attendance (manual + machine merged by backend)
+      fetch(`${API_BASE_URL}/hrms/attendance?date=${encodeURIComponent(today)}${queryString ? `&${queryString}` : ''}`).catch(() => null),
     ]);
 
     const activities = [];
+
+    // Process today's check-ins (present)
+    if (attendanceResponse && attendanceResponse.ok) {
+      const attendanceJson = await attendanceResponse.json().catch(() => null);
+      const records = attendanceJson?.success?.data?.records
+        ? attendanceJson.data.records
+        : attendanceJson?.data?.records || attendanceJson?.records || [];
+
+      if (Array.isArray(records)) {
+        const normalizedDept = (v) => String(v || '').trim().toLowerCase();
+        const deptKey = department && department !== 'all' ? normalizedDept(department) : null;
+
+        const checkInEvents = records
+          .filter((r) => r && (r.status === 'present' || r.status === 'Present'))
+          .filter((r) => {
+            if (!deptKey) return true;
+            return normalizedDept(r.department || 'General') === deptKey;
+          })
+          .map((r) => {
+            const when =
+              (typeof r.checkInTime === 'string' && r.checkInTime) ||
+              (typeof r.timeIn === 'string' && r.timeIn ? (isHm(r.timeIn) ? hmToIso(r.date || today, r.timeIn) : r.timeIn) : null) ||
+              null;
+
+            return {
+              id: `checkin-${r.id || r.employeeId || r.biometricId || Math.random().toString(36).slice(2)}`,
+              type: 'Check-in',
+              description: `${r.employeeName || r.name || 'Employee'} checked in`,
+              date: when || r.date || today,
+              meta: {
+                company: r.company || company || null,
+                department: r.department || 'General',
+                source: r.source || 'attendance',
+                isLate: !!r.isLate,
+              },
+            };
+          })
+          // most recent first (best-effort)
+          .sort((a, b) => new Date(b.date) - new Date(a.date))
+          .slice(0, 10);
+
+        activities.push(...checkInEvents);
+      }
+    }
 
     // Process leaves
     if (leavesResponse && leavesResponse.ok) {
       const leavesData = await leavesResponse.json();
       const leaves = leavesData.success ? leavesData.leaves : (Array.isArray(leavesData) ? leavesData : []);
+      const normalizedDept = (v) => String(v || '').trim().toLowerCase();
+      const deptKey = department && department !== 'all' ? normalizedDept(department) : null;
       
-      leaves.slice(0, 5).forEach(leave => {
+      leaves
+        .filter((leave) => {
+          if (!deptKey) return true;
+          return normalizedDept(leave.department || 'General') === deptKey;
+        })
+        .slice(0, 5)
+        .forEach(leave => {
         activities.push({
           id: `leave-${leave._id || leave.id}`,
           type: leave.status === 'Approved' ? 'Leave Approved' : leave.status === 'Pending' ? 'Leave Request' : 'Leave',
@@ -44,8 +111,16 @@ export async function GET(request) {
     if (employeesResponse && employeesResponse.ok) {
       const employeesData = await employeesResponse.json();
       const employees = employeesData.success ? employeesData.users : (Array.isArray(employeesData) ? employeesData : []);
+      const normalizedDept = (v) => String(v || '').trim().toLowerCase();
+      const deptKey = department && department !== 'all' ? normalizedDept(department) : null;
       
-      employees.slice(0, 5).forEach(emp => {
+      employees
+        .filter((emp) => {
+          if (!deptKey) return true;
+          return normalizedDept(emp.department || 'General') === deptKey;
+        })
+        .slice(0, 5)
+        .forEach(emp => {
         const joinDate = new Date(emp.createdAt || emp.joiningDate);
         const daysAgo = Math.floor((new Date() - joinDate) / (1000 * 60 * 60 * 24));
         

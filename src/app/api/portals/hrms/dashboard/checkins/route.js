@@ -7,15 +7,112 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const companyId = searchParams.get('companyId');
     const company = searchParams.get('company');
+    const department = searchParams.get('department'); // optional
     const date = searchParams.get('date') || new Date().toISOString().split('T')[0]; // Default to today
+
+    const normalizeCompany = (v) => {
+      if (!v) return null;
+      const raw = String(v).trim();
+      if (!raw || raw === 'undefined' || raw === 'null' || raw === 'all') return null;
+      const lc = raw.toLowerCase();
+      if (lc === '1' || lc.includes('ecosoul')) return 'Ecosoul Home';
+      if (lc === '2' || lc.includes('thrive')) return 'Thrive';
+      return raw;
+    };
+
+    const resolveCompanies = () => {
+      const explicit = normalizeCompany(company);
+      if (explicit) return [explicit];
+      const fromId = normalizeCompany(companyId);
+      if (fromId) return [fromId];
+      // all-companies mode
+      return ['Ecosoul Home', 'Thrive'];
+    };
 
     // Build query params
     const params = new URLSearchParams();
     if (companyId) params.append('companyId', companyId);
     if (company) params.append('company', company);
     params.append('date', date);
+    if (department && department !== 'all') params.append('department', department);
 
     const queryString = params.toString();
+
+    // Preferred: use HRMS attendance endpoint which already merges manual + machine records.
+    // If company is not provided, merge across known companies.
+    try {
+      const companiesToFetch = resolveCompanies();
+      const normalizedDept = (v) => String(v || '').trim().toLowerCase();
+      const deptKey = department && department !== 'all' ? normalizedDept(department) : null;
+
+      const isHm = (v) => typeof v === 'string' && /^\d{1,2}:\d{2}$/.test(v.trim());
+      const hmToIso = (day, hm) => {
+        if (!day || !hm || !isHm(hm)) return null;
+        const [h, m] = hm.trim().split(':').map(Number);
+        const hh = String(h).padStart(2, '0');
+        const mm = String(m).padStart(2, '0');
+        return `${day}T${hh}:${mm}:00`;
+      };
+
+      const perCompany = await Promise.all(
+        companiesToFetch.map(async (co) => {
+          const qp = new URLSearchParams();
+          // Keep companyId for compatibility; company is what scopes the backend.
+          if (companyId) qp.append('companyId', companyId);
+          qp.append('company', co);
+          qp.append('date', date);
+          if (department && department !== 'all') qp.append('department', department);
+
+          const attendanceRes = await fetch(`${API_BASE_URL}/hrms/attendance?${qp.toString()}`, {
+            headers: { 'Content-Type': 'application/json' },
+          });
+          if (!attendanceRes?.ok) return { company: co, records: [] };
+
+          const attendanceJson = await attendanceRes.json().catch(() => null);
+          const records = attendanceJson?.success?.data?.records
+            ? attendanceJson.data.records
+            : attendanceJson?.data?.records || attendanceJson?.records || [];
+
+          return { company: co, records: Array.isArray(records) ? records : [] };
+        })
+      );
+
+      const checkIns = perCompany.flatMap(({ company: co, records }) => {
+        return records
+          .filter((r) => r && (r.status === 'present' || r.status === 'Present'))
+          .filter((r) => {
+            if (!deptKey) return true;
+            return normalizedDept(r.department || 'General') === deptKey;
+          })
+          .map((r) => ({
+            employeeId: r.biometricId || r.employeeId || r.id,
+            employeeName: r.employeeName || r.name || 'Unknown',
+            department: r.department || 'General',
+            company: r.company || co,
+            checkInTime: isHm(r.timeIn) ? hmToIso(r.date || date, r.timeIn) : (r.timeIn || r.checkInTime || null),
+            checkOutTime: isHm(r.timeOut) ? hmToIso(r.date || date, r.timeOut) : (r.timeOut || r.checkOutTime || null),
+            totalMinutes: r.totalMinutes || 0,
+            status: 'checked-in',
+            date: r.date || date,
+            source: r.source || 'attendance',
+            isLate: !!r.isLate,
+          }));
+      });
+
+        return NextResponse.json({
+          success: true,
+          data: {
+            date,
+            companies: companiesToFetch,
+            totalCheckedIn: checkIns.length,
+            totalCheckedOut: checkIns.filter((c) => !!c.checkOutTime).length,
+            checkIns,
+          },
+        });
+    } catch (e) {
+      // Fall through to legacy approaches below.
+      console.warn('[checkins route] attendance endpoint fetch failed:', e?.message || e);
+    }
 
     // Fetch check-ins for the specified date
     // Note: This assumes the backend has an endpoint to get check-ins by date

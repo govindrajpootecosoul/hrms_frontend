@@ -2,10 +2,30 @@
 
 import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Users, Clock, Calendar, Cake, Plus, BarChart3, FileText, Sparkles, CheckCircle, XCircle, Home, UserCheck, UserX, CalendarDays, Download } from 'lucide-react';
+import {
+  Users,
+  Clock,
+  Calendar,
+  Cake,
+  CheckCircle,
+  XCircle,
+  Home,
+  CalendarDays,
+  Download,
+  MessageSquare,
+  Send,
+  Layers,
+  Activity,
+  Plus,
+  FileText,
+  Coins,
+  X,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
 import Card from '@/components/common/Card';
 import Button from '@/components/common/Button';
-import LineChart from '@/components/charts/LineChart';
 import Modal from '@/components/common/Modal';
 import Input from '@/components/common/Input';
 import Textarea from '@/components/common/Textarea';
@@ -13,7 +33,86 @@ import Table from '@/components/common/Table';
 import { useCompany } from '@/lib/context/CompanyContext';
 import { useToast } from '@/components/common/Toast';
 import * as XLSX from 'xlsx';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import {
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip as ReTooltip,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Legend,
+} from 'recharts';
+
+const parseYmdToLocalDate = (value) => {
+  if (!value) return null;
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+  const s = String(value);
+  const m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) {
+    const y = Number(m[1]);
+    const mo = Number(m[2]);
+    const d = Number(m[3]);
+    const dt = new Date(y, mo - 1, d);
+    return Number.isNaN(dt.getTime()) ? null : dt;
+  }
+  const dt = new Date(s);
+  return Number.isNaN(dt.getTime()) ? null : dt;
+};
+
+const formatAttendanceTrendTick = (value) => {
+  const dt = parseYmdToLocalDate(value);
+  if (!dt) return String(value ?? '');
+  // Example: "14 Apr"
+  return dt.toLocaleDateString(undefined, { day: '2-digit', month: 'short' });
+};
+
+const AttendanceTrendTooltip = ({ active, payload, label }) => {
+  if (!active || !payload || payload.length === 0) return null;
+
+  const items = payload
+    .filter((p) => p && p.dataKey && typeof p.value === 'number')
+    .map((p) => ({
+      key: p.dataKey,
+      name: p.name || p.dataKey,
+      value: p.value,
+      color: p.color,
+    }));
+
+  const total = items.reduce((sum, it) => sum + (Number.isFinite(it.value) ? it.value : 0), 0);
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white/95 backdrop-blur px-3 py-2 shadow-lg">
+      <div className="text-xs font-semibold text-slate-900">
+        {formatAttendanceTrendTick(label)} <span className="text-slate-500 font-medium">•</span>{' '}
+        <span className="text-slate-700 font-medium">Total:</span> {total.toLocaleString()}
+      </div>
+      <div className="mt-2 space-y-1.5">
+        {items.map((it) => {
+          const pct = total > 0 ? Math.round((it.value / total) * 100) : 0;
+          return (
+            <div key={it.key} className="flex items-center justify-between gap-4 text-xs">
+              <div className="flex items-center gap-2 min-w-0">
+                <span
+                  className="inline-block h-2.5 w-2.5 rounded-sm"
+                  style={{ backgroundColor: it.color }}
+                />
+                <span className="text-slate-700 font-medium truncate">{it.name}</span>
+              </div>
+              <div className="text-slate-900 font-semibold tabular-nums whitespace-nowrap">
+                {it.value.toLocaleString()}{' '}
+                <span className="text-slate-500 font-medium">({pct}%)</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 // Memoized KPI Card component - only re-renders when its value changes
 const KPICard = memo(({ kpi, index }) => {
@@ -69,6 +168,16 @@ const Dashboard = () => {
   const { currentCompany } = useCompany();
   const toast = useToast();
 
+  const [selectedDepartment, setSelectedDepartment] = useState('all');
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  });
+  const [commandCenter, setCommandCenter] = useState(null);
+
   const [showBroadcastDialog, setShowBroadcastDialog] = useState(false);
   const [broadcastData, setBroadcastData] = useState({
     subject: '',
@@ -92,10 +201,14 @@ const Dashboard = () => {
     pendingLeaves: 0,
     upcomingBirthdays: 0,
   });
-  const [recentCheckIns, setRecentCheckIns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedCalendarMonth, setSelectedCalendarMonth] = useState(new Date());
+
+  // Calendar event modal state
+  const [showCalendarEventModal, setShowCalendarEventModal] = useState(false);
+  const [selectedCalendarDateKey, setSelectedCalendarDateKey] = useState(null);
+  const [quickMessageText, setQuickMessageText] = useState('');
   
   // Employee modal state
   const [showEmployeeModal, setShowEmployeeModal] = useState(false);
@@ -132,11 +245,23 @@ const Dashboard = () => {
         const params = new URLSearchParams();
         if (companyId) params.append('companyId', companyId);
         if (company) params.append('company', company);
+        if (selectedDepartment && selectedDepartment !== 'all') params.append('department', selectedDepartment);
+        if (selectedDate) params.append('date', selectedDate);
         const queryString = params.toString();
+
+        // Calendar month anchor for birthday/work-anniversary APIs
+        const cal = selectedCalendarMonth || new Date();
+        const calAnchor = `${cal.getFullYear()}-${String(cal.getMonth() + 1).padStart(2, '0')}-01`;
+        const calendarParams = new URLSearchParams();
+        if (companyId) calendarParams.append('companyId', companyId);
+        if (company) calendarParams.append('company', company);
+        if (selectedDepartment && selectedDepartment !== 'all') calendarParams.append('department', selectedDepartment);
+        calendarParams.append('date', calAnchor);
+        const calendarQueryString = calendarParams.toString();
 
         // Fetch attendance stats directly (same as Attendance Overview)
         // Add cache-busting timestamp to ensure fresh data
-        const today = getLocalDateYyyyMmDd();
+        const today = selectedDate || getLocalDateYyyyMmDd();
         const timestamp = Date.now();
         const attendanceStatsParams = new URLSearchParams();
         attendanceStatsParams.append('date', today);
@@ -144,6 +269,9 @@ const Dashboard = () => {
         if (company) attendanceStatsParams.append('company', company);
         if (companyId) attendanceStatsParams.append('companyId', companyId);
         
+        if (selectedDepartment && selectedDepartment !== 'all') {
+          attendanceStatsParams.append('department', selectedDepartment);
+        }
         const statsRes = await fetch(`/api/hrms-portal/attendance/stats?${attendanceStatsParams.toString()}`, {
           cache: 'no-store',
           headers: {
@@ -160,7 +288,7 @@ const Dashboard = () => {
           console.log('[Dashboard] Attendance stats response:', statsData.data);
           setStats({
             totalEmployees: statsData.data.totalEmployees || 0,
-            activeEmployees: statsData.data.totalEmployees || 0, // Use totalEmployees as active for now
+            activeEmployees: statsData.data.activeEmployees ?? statsData.data.totalEmployees ?? 0,
             presentToday: statsData.data.presentToday || 0,
             absentToday: statsData.data.absentToday || 0,
             onLeaveToday: statsData.data.onLeaveToday || 0,
@@ -200,8 +328,8 @@ const Dashboard = () => {
           checkInsRes,
         ] = await Promise.all([
           fetch(`/api/hrms/dashboard/monthly-headcounts${queryString ? `?${queryString}` : ''}`),
-          fetch(`/api/hrms/dashboard/birthdays${queryString ? `?${queryString}` : ''}`),
-          fetch(`/api/hrms/dashboard/work-anniversaries${queryString ? `?${queryString}` : ''}`),
+          fetch(`/api/hrms/dashboard/birthdays${calendarQueryString ? `?${calendarQueryString}` : ''}`),
+          fetch(`/api/hrms/dashboard/work-anniversaries${calendarQueryString ? `?${calendarQueryString}` : ''}`),
           fetch(`/api/hrms/dashboard/recent-activities${queryString ? `?${queryString}` : ''}`),
           fetch(`/api/hrms/dashboard/upcoming-events${queryString ? `?${queryString}` : ''}`),
           fetch(`/api/hrms/dashboard/upcoming-leaves-festivals${queryString ? `?${queryString}` : ''}`),
@@ -278,9 +406,21 @@ const Dashboard = () => {
             : [],
         });
 
-        // Set recent check-ins
-        if (checkInsData?.success && checkInsData?.data?.checkIns) {
-          setRecentCheckIns(checkInsData.data.checkIns.slice(0, 10));
+        // Fetch command center aggregates (department distribution, trends, ratios)
+        try {
+          const ccParams = new URLSearchParams();
+          if (companyId) ccParams.append('companyId', companyId);
+          if (company) ccParams.append('company', company);
+          if (selectedDepartment && selectedDepartment !== 'all') ccParams.append('department', selectedDepartment);
+          if (selectedDate) ccParams.append('date', selectedDate);
+          const ccRes = await fetch(`/api/hrms/dashboard/command-center${ccParams.toString() ? `?${ccParams.toString()}` : ''}`, {
+            cache: 'no-store',
+          });
+          const ccJson = ccRes.ok ? await ccRes.json() : null;
+          if (ccJson?.success) setCommandCenter(ccJson.data);
+        } catch (e) {
+          // Non-blocking
+          console.warn('[Dashboard] command-center fetch failed:', e?.message || e);
         }
       } catch (err) {
         console.error('Error loading dashboard data:', err);
@@ -355,7 +495,7 @@ const Dashboard = () => {
                 return {
                   ...prevStats,
                   totalEmployees: newStats.totalEmployees || prevStats.totalEmployees || 0,
-                  activeEmployees: newStats.totalEmployees || prevStats.activeEmployees || 0,
+                  activeEmployees: (newStats.activeEmployees ?? newStats.totalEmployees ?? prevStats.activeEmployees ?? 0),
                   presentToday: newStats.presentToday || 0,
                   absentToday: newStats.absentToday || 0,
                   onLeaveToday: newStats.onLeaveToday || 0,
@@ -371,13 +511,9 @@ const Dashboard = () => {
           }
         }
         
-        // Also fetch check-ins for recent check-ins list
         const checkInsRes = await fetch(`/api/hrms/dashboard/checkins${queryString ? `?${queryString}` : ''}`);
         if (checkInsRes.ok) {
           const checkInsData = await checkInsRes.json();
-          if (checkInsData?.success && checkInsData?.data?.checkIns) {
-            setRecentCheckIns(checkInsData.data.checkIns.slice(0, 10));
-          }
         }
       } catch (err) {
         console.error('Error refreshing attendance:', err);
@@ -385,11 +521,14 @@ const Dashboard = () => {
       }
     };
     
-    // Refresh attendance every 30 seconds (lightweight update)
-    const refreshInterval = setInterval(refreshAttendanceOnly, 30000);
-    
-    return () => clearInterval(refreshInterval);
-  }, [companyId, currentCompany]);
+    // Only auto-refresh when viewing "today" to avoid mutating historical views.
+    const todayKey = getLocalDateYyyyMmDd();
+    if (!selectedDate || selectedDate === todayKey) {
+      const refreshInterval = setInterval(refreshAttendanceOnly, 30000);
+      return () => clearInterval(refreshInterval);
+    }
+    return () => {};
+  }, [companyId, currentCompany, selectedDepartment, selectedDate, selectedCalendarMonth]);
 
   // Fetch employees list
   useEffect(() => {
@@ -402,6 +541,12 @@ const Dashboard = () => {
         if (company) {
           params.append('company', company);
         }
+        // Keep modal roster aligned with global filters
+        if (selectedDepartment && selectedDepartment !== 'all') {
+          params.append('department', selectedDepartment);
+        }
+        // Only active employees should be considered in dashboard drilldowns
+        params.append('status', 'active');
 
         const headers = {
           ...(token ? { Authorization: `Bearer ${token}` } : {})
@@ -423,7 +568,7 @@ const Dashboard = () => {
     };
 
     fetchEmployees();
-  }, [companyId, currentCompany]);
+  }, [companyId, currentCompany, selectedDepartment]);
 
   // Fetch attendance data for employee modal
   useEffect(() => {
@@ -443,14 +588,17 @@ const Dashboard = () => {
           }
         }
         
-        const today = getLocalDateYyyyMmDd();
+        const effectiveDate = selectedDate || getLocalDateYyyyMmDd();
         const timestamp = Date.now();
         
         const params = new URLSearchParams();
-        params.append('date', today);
+        params.append('date', effectiveDate);
         params.append('_t', timestamp.toString());
         if (company) {
           params.append('company', company);
+        }
+        if (selectedDepartment && selectedDepartment !== 'all') {
+          params.append('department', selectedDepartment);
         }
 
         const headers = {
@@ -480,17 +628,39 @@ const Dashboard = () => {
     };
 
     fetchAttendance();
-  }, [companyId, currentCompany]);
+  }, [companyId, currentCompany, selectedDate, selectedDepartment]);
 
   // Filter employees by status
   const getFilteredEmployees = (filterType) => {
-    const today = getLocalDateYyyyMmDd();
+    const effectiveDate = selectedDate || getLocalDateYyyyMmDd();
+
+    const empKey = (v) => (v == null ? '' : String(v).trim());
+    const employeeKeys = (emp) => {
+      const keys = new Set();
+      const add = (v) => {
+        const k = empKey(v);
+        if (k) keys.add(k);
+      };
+      add(emp?.emp_code);
+      add(emp?.empCode);
+      add(emp?.biometricId);
+      add(emp?.employeeCode);
+      add(emp?.employeeId);
+      add(emp?.id);
+      add(emp?._id);
+      if (emp?.email && String(emp.email).includes('@')) add(String(emp.email).split('@')[0]);
+      return keys;
+    };
+    const primaryEmployeeKey = (emp) => {
+      const keys = employeeKeys(emp);
+      return keys.values().next().value || '';
+    };
     
     switch (filterType) {
       case 'present':
         const presentRecords = attendance.filter(a => {
           const matchesStatus = a.status === 'present';
-          const matchesDate = a.date === today;
+          const matchesDate = a.date === effectiveDate;
           return matchesStatus && matchesDate;
         });
         return presentRecords.map(a => ({
@@ -504,30 +674,34 @@ const Dashboard = () => {
         }));
       
       case 'absent':
-        // Get all employees and find those not present today
+        // Get all employees and find those not present on selected date
         const presentIds = new Set(
           attendance
-            .filter(a => a.status === 'present' && a.date === today)
-            .map(a => a.biometricId)
+            .filter(a => a.status === 'present' && a.date === effectiveDate)
+            .map(a => empKey(a.biometricId))
         );
         const onLeaveIds = new Set(
           attendance
-            .filter(a => a.status === 'on-leave' && a.date === today)
-            .map(a => a.biometricId)
+            .filter(a => a.status === 'on-leave' && a.date === effectiveDate)
+            .map(a => empKey(a.biometricId))
         );
         const wfhIds = new Set(
           attendance
-            .filter(a => (a.status === 'wfh' || a.status === 'work-from-home') && a.date === today)
-            .map(a => a.biometricId)
+            .filter(a => (a.status === 'wfh' || a.status === 'work-from-home') && a.date === effectiveDate)
+            .map(a => empKey(a.biometricId))
         );
         
         return employees
           .filter(emp => {
-            const empId = emp.biometricId || emp.employeeCode || emp.id;
-            return !presentIds.has(empId) && !onLeaveIds.has(empId) && !wfhIds.has(empId);
+            const keys = employeeKeys(emp);
+            if (keys.size === 0) return false;
+            for (const k of keys) {
+              if (presentIds.has(k) || onLeaveIds.has(k) || wfhIds.has(k)) return false;
+            }
+            return true;
           })
           .map(emp => ({
-            employeeCode: emp.biometricId || emp.employeeCode || emp.id,
+            employeeCode: primaryEmployeeKey(emp),
             employeeName: emp.name || emp.employeeName,
             department: emp.department || 'General',
             status: 'absent',
@@ -538,7 +712,7 @@ const Dashboard = () => {
       
       case 'wfh':
         return attendance
-          .filter(a => (a.status === 'wfh' || a.status === 'work-from-home') && a.date === today)
+          .filter(a => (a.status === 'wfh' || a.status === 'work-from-home') && a.date === effectiveDate)
           .map(a => ({
             employeeCode: a.biometricId,
             employeeName: a.employeeName,
@@ -623,14 +797,49 @@ const Dashboard = () => {
   // IMPORTANT: This hook must be called before any conditional returns
   const getEventsByDate = useMemo(() => {
     const eventsMap = {};
+
+    const parseToLocalYmd = (value) => {
+      if (!value) return null;
+      // Handle "YYYY-MM-DD" (avoid UTC shifting)
+      if (typeof value === 'string') {
+        const m = value.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+        if (m) {
+          const y = Number(m[1]);
+          const mo = Number(m[2]);
+          const d = Number(m[3]);
+          if (Number.isFinite(y) && Number.isFinite(mo) && Number.isFinite(d)) {
+            return { y, m: mo, d };
+          }
+        }
+      }
+      const dt = new Date(value);
+      if (Number.isNaN(dt.getTime())) return null;
+      return { y: dt.getFullYear(), m: dt.getMonth() + 1, d: dt.getDate() };
+    };
+
+    const viewedYear = (selectedCalendarMonth || new Date()).getFullYear();
+
+    const toViewedYearKey = (month, day) => {
+      if (!month || !day) return null;
+      let m = Number(month);
+      let d = Number(day);
+      if (!Number.isFinite(m) || !Number.isFinite(d)) return null;
+      // Handle Feb 29 in non-leap years (show on Feb 28)
+      if (m === 2 && d === 29) {
+        const isLeap = new Date(viewedYear, 1, 29).getMonth() === 1;
+        if (!isLeap) d = 28;
+      }
+      return `${viewedYear}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    };
     
     // Process birthdays
     if (dashboardData?.birthdayCalendar && dashboardData.birthdayCalendar.length > 0) {
       dashboardData.birthdayCalendar.forEach((item) => {
         if (item.date || item.birthday) {
           const dateStr = item.date || item.birthday;
-          const date = new Date(dateStr);
-          const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+          const ymd = parseToLocalYmd(dateStr);
+          const dateKey = ymd ? toViewedYearKey(ymd.m, ymd.d) : null;
+          if (!dateKey) return;
           
           if (!eventsMap[dateKey]) {
             eventsMap[dateKey] = { birthdays: [], anniversaries: [] };
@@ -645,8 +854,9 @@ const Dashboard = () => {
       dashboardData.workAnniversaryCalendar.forEach((item) => {
         if (item.date || item.anniversaryDate || item.joinDate) {
           const dateStr = item.date || item.anniversaryDate || item.joinDate;
-          const date = new Date(dateStr);
-          const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+          const ymd = parseToLocalYmd(dateStr);
+          const dateKey = ymd ? toViewedYearKey(ymd.m, ymd.d) : null;
+          if (!dateKey) return;
           
           if (!eventsMap[dateKey]) {
             eventsMap[dateKey] = { birthdays: [], anniversaries: [] };
@@ -657,7 +867,7 @@ const Dashboard = () => {
     }
     
     return eventsMap;
-  }, [dashboardData?.birthdayCalendar, dashboardData?.workAnniversaryCalendar]);
+  }, [dashboardData?.birthdayCalendar, dashboardData?.workAnniversaryCalendar, selectedCalendarMonth]);
 
   // Get dates with events for calendar marking
   const datesWithEvents = useMemo(() => {
@@ -725,11 +935,8 @@ const Dashboard = () => {
     return [
     {
       title: 'Total Employees',
-      value: currentStats.totalEmployees,
-      active: currentStats.activeEmployees,
-      inactive: currentStats.totalEmployees - currentStats.activeEmployees,
-      gradient: 'from-blue-600 via-indigo-600 to-blue-700',
-      shadow: 'shadow-blue-500/30',
+      // Show ACTIVE employees only (per requirement), keep label unchanged.
+      value: currentStats.activeEmployees,
       icon: Users,
       clickable: true,
       onClick: () => router.push(`/hrms/${companyId}/employees`),
@@ -737,8 +944,6 @@ const Dashboard = () => {
     {
       title: 'Present',
       value: currentStats.presentToday || currentStats.todayAttendance || 0,
-      gradient: 'from-green-600 via-emerald-600 to-green-700',
-      shadow: 'shadow-green-500/30',
       icon: CheckCircle,
       clickable: true,
       filterType: 'present',
@@ -747,8 +952,6 @@ const Dashboard = () => {
     {
       title: 'Absent',
       value: currentStats.absentToday || 0,
-      gradient: 'from-red-600 via-rose-600 to-red-700',
-      shadow: 'shadow-red-500/30',
       icon: XCircle,
       clickable: true,
       filterType: 'absent',
@@ -757,8 +960,6 @@ const Dashboard = () => {
     {
       title: 'WFH',
       value: currentStats.wfhToday || 0,
-      gradient: 'from-purple-600 via-violet-600 to-purple-700',
-      shadow: 'shadow-purple-500/30',
       icon: Home,
       clickable: true,
       filterType: 'wfh',
@@ -766,6 +967,174 @@ const Dashboard = () => {
     },
     ];
   }, [stats, companyId, router, handleCardClick]);
+
+  const departmentOptions = useMemo(() => {
+    const fromCc = commandCenter?.departmentDistribution?.map((d) => d.department) || [];
+    const unique = Array.from(new Set(fromCc)).filter(Boolean).sort((a, b) => a.localeCompare(b));
+    return unique;
+  }, [commandCenter?.departmentDistribution]);
+
+  const departmentDonutData = useMemo(() => {
+    const dist = commandCenter?.departmentDistribution || [];
+    return dist.map((d) => ({
+      name: d.department,
+      value: d.count,
+      percentage: d.percentage,
+    }));
+  }, [commandCenter?.departmentDistribution]);
+
+  const attendanceTrendData = useMemo(() => {
+    return (commandCenter?.attendanceTrends || []).map((p) => ({
+      date: p.date,
+      Present: p.present,
+      Absent: p.absent,
+      WFH: p.wfh,
+      'On Leave': p.onLeave,
+    }));
+  }, [commandCenter?.attendanceTrends]);
+
+  const statusRatiosData = useMemo(() => {
+    return (commandCenter?.statusRatiosByDepartment || []).map((d) => ({
+      department: d.department,
+      'On-site': d.onSite,
+      WFH: d.wfh,
+      'On Leave': d.onLeave,
+      Absent: d.absent,
+      total: d.total,
+    }));
+  }, [commandCenter?.statusRatiosByDepartment]);
+
+  const donutColors = ['#4f46e5', '#6366f1', '#8b5cf6', '#a855f7', '#ec4899', '#f97316', '#10b981', '#06b6d4'];
+
+  const eventsForSelectedDate = useMemo(() => {
+    if (!selectedCalendarDateKey) return null;
+    return getEventsByDate?.[selectedCalendarDateKey] || null;
+  }, [getEventsByDate, selectedCalendarDateKey]);
+
+  const dateToKey = useCallback((date) => {
+    if (!date) return null;
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  }, []);
+
+  const monthLabel = useMemo(() => {
+    const d = selectedCalendarMonth || new Date();
+    return d.toLocaleString(undefined, { month: 'long', year: 'numeric' });
+  }, [selectedCalendarMonth]);
+
+  const goToToday = useCallback(() => {
+    const now = new Date();
+    setSelectedCalendarMonth(new Date(now.getFullYear(), now.getMonth(), 1));
+    setSelectedCalendarDateKey(dateToKey(now));
+  }, [dateToKey]);
+
+  const goPrevMonth = useCallback(() => {
+    setSelectedCalendarMonth((prev) => {
+      const d = prev ? new Date(prev) : new Date();
+      return new Date(d.getFullYear(), d.getMonth() - 1, 1);
+    });
+  }, []);
+
+  const goNextMonth = useCallback(() => {
+    setSelectedCalendarMonth((prev) => {
+      const d = prev ? new Date(prev) : new Date();
+      return new Date(d.getFullYear(), d.getMonth() + 1, 1);
+    });
+  }, []);
+
+  const calendarWeeks = useMemo(() => {
+    const monthDate = selectedCalendarMonth || new Date();
+    const year = monthDate.getFullYear();
+    const month = monthDate.getMonth();
+
+    const firstOfMonth = new Date(year, month, 1);
+    const lastOfMonth = new Date(year, month + 1, 0);
+
+    // Start from Sunday of the week containing the 1st
+    const start = new Date(firstOfMonth);
+    start.setDate(firstOfMonth.getDate() - firstOfMonth.getDay());
+
+    // End on Saturday of the week containing the last day
+    const end = new Date(lastOfMonth);
+    end.setDate(lastOfMonth.getDate() + (6 - lastOfMonth.getDay()));
+
+    const days = [];
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      days.push(new Date(d));
+    }
+
+    const weeks = [];
+    for (let i = 0; i < days.length; i += 7) {
+      weeks.push(days.slice(i, i + 7));
+    }
+    return weeks;
+  }, [selectedCalendarMonth]);
+
+  const dayEventPills = useCallback(
+    (date) => {
+      const key = dateToKey(date);
+      const events = key ? getEventsByDate?.[key] : null;
+      const birthdays = events?.birthdays || [];
+      const anniversaries = events?.anniversaries || [];
+
+      const items = [
+        ...birthdays.map((b) => ({ type: 'birthday', item: b })),
+        ...anniversaries.map((a) => ({ type: 'anniversary', item: a })),
+      ];
+
+      const maxVisible = 3;
+      const visible = items.slice(0, maxVisible);
+      const hiddenCount = Math.max(0, items.length - visible.length);
+
+      const pill = (type, item, idx) => {
+        const isBirthday = type === 'birthday';
+        const bg = isBirthday ? 'bg-pink-100' : 'bg-blue-100';
+        const text = isBirthday ? 'text-pink-800' : 'text-blue-800';
+        const border = isBirthday ? 'border-pink-200' : 'border-blue-200';
+        const label = isBirthday ? 'Birthday' : 'Anniversary';
+        const name = item?.name || item?.employeeName || item?.fullName || '';
+
+        return (
+          <div
+            key={`${type}-${idx}`}
+            className={`w-full px-2 py-1 rounded-md border ${bg} ${border} ${text} text-[11px] leading-tight truncate`}
+            title={`${label}${name ? `: ${name}` : ''}`}
+          >
+            <span className="font-semibold">{label}</span>
+            {name ? <span className="font-medium">{` • ${name}`}</span> : null}
+          </div>
+        );
+      };
+
+      return (
+        <div className="mt-1 space-y-1">
+          {visible.map((v, idx) => pill(v.type, v.item, idx))}
+          {hiddenCount > 0 ? (
+            <div className="text-[11px] text-slate-500 px-2 select-none">+{hiddenCount}</div>
+          ) : null}
+        </div>
+      );
+    },
+    [dateToKey, getEventsByDate]
+  );
+
+  const getInitials = (name) => {
+    const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return 'U';
+    return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
+  };
+
+  const getRelativeTime = (value) => {
+    const d = value ? new Date(value) : null;
+    if (!d || Number.isNaN(d.getTime())) return '';
+    const diffMs = Date.now() - d.getTime();
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    return `${days}d ago`;
+  };
 
   if (loading) {
     return (
@@ -805,49 +1174,192 @@ const Dashboard = () => {
     });
   };
 
-  // Format monthly headcounts for chart
-  const monthlyHeadcountsData = dashboardData?.monthlyHeadcounts && dashboardData.monthlyHeadcounts.length > 0
-    ? dashboardData.monthlyHeadcounts.map(item => item.headcount)
-    : [];
-  const monthlyHeadcountsCategories = dashboardData?.monthlyHeadcounts && dashboardData.monthlyHeadcounts.length > 0
-    ? dashboardData.monthlyHeadcounts.map(item => item.month)
-    : [];
-
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6 min-h-screen bg-slate-50">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
-        <p className="text-slate-600 mt-1">Welcome to HRMS Portal</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
+          <p className="text-slate-600 mt-1">Command Center view for workforce operations</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="pl-4 pr-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 shadow-sm hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300"
+              aria-label="Date filter"
+            />
+          </div>
+          <div className="relative">
+            <select
+              value={selectedDepartment}
+              onChange={(e) => setSelectedDepartment(e.target.value)}
+              className="appearance-none pl-4 pr-10 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 shadow-sm hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300"
+              aria-label="Department filter"
+            >
+              <option value="all">All Departments</option>
+              {departmentOptions.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="w-4 h-4 text-slate-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
+        </div>
       </div>
 
       {/* KPI Cards - Using memoized components for optimal re-rendering */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        {kpiCards.map((kpi, index) => (
-          <KPICard key={`${kpi.title}-${kpi.value}`} kpi={kpi} index={index} />
-        ))}
+        {kpiCards.map((kpi, index) => {
+          const Icon = kpi.icon;
+          return (
+            <div
+              key={`${kpi.title}-${kpi.value}`}
+              className={`group relative overflow-hidden rounded-xl border border-white/30 bg-white/60 backdrop-blur-xl shadow-[0_10px_30px_-20px_rgba(2,6,23,0.35)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_45px_-25px_rgba(2,6,23,0.45)] ${
+                kpi.clickable ? 'cursor-pointer' : ''
+              }`}
+              onClick={kpi.clickable && kpi.onClick ? kpi.onClick : undefined}
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/60 via-white/50 to-slate-50/60" />
+              <div className="relative z-10 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl border border-slate-200 bg-white/70 backdrop-blur flex items-center justify-center shadow-sm">
+                      <Icon className="w-5 h-5 text-indigo-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-semibold text-slate-600 uppercase tracking-wide truncate">
+                        {kpi.title}
+                      </p>
+                      <p className="text-2xl font-bold text-slate-900 leading-tight">
+                        {kpi.value}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="hidden md:block text-right">
+                    {kpi.active !== undefined && kpi.inactive !== undefined ? (
+                      <div className="text-xs text-slate-600">
+                        <div className="font-semibold text-slate-900">Active {kpi.active}</div>
+                        <div className="text-slate-500">Inactive {kpi.inactive}</div>
+                      </div>
+                    ) : (
+                      <div className="text-xs text-slate-500">Today</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column - 9 cols */}
         <div className="lg:col-span-9 space-y-6">
-          {/* Employee Insights Chart */}
-          <Card className="border-2 p-6">
-            <h2 className="text-base font-semibold mb-1">Employee Insights</h2>
-            <p className="text-xs text-slate-600 mb-4">Monthly headcount trend</p>
-            <LineChart
-              data={monthlyHeadcountsData}
-              categories={monthlyHeadcountsCategories}
-              seriesName="Headcount"
-              height={300}
-              colors={['#6366f1']}
-              fillArea
-              title=""
-              subtitle=""
-            />
-          </Card>
+          {/* Department Distribution + Attendance Trend */}
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+            <Card className="border-2 p-6 xl:col-span-5 rounded-xl">
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <div>
+                  <h2 className="text-base font-semibold mb-1 flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-indigo-600" />
+                    Department Distribution
+                  </h2>
+                  <p className="text-xs text-slate-600">Headcount share across departments</p>
+                </div>
+              </div>
+              {departmentDonutData.length > 0 ? (
+                <div className="h-[280px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={departmentDonutData}
+                        dataKey="value"
+                        nameKey="name"
+                        innerRadius={70}
+                        outerRadius={105}
+                        paddingAngle={2}
+                      >
+                        {departmentDonutData.map((_, idx) => (
+                          <Cell key={`cell-${idx}`} fill={donutColors[idx % donutColors.length]} />
+                        ))}
+                      </Pie>
+                      <ReTooltip
+                        formatter={(value, name, props) => {
+                          const pct = props?.payload?.percentage;
+                          return [`${value} (${pct ?? 0}%)`, name];
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-8 text-center">
+                  <Activity className="w-10 h-10 text-slate-400 mx-auto mb-3" />
+                  <p className="text-sm font-medium text-slate-600">No department data yet</p>
+                  <p className="text-xs text-slate-500 mt-1">Add departments to employee profiles to populate this chart.</p>
+                </div>
+              )}
+            </Card>
 
+            <Card className="border-2 p-6 xl:col-span-7 rounded-xl">
+              <h2 className="text-base font-semibold mb-1 flex items-center gap-2">
+                <Activity className="w-4 h-4 text-indigo-600" />
+                Attendance Trend (7 days)
+              </h2>
+              <p className="text-xs text-slate-600 mb-4">Present vs WFH vs Leave vs Absent</p>
+              {attendanceTrendData.length > 0 ? (
+                <div className="h-[280px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={attendanceTrendData}
+                      barCategoryGap={18}
+                      barGap={4}
+                      margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
+                    >
+                      {/* Y grid only: faint dashed lines */}
+                      <CartesianGrid vertical={false} strokeDasharray="5 5" stroke="#E5E7EB" />
+                      <XAxis
+                        dataKey="date"
+                        tick={{ fontSize: 11, fill: '#64748b' }}
+                        tickFormatter={formatAttendanceTrendTick}
+                        axisLine={{ stroke: '#E2E8F0' }}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        tick={{ fontSize: 11, fill: '#64748b' }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <ReTooltip content={<AttendanceTrendTooltip />} />
+                      <Legend
+                        verticalAlign="top"
+                        align="right"
+                        wrapperStyle={{ fontSize: 12, fontWeight: 500, paddingBottom: 8 }}
+                      />
+                      {/* Palette + stacking order: Absent acts as neutral background */}
+                      <Bar dataKey="Absent" stackId="a" fill="#E5E7EB" />
+                      <Bar dataKey="On Leave" stackId="a" fill="#FBBF24" />
+                      <Bar dataKey="WFH" stackId="a" fill="#6366F1" />
+                      <Bar dataKey="Present" stackId="a" fill="#10B981" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-8 text-center">
+                  <Clock className="w-10 h-10 text-slate-400 mx-auto mb-3" />
+                  <p className="text-sm font-medium text-slate-600">No trend data yet</p>
+                  <p className="text-xs text-slate-500 mt-1">Attendance points will appear as check-ins and requests are recorded.</p>
+                </div>
+              )}
+            </Card>
+          </div>
+
+          {/* Departmental Headcount Heatmap (horizontal bar) */}
           {/* Birthday Calendar & Work Anniversary */}
           <Card className="border-2 p-6 bg-gradient-to-br from-white to-slate-50/50">
             <div className="flex items-center justify-between mb-4">
@@ -858,136 +1370,83 @@ const Dashboard = () => {
             </div>
             
             {/* Calendar */}
-            <div className="mb-6 bg-white rounded-xl border-2 border-slate-200 p-4 shadow-sm">
-              <style dangerouslySetInnerHTML={{__html: `
-                .rdp {
-                  --rdp-cell-size: 42px;
-                  --rdp-accent-color: #6366f1;
-                  --rdp-background-color: #f3f4f6;
-                  --rdp-accent-color-dark: #4f46e5;
-                  --rdp-outline: 2px solid var(--rdp-accent-color);
-                  --rdp-outline-selected: 2px solid var(--rdp-accent-color);
-                }
-                .rdp-day.has-birthday {
-                  position: relative;
-                }
-                .rdp-day.has-birthday::after {
-                  content: '';
-                  position: absolute;
-                  bottom: 4px;
-                  left: 50%;
-                  transform: translateX(-50%);
-                  width: 8px;
-                  height: 8px;
-                  background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);
-                  border-radius: 50%;
-                  box-shadow: 0 2px 4px rgba(236, 72, 153, 0.3);
-                }
-                .rdp-day.has-anniversary {
-                  position: relative;
-                }
-                .rdp-day.has-anniversary::after {
-                  content: '';
-                  position: absolute;
-                  bottom: 4px;
-                  right: 4px;
-                  width: 8px;
-                  height: 8px;
-                  background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
-                  border-radius: 50%;
-                  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
-                }
-                .rdp-day.has-both::before {
-                  content: '';
-                  position: absolute;
-                  bottom: 4px;
-                  left: 50%;
-                  transform: translateX(-50%);
-                  width: 8px;
-                  height: 8px;
-                  background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);
-                  border-radius: 50%;
-                  box-shadow: 0 2px 4px rgba(236, 72, 153, 0.3);
-                }
-                .rdp-day.has-both::after {
-                  content: '';
-                  position: absolute;
-                  bottom: 4px;
-                  right: 4px;
-                  width: 8px;
-                  height: 8px;
-                  background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
-                  border-radius: 50%;
-                  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
-                }
-                .rdp-day {
-                  border-radius: 8px;
-                  transition: all 0.2s ease;
-                }
-                .rdp-day:hover:not(.rdp-day_disabled) {
-                  background-color: #f3f4f6;
-                  transform: scale(1.05);
-                }
-                .rdp-day_today {
-                  background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
-                  font-weight: 600;
-                  color: #4f46e5;
-                }
-                .rdp-caption {
-                  font-weight: 600;
-                  font-size: 1rem;
-                  color: #1e293b;
-                  margin-bottom: 0.75rem;
-                }
-                .rdp-nav_button {
-                  border-radius: 8px;
-                  transition: all 0.2s ease;
-                }
-                .rdp-nav_button:hover {
-                  background-color: #f3f4f6;
-                  transform: scale(1.1);
-                }
-                .rdp-head_cell {
-                  font-weight: 600;
-                  color: #64748b;
-                  font-size: 0.75rem;
-                  text-transform: uppercase;
-                  letter-spacing: 0.05em;
-                }
-              `}} />
-              <CalendarComponent
-                mode="single"
-                month={selectedCalendarMonth}
-                onMonthChange={setSelectedCalendarMonth}
-                className="rounded-lg"
-                modifiers={{
-                  hasBirthday: datesWithEvents.filter(date => {
-                    const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-                    const events = getEventsByDate[dateKey];
-                    return events?.birthdays?.length > 0 && !events?.anniversaries?.length;
-                  }),
-                  hasAnniversary: datesWithEvents.filter(date => {
-                    const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-                    const events = getEventsByDate[dateKey];
-                    return events?.anniversaries?.length > 0 && !events?.birthdays?.length;
-                  }),
-                  hasBoth: datesWithEvents.filter(date => {
-                    const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-                    const events = getEventsByDate[dateKey];
-                    return events?.birthdays?.length > 0 && events?.anniversaries?.length > 0;
-                  }),
-                }}
-                modifiersClassNames={{
-                  hasBirthday: 'has-birthday',
-                  hasAnniversary: 'has-anniversary',
-                  hasBoth: 'has-both',
-                }}
-                classNames={{
-                  day: 'h-[42px] w-[42px] relative font-medium',
-                  caption: 'mb-3',
-                  nav_button: 'h-8 w-8',
-                }}
-              />
+            <div className="mb-6">
+              <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm w-full">
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={goToToday}
+                      className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
+                    >
+                      Today
+                    </Button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={goPrevMonth}
+                        className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50"
+                        aria-label="Previous month"
+                      >
+                        <ChevronLeft className="w-4 h-4 text-slate-600" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={goNextMonth}
+                        className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50"
+                        aria-label="Next month"
+                      >
+                        <ChevronRight className="w-4 h-4 text-slate-600" />
+                      </button>
+                    </div>
+                    <div className="text-base font-semibold text-slate-900 ml-2">{monthLabel}</div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-7 border border-slate-200 rounded-xl overflow-hidden">
+                  {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((d) => (
+                    <div
+                      key={d}
+                      className="bg-slate-50 border-b border-slate-200 text-slate-600 text-xs font-semibold px-3 py-2"
+                    >
+                      {d}
+                    </div>
+                  ))}
+
+                  {calendarWeeks.flat().map((date, idx) => {
+                    const isOutside = date.getMonth() !== (selectedCalendarMonth || new Date()).getMonth();
+                    const key = dateToKey(date);
+                    const isSelected = key && selectedCalendarDateKey === key;
+                    const isToday = (() => {
+                      const now = new Date();
+                      return now.toDateString() === date.toDateString();
+                    })();
+
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setSelectedCalendarDateKey(key)}
+                        className={`min-h-[110px] text-left align-top px-2 py-2 border-b border-r border-slate-200 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-200 ${
+                          isOutside ? 'bg-white text-slate-400' : 'bg-white text-slate-900'
+                        } ${isSelected ? 'ring-2 ring-indigo-300 relative z-10' : ''}`}
+                        style={{
+                          borderRightWidth: (idx + 1) % 7 === 0 ? 0 : undefined,
+                        }}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div
+                            className={`text-xs font-semibold ${
+                              isToday ? 'text-indigo-700' : isOutside ? 'text-slate-400' : 'text-slate-900'
+                            }`}
+                          >
+                            {date.getDate()}
+                          </div>
+                        </div>
+                        {dayEventPills(date)}
+                      </button>
+                    );
+                  })}
+                </div>
               
               {/* Legend */}
               <div className="flex items-center justify-center gap-6 mt-4 pt-4 border-t border-slate-200">
@@ -1000,157 +1459,66 @@ const Dashboard = () => {
                   <span className="text-xs font-medium text-blue-700">Work Anniversary</span>
                 </div>
               </div>
+              </div>
             </div>
 
-            {/* Events Grid */}
-            {getEventsForMonth.length > 0 ? (
+            {/* Event list moved to compact side detail card above */}
+          </Card>
+
+          {/* People Pulse */}
+          <Card className="border-2 p-6 rounded-2xl">
+            <div className="flex items-start justify-between gap-3 mb-4">
               <div>
-                <h3 className="text-sm font-semibold text-slate-700 mb-3">
-                  Events for {selectedCalendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-2">
-                  {getEventsForMonth.map((item, index) => (
-                    <div 
-                      key={`${item.type}-${item.id || index}`} 
-                      className={`group relative p-4 rounded-xl border-2 transition-all duration-300 cursor-pointer hover:shadow-lg hover:-translate-y-1 ${
-                        item.type === 'birthday' 
-                          ? 'bg-gradient-to-br from-pink-50 to-rose-50 border-pink-200 hover:border-pink-300' 
-                          : 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200 hover:border-blue-300'
-                      }`}
+                <h2 className="text-base font-semibold text-slate-900 mb-1">People Pulse</h2>
+                <p className="text-xs text-slate-600">Live activity feed</p>
+              </div>
+            </div>
+            {dashboardData.recentActivities && dashboardData.recentActivities.length > 0 ? (
+              <div className="space-y-3 max-h-[360px] overflow-y-auto pr-2">
+                {dashboardData.recentActivities.slice(0, 10).map((activity) => {
+                  const desc = String(activity.description || '');
+                  const nameGuess = desc.split("'s")[0] || desc.split(' joined')[0] || 'Employee';
+                  return (
+                    <div
+                      key={activity.id}
+                      className="flex items-start gap-3 p-3 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
                     >
-                      <div className="flex items-start gap-3">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-md ${
-                          item.type === 'birthday' 
-                            ? 'bg-gradient-to-br from-pink-500 to-rose-500' 
-                            : 'bg-gradient-to-br from-blue-500 to-indigo-500'
-                        }`}>
-                          {item.type === 'birthday' ? (
-                            <Cake className="w-6 h-6 text-white" />
-                          ) : (
-                            <Calendar className="w-6 h-6 text-white" />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2 mb-1">
-                            <p className="text-sm font-semibold text-slate-900 truncate">{item.name}</p>
-                            <span className={`text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap ${
-                              item.type === 'birthday' 
-                                ? 'bg-pink-200 text-pink-800' 
-                                : 'bg-blue-200 text-blue-800'
-                            }`}>
-                              {item.type === 'birthday' ? '🎂' : '🎉'}
-                            </span>
-                          </div>
-                          <p className="text-xs text-slate-600 mb-1">
-                            {item.department}
-                            {item.type === 'anniversary' && item.years && (
-                              <span className="ml-1 font-medium text-blue-700">{item.years} years</span>
-                            )}
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center text-xs font-bold shadow-sm">
+                        {getInitials(nameGuess)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm text-slate-900">
+                            <span className="font-semibold">{nameGuess}</span>{' '}
+                            <span className="text-slate-700">{desc.replace(nameGuess, '').trim() || desc}</span>
                           </p>
-                          <div className="flex items-center gap-1.5 mt-2">
-                            <CalendarDays className={`w-3.5 h-3.5 ${
-                              item.type === 'birthday' ? 'text-pink-600' : 'text-blue-600'
-                            }`} />
-                            <p className={`text-xs font-medium ${
-                              item.type === 'birthday' ? 'text-pink-700' : 'text-blue-700'
-                            }`}>
-                              {item.date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
-                            </p>
-                          </div>
+                          <span className="text-xs text-slate-500 whitespace-nowrap">{getRelativeTime(activity.date)}</span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[11px] bg-indigo-50 text-indigo-700 border border-indigo-100 px-2 py-0.5 rounded-full font-semibold">
+                            {activity.type}
+                          </span>
+                          <span className="text-xs text-slate-500">{activity.date}</span>
                         </div>
                       </div>
-                      {/* Decorative corner accent */}
-                      <div className={`absolute top-0 right-0 w-16 h-16 opacity-10 ${
-                        item.type === 'birthday' 
-                          ? 'bg-pink-500' 
-                          : 'bg-blue-500'
-                      } rounded-bl-full`}></div>
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
             ) : (
-              <div className="text-center py-8 px-4 bg-slate-50 rounded-xl border-2 border-dashed border-slate-300">
-                <Cake className="w-12 h-12 text-slate-400 mx-auto mb-3 opacity-50" />
-                <p className="text-sm font-medium text-slate-500 mb-1">
-                  No birthdays or work anniversaries this month
-                </p>
-                <p className="text-xs text-slate-400">
-                  Events will appear here when available
-                </p>
+              <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 p-8 text-center">
+                <Activity className="w-10 h-10 text-slate-400 mx-auto mb-3" />
+                <p className="text-sm font-medium text-slate-700">No recent activity</p>
+                <p className="text-xs text-slate-500 mt-1">Check-ins, new hires, and leave actions will appear here.</p>
               </div>
             )}
           </Card>
 
-          {/* People Pulse */}
-          <Card className="border-2 p-6">
-            <h2 className="text-base font-semibold mb-1">People Pulse</h2>
-            <p className="text-xs text-slate-600 mb-4">Latest movements across the organization</p>
-            <div className="space-y-3">
-              {dashboardData.recentActivities && dashboardData.recentActivities.length > 0 ? (
-                dashboardData.recentActivities.slice(0, 6).map((activity) => (
-                  <div key={activity.id} className="flex items-start gap-3 p-3 rounded-lg border border-neutral-200 hover:bg-slate-50 hover:shadow-md transition-all duration-200 cursor-pointer">
-                    <div className="w-2 h-2 rounded-full bg-blue-500 mt-2" />
-                    <div className="flex-1">
-                      <p className="text-sm">{activity.description}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs bg-blue-100 text-blue-800 border border-blue-200 px-2 py-0.5 rounded-full">
-                          {activity.type}
-                        </span>
-                        <span className="text-xs text-slate-600">{activity.date}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-slate-500 text-center py-4">No recent activities</p>
-              )}
-            </div>
-          </Card>
-
-          {/* Today's Check-Ins */}
-          <Card className="border-2 p-6">
-            <h2 className="text-base font-semibold mb-1">Today's Check-Ins</h2>
-            <p className="text-xs text-slate-600 mb-4">Employees checked in today</p>
-            <div className="space-y-3 max-h-[300px] overflow-y-auto">
-              {recentCheckIns && recentCheckIns.length > 0 ? (
-                recentCheckIns.map((checkIn) => (
-                  <div key={`${checkIn.employeeId}-${checkIn.checkInTime}`} className="flex items-center justify-between p-3 rounded-lg border border-neutral-200 hover:bg-slate-50 hover:shadow-md transition-all duration-200">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-3 h-3 rounded-full ${checkIn.status === 'checked-in' ? 'bg-green-500' : 'bg-gray-400'}`} />
-                      <div>
-                        <p className="text-sm font-medium">{checkIn.employeeName}</p>
-                        <p className="text-xs text-slate-600">{checkIn.department}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      {checkIn.checkInTime && (
-                        <p className="text-xs text-slate-600">
-                          Check-in: {new Date(checkIn.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      )}
-                      {checkIn.checkOutTime && (
-                        <p className="text-xs text-slate-600">
-                          Check-out: {new Date(checkIn.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      )}
-                      {checkIn.totalMinutes > 0 && (
-                        <p className="text-xs text-slate-500">
-                          {(checkIn.totalMinutes / 60).toFixed(1)}h
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-slate-500 text-center py-4">No check-ins recorded today</p>
-              )}
-            </div>
-          </Card>
+          {/* Today's Check-Ins removed as requested */}
         </div>
 
-        {/* Right Column - 3 cols */}
-        <div className="lg:col-span-3 space-y-6">
+        {/* Right Column - Action Sidebar (sticky) */}
+        <div className="lg:col-span-3 space-y-6 lg:sticky lg:top-6 h-fit">
           {/* Upcoming Leaves & Festivals */}
           <Card className="border-2 p-6">
             <h2 className="text-base font-semibold mb-1">Upcoming Leaves & Festivals</h2>
@@ -1215,23 +1583,41 @@ const Dashboard = () => {
                     : 'border-blue-200 bg-blue-50/70';
                   
                   return (
-                    <div key={reminder.id} className={`p-3 rounded-lg border-2 ${borderColor} hover:shadow-md transition-all duration-200`}>
+                    <div key={reminder.id} className={`p-3 rounded-xl border-2 ${borderColor} hover:shadow-md transition-all duration-200`}>
                       <p className="text-sm font-medium mb-1">{reminder.title}</p>
                       <p className="text-xs text-slate-600">Due in {reminder.daysRemaining} day{reminder.daysRemaining !== 1 ? 's' : ''}</p>
+                      {reminder.daysRemaining != null && reminder.daysRemaining <= 3 && (
+                        <div className="mt-2">
+                          <Button
+                            onClick={() => router.push(`/hrms/${companyId}/payroll`)}
+                            className="bg-red-600 text-white hover:bg-red-700 w-full"
+                          >
+                            Start Task
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   );
                 })
               ) : (
                 <>
-                  <div className="p-3 rounded-lg border-2 border-red-200 bg-red-50/70 hover:shadow-md transition-all duration-200">
+                  <div className="p-3 rounded-xl border-2 border-red-200 bg-red-50/70 hover:shadow-md transition-all duration-200">
                     <p className="text-sm font-medium mb-1">Tax Filing Due</p>
                     <p className="text-xs text-slate-600">Due in 5 days</p>
                   </div>
-                  <div className="p-3 rounded-lg border-2 border-amber-200 bg-amber-50/70 hover:shadow-md transition-all duration-200">
+                  <div className="p-3 rounded-xl border-2 border-amber-200 bg-amber-50/70 hover:shadow-md transition-all duration-200">
                     <p className="text-sm font-medium mb-1">Payroll Processing</p>
                     <p className="text-xs text-slate-600">Due in 3 days</p>
+                    <div className="mt-2">
+                      <Button
+                        onClick={() => router.push(`/hrms/${companyId}/payroll`)}
+                        className="bg-red-600 text-white hover:bg-red-700 w-full"
+                      >
+                        Start Task
+                      </Button>
+                    </div>
                   </div>
-                  <div className="p-3 rounded-lg border-2 border-blue-200 bg-blue-50/70 hover:shadow-md transition-all duration-200">
+                  <div className="p-3 rounded-xl border-2 border-blue-200 bg-blue-50/70 hover:shadow-md transition-all duration-200">
                     <p className="text-sm font-medium mb-1">Quarterly Review</p>
                     <p className="text-xs text-slate-600">Due in 10 days</p>
                   </div>
@@ -1241,6 +1627,133 @@ const Dashboard = () => {
           </Card>
         </div>
       </div>
+
+      {/* Floating Quick Actions */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <div className="group relative">
+          <button
+            type="button"
+            className="w-14 h-14 rounded-2xl bg-indigo-600 text-white shadow-xl hover:bg-indigo-700 transition-all flex items-center justify-center"
+            aria-label="Quick actions"
+          >
+            <Plus className="w-6 h-6" />
+          </button>
+          <div className="absolute bottom-16 right-0 w-56 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all">
+            <div className="rounded-2xl border border-slate-200 bg-white/90 backdrop-blur-xl shadow-2xl p-2">
+              <button
+                type="button"
+                onClick={() => router.push(`/hrms/${companyId}/employees`)}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-50 text-left"
+              >
+                <Users className="w-4 h-4 text-indigo-600" />
+                <span className="text-sm font-medium text-slate-900">Add Employee</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push(`/hrms/${companyId}/payroll`)}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-50 text-left"
+              >
+                <Coins className="w-4 h-4 text-indigo-600" />
+                <span className="text-sm font-medium text-slate-900">Run Payroll</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push(`/hrms/${companyId}/reports`)}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-50 text-left"
+              >
+                <FileText className="w-4 h-4 text-indigo-600" />
+                <span className="text-sm font-medium text-slate-900">Export Report</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Calendar Event Modal */}
+      <Modal
+        isOpen={showCalendarEventModal}
+        onClose={() => setShowCalendarEventModal(false)}
+        title="Event details"
+        size="md"
+        footer={
+          <div className="flex items-center justify-between w-full gap-2">
+            <Button
+              onClick={() => setShowCalendarEventModal(false)}
+              className="bg-transparent border border-neutral-300 text-neutral-700 hover:bg-neutral-50"
+              icon={<X className="w-4 h-4" />}
+            >
+              Close
+            </Button>
+            <Button
+              onClick={() => {
+                toast.success('Quick message queued (demo)');
+                setQuickMessageText('');
+              }}
+              className="bg-indigo-600 text-white hover:bg-indigo-700"
+              icon={<Send className="w-4 h-4" />}
+            >
+              Quick Message
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div className="text-sm text-slate-600">
+            {selectedCalendarDateKey ? `Date: ${selectedCalendarDateKey}` : null}
+          </div>
+          <div className="space-y-3">
+            {eventsForSelectedDate?.birthdays?.length ? (
+              <div className="rounded-xl border border-pink-200 bg-pink-50 p-3">
+                <div className="flex items-center gap-2 font-semibold text-slate-900 mb-2">
+                  <Cake className="w-4 h-4 text-pink-600" />
+                  Birthdays
+                </div>
+                <div className="space-y-2">
+                  {eventsForSelectedDate.birthdays.map((b, idx) => (
+                    <div key={`b-${idx}`} className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm font-medium text-slate-900">{b.name}</div>
+                        <div className="text-xs text-slate-600">{b.department}</div>
+                      </div>
+                      <MessageSquare className="w-4 h-4 text-pink-600" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {eventsForSelectedDate?.anniversaries?.length ? (
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
+                <div className="flex items-center gap-2 font-semibold text-slate-900 mb-2">
+                  <Calendar className="w-4 h-4 text-blue-600" />
+                  Work anniversaries
+                </div>
+                <div className="space-y-2">
+                  {eventsForSelectedDate.anniversaries.map((a, idx) => (
+                    <div key={`a-${idx}`} className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm font-medium text-slate-900">{a.name}</div>
+                        <div className="text-xs text-slate-600">{a.department}</div>
+                      </div>
+                      <MessageSquare className="w-4 h-4 text-blue-600" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          <div>
+            <label className="text-sm font-medium mb-2 block">Message</label>
+            <Textarea
+              value={quickMessageText}
+              onChange={(e) => setQuickMessageText(e.target.value)}
+              placeholder="Write a quick wish or note..."
+              rows={4}
+            />
+          </div>
+        </div>
+      </Modal>
 
       {/* Broadcast Dialog */}
       <Modal

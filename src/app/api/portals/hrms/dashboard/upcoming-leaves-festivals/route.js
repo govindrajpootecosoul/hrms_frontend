@@ -7,27 +7,39 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const companyId = searchParams.get('companyId');
     const company = searchParams.get('company');
+    const department = searchParams.get('department'); // optional
+    const dateParam = searchParams.get('date'); // optional (anchor start date)
 
     // Build query params
     const params = new URLSearchParams();
     if (companyId) params.append('companyId', companyId);
     if (company) params.append('company', company);
+    if (department && department !== 'all') params.append('department', department);
 
     const queryString = params.toString();
 
     const upcomingItems = [];
+    const anchorStart = dateParam || new Date().toISOString().split('T')[0];
 
     // Fetch upcoming leaves
     try {
       const leavesResponse = await fetch(
-        `${API_BASE_URL}/attendance/leaves?status=Approved&startDate=${new Date().toISOString().split('T')[0]}${queryString ? `&${queryString}` : ''}`
+        `${API_BASE_URL}/attendance/leaves?status=Approved&startDate=${anchorStart}${queryString ? `&${queryString}` : ''}`
       );
 
       if (leavesResponse && leavesResponse.ok) {
         const leavesData = await leavesResponse.json();
         const leaves = leavesData.success ? leavesData.leaves : (Array.isArray(leavesData) ? leavesData : []);
 
-        leaves.forEach(leave => {
+        const normalizeDept = (v) => String(v || '').trim().toLowerCase();
+        const requestedDept = department && department !== 'all' ? normalizeDept(department) : null;
+
+        leaves
+          .filter((leave) => {
+            if (!requestedDept) return true;
+            return normalizeDept(leave.department || 'General') === requestedDept;
+          })
+          .forEach(leave => {
           upcomingItems.push({
             id: `leave-${leave._id || leave.id}`,
             type: 'Leave',
@@ -45,7 +57,7 @@ export async function GET(request) {
     // Fetch holidays/festivals
     try {
       const holidaysResponse = await fetch(
-        `${API_BASE_URL}/attendance/holidays?startDate=${new Date().toISOString().split('T')[0]}${queryString ? `&${queryString}` : ''}`
+        `${API_BASE_URL}/attendance/holidays?startDate=${anchorStart}${queryString ? `&${queryString}` : ''}`
       );
 
       if (holidaysResponse && holidaysResponse.ok) {
@@ -70,9 +82,16 @@ export async function GET(request) {
     // Sort by date
     upcomingItems.sort((a, b) => new Date(a.date) - new Date(b.date));
 
+    // If filtering by department, keep festivals (All) + any matching department.
+    const normalizedDept = (v) => String(v || '').trim().toLowerCase();
+    const requestedDept = department && department !== 'all' ? normalizedDept(department) : null;
+    const scoped = requestedDept
+      ? upcomingItems.filter((i) => i.department === 'All' || normalizedDept(i.department) === requestedDept)
+      : upcomingItems;
+
     return NextResponse.json({
       success: true,
-      data: upcomingItems.slice(0, 10),
+      data: scoped.slice(0, 10),
     });
   } catch (error) {
     console.error('Upcoming Leaves & Festivals API Error:', error);

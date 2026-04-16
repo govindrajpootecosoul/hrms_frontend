@@ -7,7 +7,6 @@ import {
   Users, 
   Target, 
   CalendarCheck, 
-  CheckCircle2, 
   Hourglass,
   Search,
   Plus,
@@ -136,14 +135,17 @@ export default function SourcingScreeningPage() {
           const json = await res.json();
           if (json.success && json.data) {
             const data = json.data;
-            setCandidatesList(data.candidates || []);
+            // Sourcing & Screening should not show candidates already in "Hired" stage
+            // (those belong downstream in Recruitment & Hiring).
+            const filteredCandidates = (data.candidates || []).filter((c) => c?.status !== 'Hired');
+            setCandidatesList(filteredCandidates);
             
             // Set KPI Cards
             if (data.kpis) {
               setKpiCards([
     { 
       title: 'TOTAL CANDIDATES', 
-                  value: String(data.kpis.totalCandidates || 0), 
+                  value: String((data.kpis.totalCandidates || 0) - (data.kpis.hired || 0)), 
       icon: Users, 
       gradient: 'from-purple-600 via-purple-500 to-purple-700'
     },
@@ -158,12 +160,6 @@ export default function SourcingScreeningPage() {
                   value: String(data.kpis.inInterview || 0), 
       icon: CalendarCheck, 
       gradient: 'from-orange-500 via-orange-400 to-orange-600'
-    },
-    { 
-      title: 'HIRED', 
-                  value: String(data.kpis.hired || 0), 
-      icon: CheckCircle2, 
-      gradient: 'from-green-600 via-green-500 to-green-700'
     },
     { 
       title: 'ON HOLD', 
@@ -224,7 +220,6 @@ export default function SourcingScreeningPage() {
       'In Interview': 'bg-yellow-100 text-yellow-700',
       'Interview Scheduled': 'bg-yellow-100 text-yellow-700',
       'Interview Aligned': 'bg-yellow-100 text-yellow-700',
-      'Hired': 'bg-green-100 text-green-700',
       'On Hold': 'bg-slate-100 text-slate-700',
     };
     return statusColors[status] || 'bg-slate-100 text-slate-700';
@@ -500,7 +495,6 @@ export default function SourcingScreeningPage() {
         const totalCandidates = updatedCandidates.length;
         const shortlisted = updatedCandidates.filter(c => c.status === 'Shortlisted').length;
         const inInterview = updatedCandidates.filter(c => c.status === 'In Interview' || c.status === 'Interview Scheduled' || c.status === 'Interview Aligned').length;
-        const hired = updatedCandidates.filter(c => c.status === 'Hired').length;
         const onHold = updatedCandidates.filter(c => c.status === 'On Hold').length;
         
         setKpiCards([
@@ -521,12 +515,6 @@ export default function SourcingScreeningPage() {
             value: String(inInterview), 
             icon: CalendarCheck, 
             gradient: 'from-orange-500 via-orange-400 to-orange-600'
-          },
-          { 
-            title: 'HIRED', 
-            value: String(hired), 
-            icon: CheckCircle2, 
-            gradient: 'from-green-600 via-green-500 to-green-700'
           },
           { 
             title: 'ON HOLD', 
@@ -601,7 +589,7 @@ export default function SourcingScreeningPage() {
 
       {/* KPI Cards */}
       {!loading && (
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         {kpiCards.map((card, index) => {
           const Icon = card.icon;
           return (
@@ -651,7 +639,6 @@ export default function SourcingScreeningPage() {
               <option>New</option>
               <option>Shortlisted</option>
               <option>In Interview</option>
-              <option>Hired</option>
               <option>On Hold</option>
             </select>
             <select
@@ -755,7 +742,6 @@ export default function SourcingScreeningPage() {
                       <option value="New">New</option>
                       <option value="Shortlisted">Shortlisted</option>
                       <option value="In Interview">In Interview</option>
-                      <option value="Hired">Hired</option>
                       <option value="On Hold">On Hold</option>
                     </select>
                   </td>
