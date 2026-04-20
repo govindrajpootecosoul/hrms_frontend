@@ -1,5 +1,11 @@
 import { MongoClient } from 'mongodb';
-import { getMongoUri, getDatabaseName, getCompanyDatabaseName, getCollectionName, MONGODB_CONFIG } from './config/database.config';
+import {
+  getMongoUri,
+  getDatabaseName,
+  getCompanyDatabaseName,
+  getCollectionName,
+  MONGODB_CONFIG,
+} from './config/database.config';
 
 // MongoDB connection configuration
 // ⚠️ IMPORTANT: To change MongoDB connection, edit: src/lib/config/database.config.js

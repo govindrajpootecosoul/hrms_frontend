@@ -20,18 +20,17 @@ export const MONGODB_CONFIG = {
   uri: process.env.MONGO_URI || process.env.MONGODB_URI || process.env.NEXT_PUBLIC_MONGO_URI || null,
   
   // Database Names
-  // Base database names - will be prefixed with company name (e.g., ecosoul_asset_tracker, thrive_asset_tracker)
-  // Format: {company}_{base_database_name}
-  // Examples:
-  //   - Ecosoul: ecosoul_asset_tracker, ecosoul_hrms, ecosoul_finance, ecosoul_query_tracker, ecosoul_Employee
-  //   - Thrive: thrive_asset_tracker, thrive_hrms, thrive_finance, thrive_query_tracker, thrive_Employee
+  // NEW (single-connection multi-DB):
+  // We use ONE database per company (e.g., "ecosoul", "thrive") inside the same Mongo instance.
+  // Portals are separated by COLLECTIONS inside that company DB (not separate DBs like ecosoul_asset_tracker).
   databases: {
-    assetTracker: process.env.MONGO_DB_NAME || process.env.MONGODB_DB_NAME || process.env.NEXT_PUBLIC_MONGO_DB_NAME || 'asset_tracker', // Results in: ecosoul_asset_tracker, thrive_asset_tracker
-    login: process.env.MONGO_LOGIN_DB_NAME || 'Employees_List', // Shared database (not company-specific)
-    employee: process.env.MONGO_EMPLOYEE_DB_NAME || 'Employee', // Results in: ecosoul_Employee, thrive_Employee
-    queryTracker: process.env.QUERY_TRACKER_DB_NAME || 'query_tracker', // Results in: ecosoul_query_tracker, thrive_query_tracker
-    hrms: process.env.HRMS_DB_NAME || process.env.NEXT_PUBLIC_HRMS_DB_NAME || 'hrms', // Results in: ecosoul_hrms, thrive_hrms
-    finance: process.env.FINANCE_DB_NAME || process.env.NEXT_PUBLIC_FINANCE_DB_NAME || 'finance', // Results in: ecosoul_finance, thrive_finance
+    // These are kept for backward compatibility, but in the new setup they are NOT used to create per-portal DBs.
+    assetTracker: process.env.MONGO_DB_NAME || process.env.MONGODB_DB_NAME || process.env.NEXT_PUBLIC_MONGO_DB_NAME || 'asset_tracker',
+    login: process.env.MONGO_LOGIN_DB_NAME || 'Employees_List',
+    employee: process.env.MONGO_EMPLOYEE_DB_NAME || 'Employee',
+    queryTracker: process.env.QUERY_TRACKER_DB_NAME || 'query_tracker',
+    hrms: process.env.HRMS_DB_NAME || process.env.NEXT_PUBLIC_HRMS_DB_NAME || 'hrms',
+    finance: process.env.FINANCE_DB_NAME || process.env.NEXT_PUBLIC_FINANCE_DB_NAME || 'finance',
   },
   
   // Collection Names
@@ -92,38 +91,50 @@ export function getCompanyFromEmail(email) {
 }
 
 /**
+ * Canonical company DB name (must be a valid Mongo DB name: no spaces).
+ * Defaults:
+ * - Thrive        -> "thrive"
+ * - Ecosoul Home  -> "ecosoul"
+ *
+ * Override via env:
+ * - NEXT_PUBLIC_MONGO_COMPANY_DB_THRIVE
+ * - NEXT_PUBLIC_MONGO_COMPANY_DB_ECOSOUL
+ */
+export function normalizeCompanyDbName(company) {
+  if (!company || typeof company !== 'string') return '';
+  const t = company.trim().toLowerCase();
+  if (t.includes('thrive'))
+    return (process.env.NEXT_PUBLIC_MONGO_COMPANY_DB_THRIVE || 'thrive').trim();
+  if (t.includes('ecosoul') || t.includes('eco soul'))
+    return (process.env.NEXT_PUBLIC_MONGO_COMPANY_DB_ECOSOUL || 'ecosoul').trim();
+  return company.trim().replace(/\s+/g, '_');
+}
+
+/**
  * Get company-specific database name
  * @param {string} module - Module name: 'assetTracker', 'hrms', 'finance', 'queryTracker', 'employee'
  * @param {string} company - Company name: 'Thrive' or 'Ecosoul Home'
  * @returns {string} Company-specific database name
  * 
  * Examples:
- *   - getCompanyDatabaseName('assetTracker', 'Ecosoul Home') => 'ecosoul_asset_tracker'
- *   - getCompanyDatabaseName('hrms', 'Thrive') => 'thrive_hrms'
- *   - getCompanyDatabaseName('finance', 'Ecosoul Home') => 'ecosoul_finance'
- *   - getCompanyDatabaseName('queryTracker', 'Thrive') => 'thrive_query_tracker'
- *   - getCompanyDatabaseName('employee', 'Ecosoul Home') => 'ecosoul_Employee'
+ *   - getCompanyDatabaseName('assetTracker', 'Ecosoul Home') => 'ecosoul'
+ *   - getCompanyDatabaseName('hrms', 'Thrive') => 'thrive'
+ *   - getCompanyDatabaseName('finance', 'Ecosoul Home') => 'ecosoul'
+ *   - getCompanyDatabaseName('queryTracker', 'Thrive') => 'thrive'
+ *   - getCompanyDatabaseName('employee', 'Ecosoul Home') => 'ecosoul'
  * 
- * Note: 'login' module always returns 'Employees_List' (shared database)
+ * Note: 'login' module always returns the shared login DB name
  */
 export function getCompanyDatabaseName(module = 'assetTracker', company = null) {
   // Login database is shared and not company-specific
   if (module === 'login') {
     return MONGODB_CONFIG.databases.login;
   }
-  
-  const baseDbName = MONGODB_CONFIG.databases[module] || MONGODB_CONFIG.databases.assetTracker;
-  
-  // If no company specified, return base database name
-  if (!company) {
-    return baseDbName;
-  }
-  
-  // Normalize company name (lowercase, replace spaces with underscores)
-  const normalizedCompany = company.toLowerCase().replace(/\s+/g, '_');
-  
-  // Return company-specific database name: {company}_{base_database_name}
-  return `${normalizedCompany}_${baseDbName}`;
+
+  // In the single-connection setup, company data lives in ONE DB per company.
+  // Portals use different collections in that same DB.
+  if (!company) return getDatabaseName(module);
+  return normalizeCompanyDbName(company);
 }
 
 /**

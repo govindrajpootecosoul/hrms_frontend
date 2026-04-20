@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   Users,
@@ -216,6 +216,13 @@ const Dashboard = () => {
   const [modalTitle, setModalTitle] = useState('');
   const [employees, setEmployees] = useState([]);
   const [attendance, setAttendance] = useState([]);
+  const statsEtagRef = useRef('');
+  const dashboardLoadInFlightRef = useRef(false);
+  const dashboardLastKeyRef = useRef('');
+  const calendarLoadInFlightRef = useRef(false);
+  const calendarLastKeyRef = useRef('');
+  const DASHBOARD_CACHE_KEY = 'hrms_dashboard_cache_v1';
+  const CALENDAR_CACHE_KEY = 'hrms_dashboard_calendar_cache_v1';
 
   const getLocalDateYyyyMmDd = useCallback(() => {
     const d = new Date();
@@ -225,13 +232,97 @@ const Dashboard = () => {
     return `${yyyy}-${mm}-${dd}`;
   }, []);
 
+  // SSE: refresh attendance counts only when backend says something changed (no polling loop).
+  useEffect(() => {
+    let es = null;
+    let stopped = false;
+
+    const open = async () => {
+      try {
+        // Resolve company same as other effects
+        let company = currentCompany?.name || null;
+        if (!company && typeof window !== 'undefined') {
+          company =
+            sessionStorage.getItem('selectedCompany') ||
+            sessionStorage.getItem('adminSelectedCompany') ||
+            (companyId ? sessionStorage.getItem(`company_${companyId}`) : null);
+        }
+
+        const base = (process.env.NEXT_PUBLIC_API_URL && String(process.env.NEXT_PUBLIC_API_URL).trim()) || '';
+        if (!base) return; // no API configured
+
+        const todayKey = getLocalDateYyyyMmDd();
+        const isToday = !selectedDate || selectedDate === todayKey;
+        if (!isToday) return;
+
+        const url = `${base.replace(/\/+$/, '')}/events/attendance${company ? `?company=${encodeURIComponent(company)}` : ''}`;
+        es = new EventSource(url);
+
+        const revalidateStats = async () => {
+          if (stopped) return;
+          try {
+            const p = new URLSearchParams();
+            p.append('date', todayKey);
+            if (company) p.append('company', company);
+            if (companyId) p.append('companyId', companyId);
+            if (selectedDepartment && selectedDepartment !== 'all') p.append('department', selectedDepartment);
+
+            const res = await fetch(`/api/hrms-portal/attendance/stats?${p.toString()}`, {
+              cache: 'no-store',
+              headers: {
+                'Cache-Control': 'no-cache',
+                ...(statsEtagRef.current ? { 'If-None-Match': statsEtagRef.current } : {}),
+              },
+            });
+            const et = res.headers.get('etag');
+            if (et) statsEtagRef.current = et;
+            if (res.status === 304) return;
+            if (!res.ok) return;
+            const json = await res.json().catch(() => null);
+            if (json?.success && json?.data) {
+              setStats((prev) => ({
+                ...(prev || {}),
+                totalEmployees: json.data.totalEmployees || 0,
+                activeEmployees: json.data.activeEmployees ?? json.data.totalEmployees ?? 0,
+                presentToday: json.data.presentToday || 0,
+                absentToday: json.data.absentToday || 0,
+                onLeaveToday: json.data.onLeaveToday || 0,
+                wfhToday: json.data.onWFHToday || 0,
+                lateCheckIns: json.data.lateCheckIns || 0,
+                leaveApprovals: json.data.leaveApprovals || 0,
+                pendingLeaves: json.data.leaveApprovals || 0,
+              }));
+            }
+          } catch {
+            // ignore
+          }
+        };
+
+        es.addEventListener('attendance', () => {
+          // debounce bursts
+          setTimeout(revalidateStats, 250);
+        });
+      } catch {
+        // ignore
+      }
+    };
+
+    open();
+
+    return () => {
+      stopped = true;
+      try {
+        if (es) es.close();
+      } catch {
+        // ignore
+      }
+    };
+  }, [companyId, currentCompany, selectedDepartment, selectedDate, getLocalDateYyyyMmDd]);
+
   useEffect(() => {
     // Fetch live data from API
     const loadData = async () => {
       try {
-        setLoading(true);
-        setError(null);
-
         // Resolve company consistently (prefer currentCompany, then sessionStorage fallbacks)
         let company = currentCompany?.name || null;
         if (!company && typeof window !== 'undefined') {
@@ -240,6 +331,44 @@ const Dashboard = () => {
             sessionStorage.getItem('adminSelectedCompany') ||
             (companyId ? sessionStorage.getItem(`company_${companyId}`) : null);
         }
+
+        // Prevent duplicate loads (Next dev strict-mode runs effects twice)
+        const dashKey = JSON.stringify({
+          companyId: companyId || null,
+          company: company || null,
+          department: selectedDepartment || 'all',
+          date: selectedDate || null,
+        });
+        if (dashboardLoadInFlightRef.current) return;
+        if (dashboardLastKeyRef.current === dashKey) return;
+        dashboardLastKeyRef.current = dashKey;
+
+        // Try to reuse cached data (helps when switching tabs away/back)
+        if (typeof window !== 'undefined') {
+          try {
+            const raw = sessionStorage.getItem(DASHBOARD_CACHE_KEY);
+            const cached = raw ? JSON.parse(raw) : null;
+            const fresh = cached && cached.key === dashKey && Date.now() - (cached.ts || 0) < 5 * 60 * 1000;
+            if (fresh && cached.data) {
+              if (cached.data.dashboardData) setDashboardData(cached.data.dashboardData);
+              if (cached.data.stats) setStats(cached.data.stats);
+              if (cached.data.commandCenter) setCommandCenter(cached.data.commandCenter);
+              setLoading(false);
+              return;
+            }
+          } catch {
+            // ignore cache parse issues
+          }
+        }
+
+        dashboardLoadInFlightRef.current = true;
+        setLoading(true);
+        setError(null);
+
+        // Snapshots for session cache (avoid relying on async React state)
+        let statsSnapshot = null;
+        let dashboardDataSnapshot = null;
+        let commandCenterSnapshot = null;
         
         // Build query params
         const params = new URLSearchParams();
@@ -249,23 +378,10 @@ const Dashboard = () => {
         if (selectedDate) params.append('date', selectedDate);
         const queryString = params.toString();
 
-        // Calendar month anchor for birthday/work-anniversary APIs
-        const cal = selectedCalendarMonth || new Date();
-        const calAnchor = `${cal.getFullYear()}-${String(cal.getMonth() + 1).padStart(2, '0')}-01`;
-        const calendarParams = new URLSearchParams();
-        if (companyId) calendarParams.append('companyId', companyId);
-        if (company) calendarParams.append('company', company);
-        if (selectedDepartment && selectedDepartment !== 'all') calendarParams.append('department', selectedDepartment);
-        calendarParams.append('date', calAnchor);
-        const calendarQueryString = calendarParams.toString();
-
         // Fetch attendance stats directly (same as Attendance Overview)
-        // Add cache-busting timestamp to ensure fresh data
         const today = selectedDate || getLocalDateYyyyMmDd();
-        const timestamp = Date.now();
         const attendanceStatsParams = new URLSearchParams();
         attendanceStatsParams.append('date', today);
-        attendanceStatsParams.append('_t', timestamp.toString()); // Cache-busting
         if (company) attendanceStatsParams.append('company', company);
         if (companyId) attendanceStatsParams.append('companyId', companyId);
         
@@ -277,16 +393,20 @@ const Dashboard = () => {
           headers: {
             'Cache-Control': 'no-cache',
             'Pragma': 'no-cache',
+            ...(statsEtagRef.current ? { 'If-None-Match': statsEtagRef.current } : {}),
           },
         });
         
-        // Process stats immediately to show dashboard faster
-        const statsData = statsRes.ok ? await statsRes.json() : null;
+        const resEtag = statsRes.headers.get('etag');
+        if (resEtag) statsEtagRef.current = resEtag;
+
+        // Process stats immediately to show dashboard faster (skip if unchanged)
+        const statsData = statsRes.status === 304 ? null : (statsRes.ok ? await statsRes.json() : null);
         
         // Set initial stats from attendance stats endpoint
         if (statsData && statsData.success && statsData.data) {
           console.log('[Dashboard] Attendance stats response:', statsData.data);
-          setStats({
+          statsSnapshot = {
             totalEmployees: statsData.data.totalEmployees || 0,
             activeEmployees: statsData.data.activeEmployees ?? statsData.data.totalEmployees ?? 0,
             presentToday: statsData.data.presentToday || 0,
@@ -298,10 +418,11 @@ const Dashboard = () => {
             todayAttendance: statsData.data.presentToday || 0, // For backward compatibility
             pendingLeaves: statsData.data.leaveApprovals || 0, // Map leaveApprovals to pendingLeaves
             upcomingBirthdays: 0, // Will be fetched separately if needed
-          });
-        } else {
+          };
+          setStats(statsSnapshot);
+        } else if (statsRes.status !== 304) {
           console.warn('[Dashboard] Stats response missing success or data:', statsData);
-          setStats({
+          statsSnapshot = {
             totalEmployees: 0,
             activeEmployees: 0,
             presentToday: 0,
@@ -313,14 +434,13 @@ const Dashboard = () => {
             todayAttendance: 0,
             pendingLeaves: 0,
             upcomingBirthdays: 0,
-          });
+          };
+          setStats(statsSnapshot);
         }
         
         // Fetch remaining dashboard data in parallel (non-critical)
         const [
           monthlyHeadcountsRes,
-          birthdaysRes,
-          workAnniversariesRes,
           recentActivitiesRes,
           upcomingEventsRes,
           upcomingLeavesFestivalsRes,
@@ -328,8 +448,6 @@ const Dashboard = () => {
           checkInsRes,
         ] = await Promise.all([
           fetch(`/api/hrms/dashboard/monthly-headcounts${queryString ? `?${queryString}` : ''}`),
-          fetch(`/api/hrms/dashboard/birthdays${calendarQueryString ? `?${calendarQueryString}` : ''}`),
-          fetch(`/api/hrms/dashboard/work-anniversaries${calendarQueryString ? `?${calendarQueryString}` : ''}`),
           fetch(`/api/hrms/dashboard/recent-activities${queryString ? `?${queryString}` : ''}`),
           fetch(`/api/hrms/dashboard/upcoming-events${queryString ? `?${queryString}` : ''}`),
           fetch(`/api/hrms/dashboard/upcoming-leaves-festivals${queryString ? `?${queryString}` : ''}`),
@@ -343,8 +461,6 @@ const Dashboard = () => {
 
         // Process responses (stats already processed above)
         const monthlyHeadcountsData = monthlyHeadcountsRes.ok ? await monthlyHeadcountsRes.json() : null;
-        const birthdaysData = birthdaysRes.ok ? await birthdaysRes.json() : null;
-        const workAnniversariesData = workAnniversariesRes.ok ? await workAnniversariesRes.json() : null;
         const recentActivitiesData = recentActivitiesRes.ok ? await recentActivitiesRes.json() : null;
         const upcomingEventsData = upcomingEventsRes.ok ? await upcomingEventsRes.json() : null;
         const upcomingLeavesFestivalsData = upcomingLeavesFestivalsRes.ok ? await upcomingLeavesFestivalsRes.json() : null;
@@ -369,8 +485,8 @@ const Dashboard = () => {
         }
 
         // Set dashboard data (stats already set above)
-        setDashboardData({
-          stats: stats || {
+        dashboardDataSnapshot = {
+          stats: statsSnapshot || {
             totalEmployees: 0,
             activeEmployees: 0,
             presentToday: 0,
@@ -395,16 +511,14 @@ const Dashboard = () => {
           upcomingLeavesAndFestivals: upcomingLeavesFestivalsData?.success && upcomingLeavesFestivalsData?.data 
             ? upcomingLeavesFestivalsData.data 
             : [],
-          birthdayCalendar: birthdaysData?.success && birthdaysData?.data 
-            ? birthdaysData.data 
-            : [],
-          workAnniversaryCalendar: workAnniversariesData?.success && workAnniversariesData?.data 
-            ? workAnniversariesData.data 
-            : [],
+          // birthdayCalendar + workAnniversaryCalendar are loaded in a separate effect
+          birthdayCalendar: [],
+          workAnniversaryCalendar: [],
           complianceReminders: complianceRemindersData?.success && complianceRemindersData?.data 
             ? complianceRemindersData.data 
             : [],
-        });
+        };
+        setDashboardData(dashboardDataSnapshot);
 
         // Fetch command center aggregates (department distribution, trends, ratios)
         try {
@@ -417,10 +531,33 @@ const Dashboard = () => {
             cache: 'no-store',
           });
           const ccJson = ccRes.ok ? await ccRes.json() : null;
-          if (ccJson?.success) setCommandCenter(ccJson.data);
+          if (ccJson?.success) {
+            commandCenterSnapshot = ccJson.data;
+            setCommandCenter(ccJson.data);
+          }
         } catch (e) {
           // Non-blocking
           console.warn('[Dashboard] command-center fetch failed:', e?.message || e);
+        }
+
+        // Save cache (for tab switching/back navigation)
+        if (typeof window !== 'undefined') {
+          try {
+            sessionStorage.setItem(
+              DASHBOARD_CACHE_KEY,
+              JSON.stringify({
+                key: dashKey,
+                ts: Date.now(),
+                data: {
+                  dashboardData: dashboardDataSnapshot,
+                  stats: statsSnapshot,
+                  commandCenter: commandCenterSnapshot,
+                },
+              })
+            );
+          } catch {
+            // ignore quota issues
+          }
         }
       } catch (err) {
         console.error('Error loading dashboard data:', err);
@@ -438,15 +575,18 @@ const Dashboard = () => {
         });
         setStats({ totalEmployees: 0, activeEmployees: 0, presentToday: 0, absentToday: 0, onLeaveToday: 0, wfhToday: 0, lateCheckIns: 0, leaveApprovals: 0, todayAttendance: 0, pendingLeaves: 0, upcomingBirthdays: 0 });
       } finally {
+        dashboardLoadInFlightRef.current = false;
         setLoading(false);
       }
     };
     
     // Initial load
     loadData();
-    
-    // Set up auto-refresh for attendance stats (Present, Absent, WFH)
-    const refreshAttendanceOnly = async () => {
+  }, [companyId, currentCompany, selectedDepartment, selectedDate]);
+
+  // Calendar data (birthdays + work anniversaries): fetch only when calendar month or filters change.
+  useEffect(() => {
+    const loadCalendar = async () => {
       try {
         // Resolve company consistently (prefer currentCompany, then sessionStorage fallbacks)
         let company = currentCompany?.name || null;
@@ -456,79 +596,88 @@ const Dashboard = () => {
             sessionStorage.getItem('adminSelectedCompany') ||
             (companyId ? sessionStorage.getItem(`company_${companyId}`) : null);
         }
-        const params = new URLSearchParams();
-        if (companyId) params.append('companyId', companyId);
-        if (company) params.append('company', company);
-        const queryString = params.toString();
-        
-        // Fetch attendance stats to get updated Present, Absent, WFH, etc.
-        // Add cache-busting timestamp to ensure fresh data
-        const today = getLocalDateYyyyMmDd();
-        const timestamp = Date.now();
-        const attendanceStatsParams = new URLSearchParams();
-        attendanceStatsParams.append('date', today);
-        attendanceStatsParams.append('_t', timestamp.toString()); // Cache-busting
-        if (company) attendanceStatsParams.append('company', company);
-        if (companyId) attendanceStatsParams.append('companyId', companyId);
-        
-        const statsRes = await fetch(`/api/hrms-portal/attendance/stats?${attendanceStatsParams.toString()}`, {
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache',
-          },
+
+        const calKey = JSON.stringify({
+          companyId: companyId || null,
+          company: company || null,
+          department: selectedDepartment || 'all',
+          cal: selectedCalendarMonth ? selectedCalendarMonth.toISOString().slice(0, 7) : null,
         });
-        if (statsRes.ok) {
-          const statsData = await statsRes.json();
-          if (statsData?.success && statsData?.data) {
-            // Update attendance stats (Present, Absent, WFH, etc.)
-            setStats(prevStats => {
-              const newStats = statsData.data;
-              if (prevStats && (
-                prevStats.presentToday !== newStats.presentToday ||
-                prevStats.absentToday !== newStats.absentToday ||
-                prevStats.wfhToday !== newStats.onWFHToday ||
-                prevStats.onLeaveToday !== newStats.onLeaveToday ||
-                prevStats.lateCheckIns !== newStats.lateCheckIns ||
-                prevStats.leaveApprovals !== newStats.leaveApprovals
-              )) {
-                return {
-                  ...prevStats,
-                  totalEmployees: newStats.totalEmployees || prevStats.totalEmployees || 0,
-                  activeEmployees: (newStats.activeEmployees ?? newStats.totalEmployees ?? prevStats.activeEmployees ?? 0),
-                  presentToday: newStats.presentToday || 0,
-                  absentToday: newStats.absentToday || 0,
-                  onLeaveToday: newStats.onLeaveToday || 0,
-                  wfhToday: newStats.onWFHToday || 0,
-                  lateCheckIns: newStats.lateCheckIns || 0,
-                  leaveApprovals: newStats.leaveApprovals || 0,
-                  todayAttendance: newStats.presentToday || 0,
-                  pendingLeaves: newStats.leaveApprovals || 0,
-                };
-              }
-              return prevStats;
-            });
+        if (calendarLoadInFlightRef.current) return;
+        if (calendarLastKeyRef.current === calKey) return;
+        calendarLastKeyRef.current = calKey;
+
+        // Try cache for calendar (tab switch/back)
+        if (typeof window !== 'undefined') {
+          try {
+            const raw = sessionStorage.getItem(CALENDAR_CACHE_KEY);
+            const cached = raw ? JSON.parse(raw) : null;
+            const fresh = cached && cached.key === calKey && Date.now() - (cached.ts || 0) < 30 * 60 * 1000;
+            if (fresh && cached.data) {
+              setDashboardData((prev) => ({
+                ...(prev || {}),
+                birthdayCalendar: cached.data.birthdayCalendar || [],
+                workAnniversaryCalendar: cached.data.workAnniversaryCalendar || [],
+              }));
+              return;
+            }
+          } catch {
+            // ignore
           }
         }
-        
-        const checkInsRes = await fetch(`/api/hrms/dashboard/checkins${queryString ? `?${queryString}` : ''}`);
-        if (checkInsRes.ok) {
-          const checkInsData = await checkInsRes.json();
+
+        calendarLoadInFlightRef.current = true;
+
+        const cal = selectedCalendarMonth || new Date();
+        const calAnchor = `${cal.getFullYear()}-${String(cal.getMonth() + 1).padStart(2, '0')}-01`;
+        const calendarParams = new URLSearchParams();
+        if (companyId) calendarParams.append('companyId', companyId);
+        if (company) calendarParams.append('company', company);
+        if (selectedDepartment && selectedDepartment !== 'all') calendarParams.append('department', selectedDepartment);
+        calendarParams.append('date', calAnchor);
+        const calendarQueryString = calendarParams.toString();
+
+        const [birthdaysRes, anniversariesRes] = await Promise.all([
+          fetch(`/api/hrms/dashboard/birthdays${calendarQueryString ? `?${calendarQueryString}` : ''}`),
+          fetch(`/api/hrms/dashboard/work-anniversaries${calendarQueryString ? `?${calendarQueryString}` : ''}`),
+        ]);
+
+        const birthdaysData = birthdaysRes.ok ? await birthdaysRes.json() : null;
+        const workAnniversariesData = anniversariesRes.ok ? await anniversariesRes.json() : null;
+
+        const birthdayCalendar = birthdaysData?.success && birthdaysData?.data ? birthdaysData.data : [];
+        const workAnniversaryCalendar =
+          workAnniversariesData?.success && workAnniversariesData?.data ? workAnniversariesData.data : [];
+
+        setDashboardData((prev) => ({
+          ...(prev || {}),
+          birthdayCalendar,
+          workAnniversaryCalendar,
+        }));
+
+        if (typeof window !== 'undefined') {
+          try {
+            sessionStorage.setItem(
+              CALENDAR_CACHE_KEY,
+              JSON.stringify({
+                key: calKey,
+                ts: Date.now(),
+                data: { birthdayCalendar, workAnniversaryCalendar },
+              })
+            );
+          } catch {
+            // ignore
+          }
         }
-      } catch (err) {
-        console.error('Error refreshing attendance:', err);
-        // Silently fail - don't disrupt the UI
+      } catch (e) {
+        console.warn('[Dashboard] calendar fetch failed:', e?.message || e);
+      } finally {
+        calendarLoadInFlightRef.current = false;
       }
     };
-    
-    // Only auto-refresh when viewing "today" to avoid mutating historical views.
-    const todayKey = getLocalDateYyyyMmDd();
-    if (!selectedDate || selectedDate === todayKey) {
-      const refreshInterval = setInterval(refreshAttendanceOnly, 30000);
-      return () => clearInterval(refreshInterval);
-    }
-    return () => {};
-  }, [companyId, currentCompany, selectedDepartment, selectedDate, selectedCalendarMonth]);
+
+    loadCalendar();
+  }, [companyId, currentCompany, selectedDepartment, selectedCalendarMonth]);
 
   // Fetch employees list
   useEffect(() => {

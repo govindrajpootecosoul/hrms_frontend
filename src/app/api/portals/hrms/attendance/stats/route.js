@@ -38,20 +38,30 @@ export async function GET(request) {
     if (company) {
       headers['x-company'] = company;
     }
+    const inm = request.headers.get('if-none-match');
+    if (inm) {
+      headers['if-none-match'] = inm;
+    }
 
-    // Add cache-busting timestamp to URL
-    const timestamp = Date.now();
-    const finalUrl = `${backendUrl}${backendUrl.includes('?') ? '&' : '?'}_t=${timestamp}`;
-    
-    const response = await fetch(finalUrl, {
+    const response = await fetch(backendUrl, {
       method: 'GET',
       headers: {
         ...headers,
+        // allow backend to do conditional 304 responses (ETag)
         'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
       },
       cache: 'no-store', // Prevent Next.js from caching
     });
+
+    if (response.status === 304) {
+      return new NextResponse(null, {
+        status: 304,
+        headers: {
+          ETag: response.headers.get('etag') || '',
+          'Cache-Control': 'no-cache',
+        },
+      });
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -65,13 +75,11 @@ export async function GET(request) {
     const data = await response.json();
     console.log('[Attendance Stats Proxy] Backend response:', JSON.stringify(data, null, 2));
     
-    // Return with no-cache headers to prevent caching
+    // Return with revalidation-friendly headers (ETag) so client can poll cheaply.
     return NextResponse.json(data, {
       headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-        'X-Timestamp': Date.now().toString(),
+        ETag: response.headers.get('etag') || '',
+        'Cache-Control': 'no-cache',
       },
     });
   } catch (error) {

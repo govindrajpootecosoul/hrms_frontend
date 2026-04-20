@@ -51,11 +51,14 @@ function assertRequiredFrontendEnv() {
 function printDevHint() {
   const p = String(process.env.FRONTEND_PORT).trim();
   const serverIp = (process.env.SERVER_IP && String(process.env.SERVER_IP).trim()) || '';
+  const feBase = (process.env.FRONTEND_BASE_URL && String(process.env.FRONTEND_BASE_URL).trim()) || '';
   console.log('');
   console.log('  --- Open in browser (do NOT use 0.0.0.0) ---');
   console.log(`  This PC:     http://localhost:${p}`);
   if (serverIp && serverIp !== 'localhost') {
     console.log(`  Phone / LAN: http://${serverIp}:${p}`);
+  } else if (feBase) {
+    console.log(`  Deployed UI: ${feBase.replace(/\/+$/, '')}`);
   }
   console.log('');
 }
