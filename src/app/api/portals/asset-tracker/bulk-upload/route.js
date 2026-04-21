@@ -210,15 +210,27 @@ export async function POST(request) {
 
     console.log(`[BulkUpload] Processing upload for company: ${company}, companyId: ${companyId}`);
 
-    const arrayBuffer = await file.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    const fileName = String(file?.name || '').toLowerCase();
+    const isCsv =
+      fileName.endsWith('.csv') ||
+      String(file?.type || '').toLowerCase().includes('text/csv') ||
+      String(file?.type || '').toLowerCase().includes('application/csv');
+
+    let workbook;
+    if (isCsv) {
+      const text = await file.text();
+      workbook = XLSX.read(text, { type: 'string' });
+    } else {
+      const arrayBuffer = await file.arrayBuffer();
+      workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    }
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
     const rows = XLSX.utils.sheet_to_json(worksheet, { defval: '', raw: false });
 
     if (rows.length === 0) {
       return NextResponse.json(
-        { success: false, error: 'Excel file is empty' },
+        { success: false, error: isCsv ? 'CSV file is empty' : 'Excel file is empty' },
         { status: 400 }
       );
     }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Check, User, Briefcase, DollarSign, MessageSquare, Settings, Upload, FileSpreadsheet } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, User, Briefcase, DollarSign, MessageSquare, Settings, Upload, FileSpreadsheet, Copy } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import Modal from '@/components/common/Modal';
 import Button from '@/components/common/Button';
@@ -73,6 +73,9 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
   const [uploadMode, setUploadMode] = useState('single'); // 'single' or 'bulk'
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
+  const [showBulkUploadResult, setShowBulkUploadResult] = useState(false);
+  const [bulkUploadResultText, setBulkUploadResultText] = useState('');
+  const [bulkUploadCopied, setBulkUploadCopied] = useState(false);
   const [formData, setFormData] = useState({
     // Basic Information
     candidateName: '',
@@ -314,6 +317,9 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
   const handleClose = () => {
     setCurrentPhase(1);
     setUploadMode('single');
+    setShowBulkUploadResult(false);
+    setBulkUploadResultText('');
+    setBulkUploadCopied(false);
     setFormData({
       candidateName: '',
       contactNumber: '',
@@ -343,14 +349,40 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
     onOpenChange(false);
   };
 
+  const copyBulkUploadResult = async () => {
+    try {
+      if (!bulkUploadResultText) return;
+      await navigator.clipboard.writeText(bulkUploadResultText);
+      setBulkUploadCopied(true);
+      setTimeout(() => setBulkUploadCopied(false), 1500);
+    } catch (e) {
+      // Fallback for older browsers / blocked clipboard permissions
+      try {
+        const el = document.createElement('textarea');
+        el.value = bulkUploadResultText;
+        el.style.position = 'fixed';
+        el.style.left = '-9999px';
+        document.body.appendChild(el);
+        el.focus();
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+        setBulkUploadCopied(true);
+        setTimeout(() => setBulkUploadCopied(false), 1500);
+      } catch (_e2) {
+        console.error('Copy failed:', e);
+      }
+    }
+  };
+
   const handleBulkUpload = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     // Validate file type
     const fileExtension = file.name.split('.').pop()?.toLowerCase();
-    if (!['xlsx', 'xls'].includes(fileExtension)) {
-      alert('Please upload a valid Excel file (.xlsx or .xls)');
+    if (!['xlsx', 'xls', 'csv'].includes(fileExtension)) {
+      alert('Please upload a valid file (.xlsx, .xls, or .csv)');
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -383,21 +415,24 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
 
       if (result.success) {
         const successMessage = `Successfully imported ${result.created || 0} candidate(s).`;
-        const errorMessage = result.errors && result.errors.length > 0 
-          ? `\n\nErrors:\n${result.errors.map(e => `Row ${e.row}: ${e.errors.join(', ')}`).join('\n')}`
-          : '';
-        alert(successMessage + errorMessage);
-        handleClose();
+        const errorMessage =
+          result.errors && result.errors.length > 0
+            ? `\n\nErrors:\n${result.errors.map((e) => `Row ${e.row}: ${e.errors.join(', ')}`).join('\n')}`
+            : '';
+        setBulkUploadResultText(successMessage + errorMessage);
+        setShowBulkUploadResult(true);
         // Trigger refresh in parent component
         if (typeof window !== 'undefined') {
           window.location.reload();
         }
       } else {
-        alert(result.error || 'Failed to upload candidates');
+        setBulkUploadResultText(result.error || 'Failed to upload candidates');
+        setShowBulkUploadResult(true);
       }
     } catch (error) {
       console.error('Upload error:', error);
-      alert('Failed to upload file. Please try again.');
+      setBulkUploadResultText('Failed to upload file. Please try again.');
+      setShowBulkUploadResult(true);
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {
@@ -768,12 +803,12 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
               iconPosition="left"
               disabled={isUploading}
             >
-              {isUploading ? 'Uploading...' : 'Upload Excel File'}
+              {isUploading ? 'Uploading...' : 'Upload File'}
             </Button>
             <input
               ref={fileInputRef}
               type="file"
-              accept=".xlsx,.xls"
+              accept=".xlsx,.xls,.csv,text/csv"
               onChange={handleBulkUpload}
               className="hidden"
             />
@@ -844,7 +879,7 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            Bulk Upload (Excel)
+            Bulk Upload (Excel/CSV)
           </button>
         </div>
       )}
@@ -877,10 +912,10 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
           <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center">
             <FileSpreadsheet className="w-12 h-12 text-slate-400 mx-auto mb-3" />
             <p className="text-sm text-slate-600 mb-4">
-              Click the "Upload Excel File" button below to select your file
+              Click the "Upload File" button below to select your file
             </p>
             <p className="text-xs text-slate-500">
-              Supported formats: .xlsx, .xls
+              Supported formats: .xlsx, .xls, .csv
             </p>
           </div>
         </div>
@@ -948,6 +983,45 @@ export default function AddCandidateDialog({ open, onOpenChange, onSave, existin
       </div>
       </>
       )}
+    </Modal>
+
+    <Modal
+      isOpen={showBulkUploadResult}
+      onClose={() => setShowBulkUploadResult(false)}
+      title="Bulk upload result"
+      size="lg"
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button
+            onClick={copyBulkUploadResult}
+            className="bg-white border border-neutral-300 text-neutral-700 hover:bg-neutral-50"
+            icon={<Copy className="h-4 w-4" />}
+            iconPosition="left"
+          >
+            {bulkUploadCopied ? 'Copied' : 'Copy'}
+          </Button>
+          <Button
+            onClick={() => {
+              setShowBulkUploadResult(false);
+              handleClose();
+            }}
+            className="bg-blue-600 text-white hover:bg-blue-700"
+          >
+            Close
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-3">
+        <div className="text-sm text-slate-600">
+          You can copy this text and share it for debugging.
+        </div>
+        <textarea
+          readOnly
+          value={bulkUploadResultText}
+          className="w-full h-80 rounded-lg border border-neutral-300 bg-white p-3 text-sm text-slate-900 font-mono"
+        />
+      </div>
     </Modal>
 
     {/* Recruiter Management Dialog */}

@@ -36,6 +36,7 @@ const AssetTrackerDashboard = () => {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState(null);
+  const [pickedUploadFileName, setPickedUploadFileName] = useState('');
   const [loading, setLoading] = useState(true);
   const [initialStatusFilter, setInitialStatusFilter] = useState('');
   const fileInputRef = useRef(null);
@@ -546,6 +547,7 @@ const AssetTrackerDashboard = () => {
 
   const openUpload = () => {
     setUploadResult(null);
+    setPickedUploadFileName('');
     setShowUploadModal(true);
   };
 
@@ -555,6 +557,7 @@ const AssetTrackerDashboard = () => {
 
   const handleUploadFile = async (file) => {
     if (!file) return;
+    setPickedUploadFileName(file?.name || '');
     setUploading(true);
     setUploadResult(null);
 
@@ -783,18 +786,18 @@ const AssetTrackerDashboard = () => {
       <Modal
         isOpen={showUploadModal}
         onClose={() => setShowUploadModal(false)}
-        title="Upload Assets (Excel)"
+        title="Upload Assets (Excel / CSV)"
         size="lg"
       >
         <div className="space-y-4">
           <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
-            Upload a single <strong>.xlsx</strong> file to add multiple assets at once. If you don't have the file yet, download the template first.
+            Upload a single <strong>.xlsx</strong> / <strong>.xls</strong> / <strong>.csv</strong> file to add multiple assets at once. If you don't have the file yet, download the template first.
           </div>
 
           <input
             ref={fileInputRef}
             type="file"
-            accept=".xlsx,.xls"
+            accept=".xlsx,.xls,.csv,text/csv"
             className="hidden"
             onChange={(e) => handleUploadFile(e.target.files?.[0])}
           />
@@ -817,6 +820,11 @@ const AssetTrackerDashboard = () => {
             >
               Download Template
             </Button>
+          </div>
+
+          <div className="text-xs text-neutral-600">
+            <div>Supported formats: <strong>.xlsx</strong>, <strong>.xls</strong>, <strong>.csv</strong></div>
+            {pickedUploadFileName ? <div className="mt-1">Selected: <strong>{pickedUploadFileName}</strong></div> : null}
           </div>
 
           {uploadResult && (
