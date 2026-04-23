@@ -12,6 +12,22 @@ export function AdminMultiSelect({
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
+  const normalizedOptions = (Array.isArray(options) ? options : []).map((opt) => {
+    if (opt && typeof opt === 'object') {
+      const value = opt.value ?? opt.id ?? opt.key;
+      return {
+        value: String(value ?? ''),
+        label: String(opt.label ?? opt.name ?? value ?? ''),
+      };
+    }
+    return { value: String(opt ?? ''), label: String(opt ?? '') };
+  }).filter((o) => o.value !== '');
+
+  const selectedValues = Array.isArray(selected) ? selected.map((x) => String(x)) : [];
+  const selectedLabels = selectedValues
+    .map((v) => normalizedOptions.find((o) => o.value === v)?.label || v)
+    .filter(Boolean);
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -23,11 +39,11 @@ export function AdminMultiSelect({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const toggleOption = (option) => {
-    if (selected.includes(option)) {
-      onChange(selected.filter((item) => item !== option));
+  const toggleOption = (value) => {
+    if (selectedValues.includes(value)) {
+      onChange(selectedValues.filter((item) => item !== value));
     } else {
-      onChange([...selected, option]);
+      onChange([...selectedValues, value]);
     }
   };
 
@@ -43,10 +59,10 @@ export function AdminMultiSelect({
         onClick={() => setIsOpen(!isOpen)}
         className="w-full px-4 py-2 text-left bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
       >
-        <span className={selected.length === 0 ? 'text-gray-400' : 'text-gray-900'}>
-          {selected.length === 0
+        <span className={selectedValues.length === 0 ? 'text-gray-400' : 'text-gray-900'}>
+          {selectedValues.length === 0
             ? placeholder
-            : `${selected.length} selected`}
+            : `${selectedValues.length} selected`}
         </span>
         <span className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
           <svg
@@ -68,33 +84,35 @@ export function AdminMultiSelect({
       </button>
       {isOpen && (
         <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
-          {options.map((option) => (
+          {normalizedOptions.map((option) => (
             <label
-              key={option}
+              key={option.value}
               className="flex items-center px-4 py-2 hover:bg-gray-100 cursor-pointer"
             >
               <input
                 type="checkbox"
-                checked={selected.includes(option)}
-                onChange={() => toggleOption(option)}
+                checked={selectedValues.includes(option.value)}
+                onChange={() => toggleOption(option.value)}
                 className="mr-3 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               />
-              <span className="text-gray-900">{option}</span>
+              <span className="text-gray-900">{option.label}</span>
             </label>
           ))}
         </div>
       )}
-      {selected.length > 0 && (
+      {selectedValues.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-2">
-          {selected.map((item) => (
+          {selectedValues.map((item) => (
             <span
               key={item}
               className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
             >
-              {item}
+              {selectedLabels.find((l) => l === (normalizedOptions.find((o) => o.value === item)?.label || item)) ||
+                normalizedOptions.find((o) => o.value === item)?.label ||
+                item}
               <button
                 type="button"
-                onClick={() => toggleOption(item)}
+                onClick={() => toggleOption(String(item))}
                 className="ml-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full text-blue-400 hover:bg-blue-200 hover:text-blue-500"
               >
                 <span className="sr-only">Remove</span>

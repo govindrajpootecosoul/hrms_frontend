@@ -46,6 +46,10 @@ export const AdminPortalProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedCompany, setSelectedCompany] = useState(undefined);
+  const [departments, setDepartments] = useState([]);
+  const [departmentManagers, setDepartmentManagers] = useState({});
+  const [deptLoading, setDeptLoading] = useState(false);
+  const [deptError, setDeptError] = useState(null);
 
   // Get selected company from sessionStorage on mount
   useEffect(() => {
@@ -66,6 +70,7 @@ export const AdminPortalProvider = ({ children }) => {
       return;
     }
     fetchUsers();
+    fetchDepartmentsAndManagers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCompany]);
 
@@ -117,6 +122,70 @@ export const AdminPortalProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchDepartmentsAndManagers = async () => {
+    if (!selectedCompany) return;
+    try {
+      setDeptLoading(true);
+      setDeptError(null);
+
+      const deptUrl = `${API_BASE_URL}/admin-users/departments/list?company=${encodeURIComponent(selectedCompany)}`;
+      const mgrUrl = `${API_BASE_URL}/admin-users/departments/managers?company=${encodeURIComponent(selectedCompany)}`;
+
+      const [deptRes, mgrRes] = await Promise.all([fetch(deptUrl), fetch(mgrUrl)]);
+      const deptData = await deptRes.json();
+      const mgrData = await mgrRes.json();
+
+      if (!deptRes.ok) {
+        throw new Error(deptData?.error || `Failed to fetch departments (HTTP ${deptRes.status})`);
+      }
+      if (!mgrRes.ok) {
+        throw new Error(mgrData?.error || `Failed to fetch department managers (HTTP ${mgrRes.status})`);
+      }
+
+      if (deptData?.success) {
+        setDepartments(Array.isArray(deptData.departments) ? deptData.departments : []);
+      } else {
+        throw new Error(deptData?.error || 'Failed to fetch departments');
+      }
+
+      if (mgrData?.success) {
+        setDepartmentManagers(mgrData.managersByDepartment || {});
+      } else {
+        throw new Error(mgrData?.error || 'Failed to fetch department managers');
+      }
+    } catch (e) {
+      console.error('[AdminPortal] fetchDepartmentsAndManagers error:', e);
+      setDeptError(e.message || 'Failed to load departments');
+      setDepartments([]);
+      setDepartmentManagers({});
+    } finally {
+      setDeptLoading(false);
+    }
+  };
+
+  const setDepartmentManager = async (department, managerUserIds) => {
+    if (!selectedCompany) {
+      throw new Error('Please select a company first.');
+    }
+    const dept = String(department || '').trim();
+    if (!dept) throw new Error('Department is required.');
+
+    const apiUrl = `${API_BASE_URL}/admin-users/departments/${encodeURIComponent(dept)}/manager?company=${encodeURIComponent(selectedCompany)}`;
+    const response = await fetch(apiUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ managerUserIds: Array.isArray(managerUserIds) ? managerUserIds : [] }),
+    });
+    const data = await response.json();
+    if (!response.ok || !data?.success) {
+      throw new Error(data?.error || 'Failed to update department manager');
+    }
+
+    // Refresh mapping (cheap) to stay consistent with backend
+    await fetchDepartmentsAndManagers();
+    return data;
   };
 
   const addUser = async (userData) => {
@@ -302,11 +371,17 @@ export const AdminPortalProvider = ({ children }) => {
     error,
     selectedCompany,
     setCompany,
+    departments,
+    departmentManagers,
+    deptLoading,
+    deptError,
     addUser,
     updateUser,
     deleteUser,
     toggleUserActive,
     fetchUsers, // Expose fetchUsers for manual refresh
+    fetchDepartmentsAndManagers,
+    setDepartmentManager,
     updatePortalFeature,
     addCategory,
     deleteCategory,

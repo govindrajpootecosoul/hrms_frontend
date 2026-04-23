@@ -239,6 +239,12 @@ export const HRMS_MENU_ITEMS = [
         icon: <Clock className="w-4 h-4" />
       },
       {
+        id: 'attendance-approvals',
+        label: 'Attendance Approvals',
+        path: '/hrms/attendance/approvals',
+        icon: <CheckSquare className="w-4 h-4" />
+      },
+      {
         id: 'attendance-leave',
         label: 'Leave Management',
         path: '/hrms/attendance/leave',
@@ -289,6 +295,12 @@ export const HRMS_MENU_ITEMS = [
     label: 'Settings',
     path: '/hrms/settings',
     icon: <Settings className="w-5 h-5" />
+  },
+  {
+    id: 'warehouse-employees',
+    label: 'Warehouse Employees',
+    path: '/hrms/warehouse-employees',
+    icon: <Users className="w-5 h-5" />
   }
 ];
 

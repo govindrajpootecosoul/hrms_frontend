@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
 import Card from '@/components/common/Card';
 import Button from '@/components/common/Button';
@@ -73,6 +74,7 @@ function baseMinutesFromCheckinStatus({ status, checkInTime, totalMinutes }) {
 
 const EmployeePortalHome = () => {
   const { user } = useAuth();
+  const router = useRouter();
   const [dashboardData, setDashboardData] = useState(null);
   const [loadingData, setLoadingData] = useState(false);
   const [timeState, setTimeState] = useState(() => loadInitialState());
@@ -743,11 +745,16 @@ const EmployeePortalHome = () => {
           <h2 className="text-slate-900 font-semibold">My Snapshot</h2>
           <p className="text-sm text-slate-600 mb-4">Items that need your attention</p>
           <div className="space-y-3">
-            <div className="rounded-xl bg-white/80 p-3 shadow-sm">
+            <button
+              type="button"
+              onClick={() => router.push('/employee-portal/requests')}
+              className="w-full text-left rounded-xl bg-white/80 p-3 shadow-sm transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-primary-300"
+              title="Open requests"
+            >
               <p className="text-xs text-slate-500">Pending requests</p>
               <p className="text-2xl font-semibold text-slate-900">{quickStats.pendingRequests}</p>
               <p className="text-xs text-slate-500">Awaiting approvals</p>
-            </div>
+            </button>
             <div className="rounded-xl bg-white/80 p-3 shadow-sm">
               <p className="text-xs text-slate-500">Last payout</p>
               <p className="text-lg font-semibold text-slate-900">{quickStats.lastPayout}</p>

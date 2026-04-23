@@ -6,6 +6,7 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const employeeId = searchParams.get('employeeId');
+    const empCode = searchParams.get('empCode');
     const company = searchParams.get('company');
     const timeframe = searchParams.get('timeframe') || '7d'; // 7d, month, prev
     const month = searchParams.get('month'); // For previous month view
@@ -15,6 +16,132 @@ export async function GET(request) {
         { success: false, error: 'Employee ID is required' },
         { status: 400 }
       );
+    }
+
+    const authHeader = request.headers.get('authorization');
+
+    const asYmd = (d) => {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    };
+
+    const startOfMonthLocal = (d) => new Date(d.getFullYear(), d.getMonth(), 1);
+    const endOfMonthLocal = (d) => new Date(d.getFullYear(), d.getMonth() + 1, 0);
+
+    const buildAttendanceFromMachine = async () => {
+      if (!empCode) return null;
+
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      const last7End = new Date(today);
+      const last7Start = new Date(today);
+      last7Start.setDate(last7Start.getDate() - 6);
+
+      const thisMonthStart = startOfMonthLocal(now);
+      const thisMonthEnd = endOfMonthLocal(now);
+
+      let prevMonthStart;
+      let prevMonthEnd;
+      if (month) {
+        const [y, m] = month.split('-').map(Number);
+        prevMonthStart = new Date(y, (m ?? 1) - 1, 1);
+        prevMonthEnd = new Date(y, (m ?? 1), 0);
+      } else {
+        const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        prevMonthStart = new Date(prev.getFullYear(), prev.getMonth(), 1);
+        prevMonthEnd = new Date(prev.getFullYear(), prev.getMonth() + 1, 0);
+      }
+
+      const fetchRange = async (startDate, endDate) => {
+        const params = new URLSearchParams();
+        params.append('empCode', empCode);
+        params.append('startDate', asYmd(startDate));
+        params.append('endDate', asYmd(endDate));
+        if (company) params.append('company', company);
+
+        const backendUrl = `${API_BASE_URL}/employee/machine-attendance?${params.toString()}`;
+        const res = await fetch(backendUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(authHeader ? { Authorization: authHeader } : {}),
+          },
+        });
+        if (!res.ok) return [];
+        const json = await res.json();
+        return json?.success && json?.data?.records ? json.data.records : [];
+      };
+
+      // Fetch only what we need for the selected view, but also return full arrays for UI components.
+      const [r7, rThis, rPrev] = await Promise.all([
+        fetchRange(last7Start, last7End),
+        fetchRange(thisMonthStart, thisMonthEnd),
+        fetchRange(prevMonthStart, prevMonthEnd),
+      ]);
+
+      const toDayName = (dateStr) => {
+        const dt = new Date(`${dateStr}T00:00:00.000Z`);
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        return Number.isNaN(dt.getTime()) ? '' : days[dt.getUTCDay()];
+      };
+
+      const buildSeries = (startDate, endDate, records) => {
+        const byDate = new Map();
+        for (const r of records) {
+          if (!r?.date) continue;
+          const hasIn = r.punchIn != null && String(r.punchIn).trim() !== '';
+          if (!hasIn) continue;
+          byDate.set(r.date, r);
+        }
+
+        const out = [];
+        const cur = new Date(startDate);
+        while (cur <= endDate) {
+          const ymd = asYmd(cur);
+          const rec = byDate.get(ymd);
+          const present = Boolean(rec);
+          const status = present ? 'Present' : 'Absent';
+          out.push({
+            date: ymd,
+            day: toDayName(ymd),
+            status,
+            hours: rec?.hoursWorked != null && rec?.hoursWorked !== '' ? Number(rec.hoursWorked) : 0,
+            punchIn: rec?.punchIn || null,
+            punchOut: rec?.punchOut || null,
+            source: 'machine',
+          });
+          cur.setDate(cur.getDate() + 1);
+        }
+        return out.sort((a, b) => (a.date < b.date ? 1 : -1));
+      };
+
+      const attendanceLast7Days = buildSeries(last7Start, last7End, r7);
+      const attendanceThisMonth = buildSeries(thisMonthStart, thisMonthEnd, rThis);
+      const attendancePreviousMonth = buildSeries(prevMonthStart, prevMonthEnd, rPrev);
+
+      const totalHours7Days = attendanceLast7Days.reduce((sum, d) => sum + (Number.isFinite(d.hours) ? d.hours : 0), 0);
+      const totalHoursThisMonth = attendanceThisMonth.reduce((sum, d) => sum + (Number.isFinite(d.hours) ? d.hours : 0), 0);
+      const totalHoursPreviousMonth = attendancePreviousMonth.reduce((sum, d) => sum + (Number.isFinite(d.hours) ? d.hours : 0), 0);
+
+      return {
+        attendanceLast7Days,
+        attendanceThisMonth,
+        attendancePreviousMonth,
+        totalHours7Days: parseFloat(totalHours7Days.toFixed(1)),
+        totalHoursThisMonth: parseFloat(totalHoursThisMonth.toFixed(1)),
+        totalHoursPreviousMonth: parseFloat(totalHoursPreviousMonth.toFixed(1)),
+      };
+    };
+
+    // Prefer machine attendance if empCode is available (Employee Portal requirement).
+    if (empCode) {
+      const machineData = await buildAttendanceFromMachine();
+      if (machineData) {
+        return NextResponse.json({ success: true, data: machineData });
+      }
     }
 
     // Build query params for check-in history
@@ -27,8 +154,7 @@ export async function GET(request) {
 
     // Fetch check-in history from backend
     const backendUrl = `${API_BASE_URL}/employee/checkin/history?${params.toString()}`;
-    
-    const authHeader = request.headers.get('authorization');
+
     const response = await fetch(backendUrl, {
       method: 'GET',
       headers: {

@@ -94,6 +94,7 @@ export default function EmployeeAttendancePage() {
     timeWindow: '',
     notes: ''
   });
+  const [regularizationTime, setRegularizationTime] = useState({ start: '', end: '' });
   const [onDutyForm, setOnDutyForm] = useState({
     date: '',
     location: '',
@@ -121,6 +122,14 @@ export default function EmployeeAttendancePage() {
   }, [user]);
 
   useEffect(() => {
+    // Keep derived timeWindow string in sync for backend payload compatibility.
+    const start = regularizationTime.start;
+    const end = regularizationTime.end;
+    const next = start && end ? `${start} - ${end}` : '';
+    setRegularizationForm((prev) => (prev.timeWindow === next ? prev : { ...prev, timeWindow: next }));
+  }, [regularizationTime.start, regularizationTime.end]);
+
+  useEffect(() => {
     const fetchAttendance = async () => {
       if (!user?.employeeId) return;
       try {
@@ -131,6 +140,9 @@ export default function EmployeeAttendancePage() {
         // Build query params
         const params = new URLSearchParams();
         params.append('employeeId', user.employeeId);
+        if (user.empCode) {
+          params.append('empCode', user.empCode);
+        }
         params.append('timeframe', timeframe);
         if (timeframe === 'prev' && selectedMonth) {
           params.append('month', selectedMonth);
@@ -178,7 +190,7 @@ export default function EmployeeAttendancePage() {
       };
 
       if (type === 'regularization') {
-        if (!regularizationForm.date || !regularizationForm.timeWindow) {
+        if (!regularizationForm.date || !regularizationTime.start || !regularizationTime.end) {
           setSubmitMessage({ type: 'error', text: 'Please fill in all required fields' });
           setSubmitting(false);
           return;
@@ -237,6 +249,7 @@ export default function EmployeeAttendancePage() {
         // Reset form
         if (type === 'regularization') {
           setRegularizationForm({ date: '', timeWindow: '', notes: '' });
+          setRegularizationTime({ start: '', end: '' });
         } else if (type === 'on-duty') {
           setOnDutyForm({ date: '', location: '', details: '' });
         } else if (type === 'time-off') {
@@ -560,13 +573,35 @@ export default function EmployeeAttendancePage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="regularization-window">Time window</Label>
-                  <Input 
-                    id="regularization-window" 
-                    type="text" 
-                    placeholder="e.g. 09:30 AM – 06:30 PM" 
-                    value={regularizationForm.timeWindow}
-                    onChange={(e) => setRegularizationForm({ ...regularizationForm, timeWindow: e.target.value })}
-                  />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="regularization-window-start" className="text-xs text-muted-foreground">
+                        Start time
+                      </Label>
+                      <Input
+                        id="regularization-window-start"
+                        type="time"
+                        value={regularizationTime.start}
+                        onChange={(e) => setRegularizationTime((prev) => ({ ...prev, start: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="regularization-window-end" className="text-xs text-muted-foreground">
+                        End time
+                      </Label>
+                      <Input
+                        id="regularization-window-end"
+                        type="time"
+                        value={regularizationTime.end}
+                        onChange={(e) => setRegularizationTime((prev) => ({ ...prev, end: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                  {regularizationForm.timeWindow ? (
+                    <p className="text-xs text-muted-foreground">
+                      Selected: <span className="font-medium text-slate-700">{regularizationForm.timeWindow}</span>
+                    </p>
+                  ) : null}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="regularization-notes">Notes</Label>

@@ -79,6 +79,7 @@ export const AuthProvider = ({ children }) => {
       phone: backendUser.phone,
       role: backendUser.role,
       employeeId: backendUser.employeeId,
+      empCode: backendUser.emp_code || backendUser.empCode || null,
       department: backendUser.department,
       company: resolvedCompany,
       portals: backendUser.portals || [], // Store original portal names from database

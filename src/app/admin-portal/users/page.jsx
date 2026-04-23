@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAdminPortal } from '@/lib/context/AdminPortalContext';
 import { AdminTable } from '@/components/admin-portal/ui/AdminTable';
 import { AdminButton } from '@/components/admin-portal/ui/AdminButton';
@@ -10,7 +10,21 @@ import { AdminMultiSelect } from '@/components/admin-portal/ui/AdminMultiSelect'
 import portalList from '@/data/admin-portal/portalList.json';
 
 export default function UsersPage() {
-  const { users, addUser, updateUser, deleteUser, toggleUserActive, loading, error } = useAdminPortal();
+  const {
+    users,
+    departments,
+    departmentManagers,
+    deptLoading,
+    deptError,
+    fetchDepartmentsAndManagers,
+    setDepartmentManager,
+    addUser,
+    updateUser,
+    deleteUser,
+    toggleUserActive,
+    loading,
+    error,
+  } = useAdminPortal();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -19,6 +33,10 @@ export default function UsersPage() {
   const [submitError, setSubmitError] = useState(null);
   const [submitSuccess, setSubmitSuccess] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [deptSubmitting, setDeptSubmitting] = useState(false);
+  const [deptSubmitError, setDeptSubmitError] = useState(null);
+  const [deptDraft, setDeptDraft] = useState({});
+  const [activeSection, setActiveSection] = useState('users'); // 'users' | 'dept'
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -32,6 +50,17 @@ export default function UsersPage() {
     hasCredentialAccess: true,
     hasSubscriptionAccess: true,
   });
+
+  useEffect(() => {
+    // keep draft in sync when company changes / mapping loads
+    const initial = {};
+    (departments || []).forEach((d) => {
+      initial[d] = Array.isArray(departmentManagers?.[d]?.managerUserIds)
+        ? departmentManagers[d].managerUserIds
+        : [];
+    });
+    setDeptDraft(initial);
+  }, [departments, departmentManagers]);
 
   const handleCreate = () => {
     setSubmitError(null);
@@ -248,40 +277,224 @@ export default function UsersPage() {
         </div>
       )}
 
-      {/* Search Filter */}
-      <div className="mb-4">
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Q Search users by name or email"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
-          <svg
-            className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
-        </div>
-        {searchQuery && (
-          <div className="mt-2 text-sm text-gray-600">
-            Showing {filteredUsers.length} of {users.length} employees
+      {/* Section selector cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <button
+          type="button"
+          onClick={() => setActiveSection('dept')}
+          className={`text-left bg-white rounded-lg border shadow-sm px-5 py-4 transition ${
+            activeSection === 'dept'
+              ? 'border-blue-300 ring-2 ring-blue-100'
+              : 'border-gray-100 hover:border-gray-200'
+          }`}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-gray-900">Department Managers</div>
+              <div className="text-xs text-gray-500 mt-1">
+                Assign a manager per department.
+              </div>
+            </div>
+            <div className="text-xs font-medium text-gray-500">
+              {Array.isArray(departments) ? `${departments.length} depts` : '—'}
+            </div>
           </div>
-        )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveSection('users')}
+          className={`text-left bg-white rounded-lg border shadow-sm px-5 py-4 transition ${
+            activeSection === 'users'
+              ? 'border-blue-300 ring-2 ring-blue-100'
+              : 'border-gray-100 hover:border-gray-200'
+          }`}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-gray-900">Project / Portal Access</div>
+              <div className="text-xs text-gray-500 mt-1">
+                Active status, roles, and portal access.
+              </div>
+            </div>
+            <div className="text-xs font-medium text-gray-500">
+              {Array.isArray(users) ? `${users.length} users` : '—'}
+            </div>
+          </div>
+        </button>
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-x-auto">
-        <div className="min-w-full inline-block align-middle">
-          <AdminTable headers={tableHeaders}>
+      {/* Active section content */}
+      {activeSection === 'dept' ? (
+        <div className="bg-white rounded-lg shadow border border-gray-100">
+          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <div className="text-sm font-semibold text-gray-800">Department Managers</div>
+              <div className="text-xs text-gray-500">
+                Assign one manager per department. Changes apply immediately.
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <AdminButton
+                variant="secondary"
+                size="sm"
+                onClick={() => fetchDepartmentsAndManagers()}
+                disabled={deptLoading || deptSubmitting}
+              >
+                {deptLoading ? 'Refreshing...' : 'Refresh'}
+              </AdminButton>
+            </div>
+          </div>
+
+          {(deptError || deptSubmitError) && (
+            <div className="px-5 py-3 bg-red-50 border-b border-red-100 text-sm text-red-800">
+              {deptError || deptSubmitError}
+            </div>
+          )}
+
+          <div className="p-5">
+            {deptLoading ? (
+              <div className="text-sm text-gray-500">Loading departments...</div>
+            ) : !Array.isArray(departments) || departments.length === 0 ? (
+              <div className="text-sm text-gray-500">
+                No departments found for this company.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {departments.map((dept) => {
+                  const current = departmentManagers?.[dept];
+                  const draftValue = Array.isArray(deptDraft?.[dept])
+                    ? deptDraft[dept]
+                    : Array.isArray(current?.managerUserIds)
+                      ? current.managerUserIds
+                      : [];
+
+                  const candidates = (Array.isArray(users) ? users : [])
+                    .filter((u) => (u?.active !== false))
+                    .filter((u) => String(u?.department || '').trim() === String(dept || '').trim())
+                    .sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || '')));
+
+                  const selectedUsers = candidates.filter((u) => draftValue.includes(String(u?.id || u?._id)));
+                  const selectedLabel =
+                    selectedUsers.length > 0
+                      ? selectedUsers
+                          .map((u) => `${u.name || 'Employee'}${u.employeeId ? ` • ${u.employeeId}` : ''}`)
+                          .join(', ')
+                      : '';
+
+                  return (
+                    <div key={dept} className="rounded-lg border border-gray-200 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-gray-900 truncate">{dept}</div>
+                          <div className="text-xs text-gray-500 mt-1 truncate">
+                            Current:{' '}
+                            {Array.isArray(current?.managers) && current.managers.length > 0
+                              ? current.managers
+                                  .map((m) => `${m.name || 'Employee'}${m.email ? ` • ${m.email}` : ''}`)
+                                  .join(', ')
+                              : 'Unassigned'}
+                          </div>
+                        </div>
+                        <AdminButton
+                          size="sm"
+                          disabled={deptSubmitting}
+                          onClick={async () => {
+                            try {
+                              setDeptSubmitError(null);
+                              setDeptSubmitting(true);
+                              await setDepartmentManager(dept, draftValue);
+                              setSubmitSuccess(`Manager updated for ${dept}.`);
+                            } catch (e) {
+                              setDeptSubmitError(e.message || 'Failed to update manager');
+                            } finally {
+                              setDeptSubmitting(false);
+                            }
+                          }}
+                        >
+                          {deptSubmitting ? 'Saving...' : 'Save'}
+                        </AdminButton>
+                      </div>
+
+                      <div className="mt-3">
+                        <AdminMultiSelect
+                          label="Managers"
+                          options={candidates.map((u) => {
+                            const id = u.id || u._id;
+                            const empHint = u.employeeId ? ` • ${u.employeeId}` : '';
+                            const emailHint = u.email ? ` • ${u.email}` : '';
+                            return {
+                              value: String(id),
+                              label: `${u.name || 'Employee'}${empHint}${emailHint}`,
+                            };
+                          })}
+                          selected={draftValue}
+                          onChange={(selectedIds) => {
+                            setDeptDraft((prev) => ({ ...prev, [dept]: selectedIds }));
+                          }}
+                          placeholder="Select managers..."
+                        />
+                        {selectedLabel && (
+                          <div className="mt-1 text-xs text-gray-500 truncate">
+                            Selected: {selectedLabel}
+                          </div>
+                        )}
+                        {!selectedLabel && (
+                          <div className="mt-1 text-xs text-gray-500 truncate">
+                            Selected: Unassigned
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow border border-gray-100 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100">
+            <div className="text-sm font-semibold text-gray-800">Project / Portal Access</div>
+            <div className="text-xs text-gray-500">
+              Manage active status, roles, and portal access. Use search to filter quickly.
+            </div>
+          </div>
+
+          {/* Search Filter */}
+          <div className="px-5 py-4 border-b border-gray-100">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search users by name, email, ID, or department"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+              <svg
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+            </div>
+            {searchQuery && (
+              <div className="mt-2 text-sm text-gray-600">
+                Showing {filteredUsers.length} of {users.length} employees
+              </div>
+            )}
+          </div>
+
+          <div className="overflow-x-auto">
+            <div className="min-w-full inline-block align-middle">
+              <AdminTable headers={tableHeaders}>
           {filteredUsers.length === 0 ? (
             <tr>
               <td colSpan={tableHeaders.length} className="px-6 py-8 text-center text-gray-500">
@@ -353,8 +566,10 @@ export default function UsersPage() {
             ))
           )}
         </AdminTable>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Create Modal */}
       <AdminModal

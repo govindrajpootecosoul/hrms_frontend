@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, usePathname } from 'next/navigation';
 import {
   Users,
   Clock,
@@ -164,6 +164,7 @@ KPICard.displayName = 'KPICard';
 const Dashboard = () => {
   const params = useParams();
   const router = useRouter();
+  const pathname = usePathname();
   const companyId = params.companyId;
   const { currentCompany } = useCompany();
   const toast = useToast();
@@ -204,6 +205,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedCalendarMonth, setSelectedCalendarMonth] = useState(new Date());
+  const [calendarRefreshToken, setCalendarRefreshToken] = useState(0);
 
   // Calendar event modal state
   const [showCalendarEventModal, setShowCalendarEventModal] = useState(false);
@@ -223,6 +225,31 @@ const Dashboard = () => {
   const calendarLastKeyRef = useRef('');
   const DASHBOARD_CACHE_KEY = 'hrms_dashboard_cache_v1';
   const CALENDAR_CACHE_KEY = 'hrms_dashboard_calendar_cache_v1';
+
+  // When user returns to the tab/window, revalidate the calendar (birthdays/anniversaries)
+  // so new employee updates show without a hard refresh.
+  useEffect(() => {
+    const bump = () => setCalendarRefreshToken(Date.now());
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') bump();
+    };
+
+    window.addEventListener('focus', bump);
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      window.removeEventListener('focus', bump);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, []);
+
+  // When navigating away and back (client-side), revalidate the calendar.
+  // (Focus/visibility doesn't fire in same-tab route changes.)
+  useEffect(() => {
+    if (!pathname) return;
+    if (!String(pathname).includes('/dashboard')) return;
+    setCalendarRefreshToken(Date.now());
+  }, [pathname]);
 
   const getLocalDateYyyyMmDd = useCallback(() => {
     const d = new Date();
@@ -350,7 +377,26 @@ const Dashboard = () => {
             const cached = raw ? JSON.parse(raw) : null;
             const fresh = cached && cached.key === dashKey && Date.now() - (cached.ts || 0) < 5 * 60 * 1000;
             if (fresh && cached.data) {
-              if (cached.data.dashboardData) setDashboardData(cached.data.dashboardData);
+              if (cached.data.dashboardData) {
+                let dash = cached.data.dashboardData;
+
+                // Merge calendar cache because dashboard cache stores empty arrays (calendar loads separately).
+                try {
+                  const calRaw = sessionStorage.getItem(CALENDAR_CACHE_KEY);
+                  const calCached = calRaw ? JSON.parse(calRaw) : null;
+                  if (calCached?.data) {
+                    dash = {
+                      ...(dash || {}),
+                      birthdayCalendar: calCached.data.birthdayCalendar || dash?.birthdayCalendar || [],
+                      workAnniversaryCalendar: calCached.data.workAnniversaryCalendar || dash?.workAnniversaryCalendar || [],
+                    };
+                  }
+                } catch {
+                  // ignore
+                }
+
+                setDashboardData(dash);
+              }
               if (cached.data.stats) setStats(cached.data.stats);
               if (cached.data.commandCenter) setCommandCenter(cached.data.commandCenter);
               setLoading(false);
@@ -602,6 +648,7 @@ const Dashboard = () => {
           company: company || null,
           department: selectedDepartment || 'all',
           cal: selectedCalendarMonth ? selectedCalendarMonth.toISOString().slice(0, 7) : null,
+          refresh: calendarRefreshToken || 0,
         });
         if (calendarLoadInFlightRef.current) return;
         if (calendarLastKeyRef.current === calKey) return;
@@ -635,6 +682,8 @@ const Dashboard = () => {
         if (company) calendarParams.append('company', company);
         if (selectedDepartment && selectedDepartment !== 'all') calendarParams.append('department', selectedDepartment);
         calendarParams.append('date', calAnchor);
+        // Avoid any intermediary caching and allow forced refreshes.
+        if (calendarRefreshToken) calendarParams.append('_t', String(calendarRefreshToken));
         const calendarQueryString = calendarParams.toString();
 
         const [birthdaysRes, anniversariesRes] = await Promise.all([
@@ -677,7 +726,7 @@ const Dashboard = () => {
     };
 
     loadCalendar();
-  }, [companyId, currentCompany, selectedDepartment, selectedCalendarMonth]);
+  }, [companyId, currentCompany, selectedDepartment, selectedCalendarMonth, calendarRefreshToken]);
 
   // Fetch employees list
   useEffect(() => {

@@ -37,7 +37,13 @@ export default function EmployeeRequestsPage() {
   const [requestsData, setRequestsData] = useState(null);
   const [loadingData, setLoadingData] = useState(false);
   const [leaveRequests, setLeaveRequests] = useState([]);
+  const [attendanceRequests, setAttendanceRequests] = useState([]);
   const [loadingLeaveRequests, setLoadingLeaveRequests] = useState(false);
+  const [managerScope, setManagerScope] = useState({ isManager: false, departments: [] });
+  const [loadingManagerScope, setLoadingManagerScope] = useState(false);
+  const [teamRequests, setTeamRequests] = useState([]);
+  const [loadingTeamRequests, setLoadingTeamRequests] = useState(false);
+  const [decisionBusyId, setDecisionBusyId] = useState(null);
   const requests = requestsData?.recentRequests || mockData.employeePortal.recentRequests;
   const leaveBalances = requestsData?.leaveBalances || mockData.employeePortal.leaveBalances;
 
@@ -99,16 +105,19 @@ export default function EmployeeRequestsPage() {
       if (res.ok) {
         const json = await res.json();
         if (json?.success && json?.data) {
-          // Filter only time-off requests and sort by submittedAt
-          const timeOffRequests = (json.data.requests || [])
-            .filter(req => req.type === 'time-off')
-            .sort((a, b) => {
-              const dateA = new Date(a.submittedAt || 0);
-              const dateB = new Date(b.submittedAt || 0);
-              return dateB - dateA; // Most recent first
-            });
-          console.log('[Employee Portal] Fetched leave requests:', timeOffRequests.length, timeOffRequests);
+          const all = (json.data.requests || []).slice();
+          all.sort((a, b) => {
+            const dateA = new Date(a.submittedAt || 0);
+            const dateB = new Date(b.submittedAt || 0);
+            return dateB - dateA;
+          });
+
+          const timeOffRequests = all.filter((req) => req.type === 'time-off');
+          const attendanceAdj = all.filter((req) => req.type === 'regularization' || req.type === 'on-duty');
+
+          console.log('[Employee Portal] Fetched requests:', { total: all.length, timeOff: timeOffRequests.length, attendance: attendanceAdj.length });
           setLeaveRequests(timeOffRequests);
+          setAttendanceRequests(attendanceAdj);
         }
       } else {
         console.error('[Employee Portal] Failed to fetch leave requests:', res.status, res.statusText);
@@ -134,6 +143,134 @@ export default function EmployeeRequestsPage() {
 
     return () => clearInterval(interval);
   }, [user]);
+
+  const fetchManagerScope = async () => {
+    if (!user?.id) return;
+    try {
+      setLoadingManagerScope(true);
+      const token = localStorage.getItem('auth_token');
+      const company =
+        (user?.company && String(user.company).trim()) ||
+        (typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null);
+
+      const params = new URLSearchParams();
+      params.append('userId', user.id);
+      if (company) params.append('company', company);
+
+      const headers = { ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+      if (company) headers['x-company'] = company;
+
+      const res = await fetch(`/api/portals/employee-portal/manager-scope?${params.toString()}`, { headers });
+      const json = await res.json().catch(() => null);
+      if (res.ok && json?.success && json?.data) {
+        setManagerScope(json.data);
+      } else {
+        setManagerScope({ isManager: false, departments: [] });
+      }
+    } catch (e) {
+      setManagerScope({ isManager: false, departments: [] });
+    } finally {
+      setLoadingManagerScope(false);
+    }
+  };
+
+  const fetchTeamRequests = async () => {
+    if (!user?.id) return;
+    try {
+      setLoadingTeamRequests(true);
+      const token = localStorage.getItem('auth_token');
+      const company =
+        (user?.company && String(user.company).trim()) ||
+        (typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null);
+
+      const params = new URLSearchParams();
+      params.append('managerUserId', user.id);
+      params.append('status', 'pending');
+      params.append('type', 'time-off');
+      if (company) params.append('company', company);
+
+      const headers = { ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+      if (company) headers['x-company'] = company;
+
+      const res = await fetch(`/api/portals/employee-portal/team-attendance-requests?${params.toString()}`, { headers });
+      const json = await res.json().catch(() => null);
+      if (res.ok && json?.success && json?.data) {
+        const raw = Array.isArray(json.data.requests) ? json.data.requests : [];
+        const normalized = raw
+          .map((r) => {
+            const id = r?.id || r?._id || r?.requestId;
+            const idStr = id == null ? '' : String(id);
+            return { ...r, id: idStr };
+          })
+          .filter((r) => r.id && r.id !== 'undefined' && r.id !== 'null');
+        setTeamRequests(normalized);
+      } else {
+        setTeamRequests([]);
+      }
+    } catch (e) {
+      setTeamRequests([]);
+    } finally {
+      setLoadingTeamRequests(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchManagerScope();
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (managerScope?.isManager) {
+      fetchTeamRequests();
+    } else {
+      setTeamRequests([]);
+    }
+  }, [managerScope?.isManager]);
+
+  const decideTeamRequest = async ({ requestId, action, rejectionReason }) => {
+    if (!user?.id) return;
+    setDecisionBusyId(requestId);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const company =
+        (user?.company && String(user.company).trim()) ||
+        (typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null);
+
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
+      if (company) headers['x-company'] = company;
+
+      const qs = new URLSearchParams();
+      if (company) qs.append('company', company);
+
+      const res = await fetch(
+        `/api/portals/employee-portal/team-attendance-requests/${encodeURIComponent(requestId)}/decide${qs.toString() ? `?${qs.toString()}` : ''}`,
+        {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            action,
+            decidedByUserId: user.id,
+            decidedByName: user.name || user.email || user.id,
+            rejectionReason: rejectionReason || '',
+          }),
+        }
+      );
+      const json = await res.json().catch(() => null);
+      if (res.ok && json?.success) {
+        toast.success(action === 'approve' ? 'Request approved.' : 'Request rejected.');
+        await fetchTeamRequests();
+        await fetchLeaveRequests(); // reflect status change in employee view too
+      } else {
+        toast.error(json?.error || 'Failed to update request');
+      }
+    } catch (e) {
+      toast.error('Failed to update request');
+    } finally {
+      setDecisionBusyId(null);
+    }
+  };
 
   const handleLeaveSubmit = async () => {
     // Validation
@@ -213,8 +350,9 @@ export default function EmployeeRequestsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid grid-cols-3">
+        <TabsList className={`grid ${managerScope?.isManager ? 'grid-cols-4' : 'grid-cols-3'}`}>
           <TabsTrigger value="leave">Leaves</TabsTrigger>
+          {managerScope?.isManager && <TabsTrigger value="team">Team leave requests</TabsTrigger>}
           <TabsTrigger value="expense">Expense</TabsTrigger>
           <TabsTrigger value="support">Support</TabsTrigger>
         </TabsList>
@@ -410,7 +548,201 @@ export default function EmployeeRequestsPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Attendance Requests List (Regularization / On-duty) */}
+          <Card className="border border-slate-200 bg-white shadow-lg mt-6">
+            <CardHeader className="flex flex-row items-start justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <CardTitle className="text-slate-900 text-xl font-bold">My Attendance Requests</CardTitle>
+                <CardDescription className="text-sm text-slate-600">
+                  Track regularization and on-duty requests
+                </CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchLeaveRequests}
+                disabled={loadingLeaveRequests}
+                className="flex-shrink-0 flex items-center gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${loadingLeaveRequests ? 'animate-spin' : ''}`} />
+                {loadingLeaveRequests ? 'Refreshing...' : 'Refresh'}
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {loadingLeaveRequests ? (
+                <div className="text-center py-8 text-sm text-slate-600">Loading attendance requests...</div>
+              ) : attendanceRequests.length === 0 ? (
+                <div className="text-center py-8 text-sm text-slate-600">No attendance requests found</div>
+              ) : (
+                <div className="space-y-3">
+                  {attendanceRequests.map((req) => {
+                    const statusColors = {
+                      pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+                      approved: 'bg-green-100 text-green-800 border-green-200',
+                      rejected: 'bg-red-100 text-red-800 border-red-200',
+                    };
+                    const statusColor =
+                      statusColors[String(req.status || '').toLowerCase()] || 'bg-gray-100 text-gray-800 border-gray-200';
+                    const typeLabel =
+                      req.type === 'regularization'
+                        ? 'Attendance regularization'
+                        : req.type === 'on-duty'
+                          ? 'On duty'
+                          : req.type || 'Attendance request';
+
+                    return (
+                      <div
+                        key={req.id}
+                        className="rounded-lg border border-slate-200 bg-white p-4 hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-3 mb-2">
+                              <Badge className={`${statusColor} border font-medium`}>
+                                {req.status || 'Pending'}
+                              </Badge>
+                              <span className="text-sm font-semibold text-slate-900">{typeLabel}</span>
+                            </div>
+                            <div className="space-y-1 text-sm text-slate-600">
+                              {req.date && <p><span className="font-medium">Date:</span> {req.date}</p>}
+                              {req.timeWindow && <p><span className="font-medium">Time window:</span> {req.timeWindow}</p>}
+                              {req.location && <p><span className="font-medium">Location:</span> {req.location}</p>}
+                              {req.details && <p><span className="font-medium">Details:</span> {req.details}</p>}
+                              {req.notes && <p><span className="font-medium">Notes:</span> {req.notes}</p>}
+                              {req.submittedAt && (
+                                <p>
+                                  <span className="font-medium">Submitted:</span>{' '}
+                                  {format(new Date(req.submittedAt), 'MMM dd, yyyy hh:mm a')}
+                                </p>
+                              )}
+                              {req.approvedAt && (
+                                <p>
+                                  <span className="font-medium">Approved:</span>{' '}
+                                  {format(new Date(req.approvedAt), 'MMM dd, yyyy hh:mm a')}
+                                </p>
+                              )}
+                              {req.rejectedAt && (
+                                <p>
+                                  <span className="font-medium">Rejected:</span>{' '}
+                                  {format(new Date(req.rejectedAt), 'MMM dd, yyyy hh:mm a')}
+                                </p>
+                              )}
+                              {req.rejectionReason && (
+                                <p className="text-red-600">
+                                  <span className="font-medium">Rejection Reason:</span> {req.rejectionReason}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
+
+        {managerScope?.isManager && (
+          <TabsContent value="team">
+            <Card className="border border-slate-200 bg-white shadow-lg">
+              <CardHeader className="flex flex-row items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <CardTitle className="text-slate-900 text-xl font-bold">Team Leave Requests</CardTitle>
+                  <CardDescription className="text-sm text-slate-600">
+                    Approve or reject leave/WFH requests from your department team.
+                  </CardDescription>
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                    <span className="rounded-full bg-slate-100 px-2 py-1">
+                      Managed: {managerScope.departments?.join(', ') || '—'}
+                    </span>
+                    <span className="rounded-full bg-slate-100 px-2 py-1">
+                      Showing: Pending only
+                    </span>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchTeamRequests}
+                  disabled={loadingTeamRequests || loadingManagerScope}
+                  className="flex-shrink-0 flex items-center gap-2"
+                >
+                  <RefreshCw className={`h-4 w-4 ${loadingTeamRequests ? 'animate-spin' : ''}`} />
+                  {loadingTeamRequests ? 'Refreshing...' : 'Refresh'}
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {loadingTeamRequests ? (
+                  <div className="text-center py-8 text-sm text-slate-600">Loading team requests...</div>
+                ) : teamRequests.length === 0 ? (
+                  <div className="text-center py-8 text-sm text-slate-600">No pending team leave requests</div>
+                ) : (
+                  <div className="rounded-lg border border-slate-200 overflow-hidden">
+                    {teamRequests.map((req) => (
+                      <div key={req.id} className="px-4 py-3 border-b last:border-b-0">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200 border font-medium">
+                                Pending
+                              </Badge>
+                              <span className="text-sm font-semibold text-slate-900">
+                                {req.employeeName || req.employeeId}
+                              </span>
+                              {req.employeeEmail ? (
+                                <span className="text-xs text-slate-500 truncate">{req.employeeEmail}</span>
+                              ) : null}
+                            </div>
+                            <div className="mt-1 text-xs text-slate-600 flex flex-wrap gap-x-2 gap-y-1">
+                              <span className="font-medium text-slate-700">{req.leaveType || 'Time Off'}</span>
+                              {req.employeeDepartment ? <span>• {req.employeeDepartment}</span> : null}
+                              <span>• {req.dateRange || 'N/A'}</span>
+                              {req.submittedAt ? (
+                                <span className="text-slate-500">
+                                  • {format(new Date(req.submittedAt), 'MMM dd, yyyy hh:mm a')}
+                                </span>
+                              ) : null}
+                            </div>
+                            {req.reason ? (
+                              <div className="mt-1 text-xs text-slate-500 line-clamp-2">
+                                {req.reason}
+                              </div>
+                            ) : null}
+                          </div>
+
+                          <div className="flex items-center gap-2 sm:justify-end">
+                            <Button
+                              size="sm"
+                              onClick={() => decideTeamRequest({ requestId: req.id, action: 'approve' })}
+                              disabled={!req.id || decisionBusyId === req.id}
+                            >
+                              {decisionBusyId === req.id ? '...' : 'Approve'}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                const reason = window.prompt('Rejection reason (optional):', '') || '';
+                                decideTeamRequest({ requestId: req.id, action: 'reject', rejectionReason: reason });
+                              }}
+                              disabled={!req.id || decisionBusyId === req.id}
+                              className="border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+                            >
+                              Reject
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
 
         <TabsContent value="expense">
           <Card className="border-none bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 shadow-lg shadow-emerald-100/60">

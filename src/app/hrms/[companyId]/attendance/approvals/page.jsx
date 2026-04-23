@@ -18,10 +18,28 @@ const AttendanceApprovalsPage = () => {
   const companyId = params.companyId;
   const { currentCompany } = useCompany();
   const toast = useToast();
+
+  const resolveCompany = () => {
+    // Prefer explicit company name from context, then sessionStorage, then normalize the route param.
+    const fromContext = currentCompany?.name && String(currentCompany.name).trim();
+    if (fromContext) return fromContext;
+
+    if (typeof window !== 'undefined') {
+      const fromSession =
+        (sessionStorage.getItem('adminSelectedCompany') || sessionStorage.getItem('selectedCompany') || '').trim();
+      if (fromSession) return fromSession;
+    }
+    const raw = companyId != null ? String(companyId).trim() : '';
+    if (!raw || raw === 'undefined' || raw === 'null') return null;
+    const lc = raw.toLowerCase();
+    if (lc === '1' || lc.includes('ecosoul')) return 'Ecosoul Home';
+    if (lc === '2' || lc.includes('thrive')) return 'Thrive';
+    return raw;
+  };
   
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('pending');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -42,7 +60,7 @@ const AttendanceApprovalsPage = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('auth_token');
-      const company = currentCompany?.name || companyId;
+      const company = resolveCompany();
       
       const params = new URLSearchParams();
       params.append('status', statusFilter);
@@ -80,7 +98,7 @@ const AttendanceApprovalsPage = () => {
   const fetchStats = async () => {
     try {
       const token = localStorage.getItem('auth_token');
-      const company = currentCompany?.name || companyId;
+      const company = resolveCompany();
       
       const headers = {
         ...(token ? { Authorization: `Bearer ${token}` } : {})
@@ -112,7 +130,7 @@ const AttendanceApprovalsPage = () => {
   const handleApprove = async (requestId) => {
     try {
       const token = localStorage.getItem('auth_token');
-      const company = currentCompany?.name || companyId;
+      const company = resolveCompany();
       
       const headers = {
         'Content-Type': 'application/json',
@@ -155,7 +173,7 @@ const AttendanceApprovalsPage = () => {
     try {
       setRejectLoading(true);
       const token = localStorage.getItem('auth_token');
-      const company = currentCompany?.name || companyId;
+      const company = resolveCompany();
       
       const headers = {
         'Content-Type': 'application/json',

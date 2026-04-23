@@ -21,10 +21,13 @@ const AttendanceOverviewPage = () => {
   const toast = useToast();
   
   const [showUploadForm, setShowUploadForm] = useState(false);
+  const [showBiometricExport, setShowBiometricExport] = useState(false);
   const [filterPeriod, setFilterPeriod] = useState('daily');
   const [filterDepartment, setFilterDepartment] = useState('all');
   const [filterLocation, setFilterLocation] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
   const [attendance, setAttendance] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [stats, setStats] = useState({
@@ -48,6 +51,11 @@ const AttendanceOverviewPage = () => {
     const dd = String(d.getDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
   };
+
+  const [baseDate, setBaseDate] = useState(getLocalDateYyyyMmDd());
+  const [bioStartDate, setBioStartDate] = useState(getLocalDateYyyyMmDd());
+  const [bioEndDate, setBioEndDate] = useState(getLocalDateYyyyMmDd());
+  const [bioEmployeeCode, setBioEmployeeCode] = useState('all');
 
   // Fetch employees list
   useEffect(() => {
@@ -104,15 +112,7 @@ const AttendanceOverviewPage = () => {
           }
         }
         
-        const today = getLocalDateYyyyMmDd();
         const timestamp = Date.now(); // Cache-busting timestamp
-        
-        const params = new URLSearchParams();
-        params.append('date', today);
-        params.append('_t', timestamp.toString()); // Cache-busting
-        if (company) {
-          params.append('company', company);
-        }
 
         const headers = {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -123,33 +123,86 @@ const AttendanceOverviewPage = () => {
           headers['x-company'] = company;
         }
         
-        console.log('[Attendance Overview] Fetching with company:', company);
+        const safeBase = baseDate || getLocalDateYyyyMmDd();
 
-        const [attendanceRes, statsRes] = await Promise.all([
-          fetch(`/api/hrms-portal/attendance?${params.toString()}`, { 
+        const toYyyyMmDd = (d) => {
+          const yyyy = d.getFullYear();
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          const dd = String(d.getDate()).padStart(2, '0');
+          return `${yyyy}-${mm}-${dd}`;
+        };
+
+        const computeDates = () => {
+          const end = new Date(`${safeBase}T00:00:00`);
+          if (Number.isNaN(end.getTime())) return [getLocalDateYyyyMmDd()];
+
+          if (filterPeriod === 'weekly') {
+            const dates = [];
+            for (let i = 6; i >= 0; i--) {
+              const d = new Date(end);
+              d.setDate(end.getDate() - i);
+              dates.push(toYyyyMmDd(d));
+            }
+            return dates;
+          }
+
+          if (filterPeriod === 'monthly') {
+            const y = end.getFullYear();
+            const m = end.getMonth();
+            const first = new Date(y, m, 1);
+            const last = new Date(y, m + 1, 0);
+            const dates = [];
+            for (let d = new Date(first); d <= last; d.setDate(d.getDate() + 1)) {
+              dates.push(toYyyyMmDd(d));
+            }
+            return dates;
+          }
+
+          // daily
+          return [safeBase];
+        };
+
+        const datesToFetch = computeDates();
+
+        const fetchForDate = async (dateStr) => {
+          const params = new URLSearchParams();
+          params.append('date', dateStr);
+          params.append('_t', `${timestamp}`); // Cache-busting
+          if (company) params.append('company', company);
+          if (filterDepartment && filterDepartment !== 'all') params.append('department', filterDepartment);
+
+          const attendanceRes = await fetch(`/api/hrms-portal/attendance?${params.toString()}`, {
             headers,
             cache: 'no-store',
-          }),
-          fetch(`/api/hrms-portal/attendance/stats?${params.toString()}`, { 
-            headers,
-            cache: 'no-store',
-          })
+          });
+          if (!attendanceRes.ok) {
+            throw new Error(`Attendance fetch failed for ${dateStr}: ${attendanceRes.status}`);
+          }
+          const attendanceJson = await attendanceRes.json();
+          const records = attendanceJson?.success ? attendanceJson?.data?.records || [] : [];
+          return records.map((r) => ({ ...r, date: r?.date || dateStr }));
+        };
+
+        console.log('[Attendance Overview] Fetching with company:', company, 'period:', filterPeriod, 'baseDate:', safeBase);
+
+        const [recordsByDate, statsRes] = await Promise.all([
+          Promise.all(datesToFetch.map(fetchForDate)),
+          (() => {
+            const params = new URLSearchParams();
+            params.append('date', safeBase);
+            params.append('_t', `${timestamp}`);
+            if (company) params.append('company', company);
+            if (filterDepartment && filterDepartment !== 'all') params.append('department', filterDepartment);
+            return fetch(`/api/hrms-portal/attendance/stats?${params.toString()}`, {
+              headers,
+              cache: 'no-store',
+            });
+          })(),
         ]);
 
-        if (attendanceRes.ok) {
-          const attendanceJson = await attendanceRes.json();
-          console.log('[Attendance Overview] Attendance records response:', attendanceJson);
-          if (attendanceJson.success) {
-            const records = attendanceJson.data.records || [];
-            console.log(`[Attendance Overview] Setting ${records.length} attendance records`);
-            console.log('[Attendance Overview] Sample record:', records[0]);
-            setAttendance(records);
-          } else {
-            console.warn('[Attendance Overview] Attendance records response missing success or data:', attendanceJson);
-          }
-        } else {
-          console.error('[Attendance Overview] Failed to fetch attendance records:', attendanceRes.status, attendanceRes.statusText);
-        }
+        const flattened = recordsByDate.flat();
+        console.log(`[Attendance Overview] Setting ${flattened.length} attendance records across ${datesToFetch.length} day(s)`);
+        setAttendance(flattened);
 
         if (statsRes.ok) {
           const statsJson = await statsRes.json();
@@ -180,7 +233,7 @@ const AttendanceOverviewPage = () => {
     };
 
     fetchAttendance();
-  }, [companyId, currentCompany, toast]);
+  }, [companyId, currentCompany, toast, filterPeriod, baseDate, filterDepartment]);
 
   // Debug: Log stats changes
   useEffect(() => {
@@ -189,6 +242,57 @@ const AttendanceOverviewPage = () => {
 
   const handleUploadAttendance = () => {
     setShowUploadForm(true);
+  };
+
+  const getEffectiveCompanyName = () => {
+    let company = currentCompany?.name;
+    if (!company && typeof window !== 'undefined') {
+      company =
+        sessionStorage.getItem('selectedCompany') || sessionStorage.getItem('adminSelectedCompany');
+    }
+    if (!company && companyId && companyId !== 'undefined') {
+      if (typeof window !== 'undefined') {
+        company = sessionStorage.getItem(`company_${companyId}`);
+      }
+    }
+    return company || companyId;
+  };
+
+  const downloadBiometricCsv = async () => {
+    try {
+      const company = getEffectiveCompanyName();
+      const params = new URLSearchParams();
+      params.append('startDate', bioStartDate);
+      params.append('endDate', bioEndDate);
+      if (company) params.append('company', company);
+      if (bioEmployeeCode && bioEmployeeCode !== 'all') params.append('employeeCode', bioEmployeeCode);
+
+      const res = await fetch(`/api/hrms-portal/attendance/machine-reports/export?${params.toString()}`);
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || `Export failed (${res.status})`);
+      }
+
+      const blob = await res.blob();
+      const cd = res.headers.get('content-disposition') || '';
+      const m = cd.match(/filename="([^"]+)"/i);
+      const filename = m?.[1] || `biometric_attendance_${bioStartDate}_to_${bioEndDate}.csv`;
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      toast.success('Biometric attendance downloaded');
+      setShowBiometricExport(false);
+    } catch (e) {
+      console.error('[Biometric Export] error:', e);
+      toast.error(e?.message || 'Failed to download biometric attendance');
+    }
   };
 
   const handleSubmitAttendance = (data) => {
@@ -218,6 +322,54 @@ const AttendanceOverviewPage = () => {
 
   const handleExportAttendance = () => {
     toast.success('Attendance data exported successfully');
+  };
+
+  const handleDownloadCurrentList = () => {
+    try {
+      const dataToExport = filteredAttendance;
+      if (!dataToExport || dataToExport.length === 0) {
+        toast.error('No data to export');
+        return;
+      }
+
+      const excelData = dataToExport.map((row, index) => ({
+        'S.No': index + 1,
+        'Employee Code': row.biometricId || '--',
+        'Employee Name': row.employeeName || '--',
+        'Department': row.department || '--',
+        'Date': row.date || '--',
+        'Check-in': row.timeIn || '--:--',
+        'Check-out': row.timeOut || '--:--',
+        'Check-in Type': row.source ? String(row.source) : '--',
+        'Total Hours': calculateHours(row.timeIn, row.timeOut),
+        'Status': row.isLate ? 'Late' : (row.status === 'present' ? 'Present' : row.status === 'absent' ? 'Absent' : row.status === 'on-leave' ? 'On Leave' : row.status === 'wfh' ? 'WFH' : (row.status || '--')),
+      }));
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(excelData);
+      ws['!cols'] = [
+        { wch: 8 },
+        { wch: 16 },
+        { wch: 24 },
+        { wch: 22 },
+        { wch: 14 },
+        { wch: 10 },
+        { wch: 10 },
+        { wch: 14 },
+        { wch: 12 },
+        { wch: 12 },
+      ];
+      XLSX.utils.book_append_sheet(wb, ws, 'Attendance');
+
+      const safePeriod = String(filterPeriod || 'daily');
+      const safeDate = String(baseDate || getLocalDateYyyyMmDd());
+      const filename = `attendance_log_${safePeriod}_${safeDate}.xlsx`;
+      XLSX.writeFile(wb, filename);
+      toast.success('List downloaded');
+    } catch (e) {
+      console.error('Download list error:', e);
+      toast.error('Failed to download list');
+    }
   };
 
   // Stats are now fetched from backend, no need to calculate
@@ -343,8 +495,80 @@ const AttendanceOverviewPage = () => {
       );
     }
 
+    // Sort by Employee Code (A→Z) for easier scanning.
+    // For weekly/monthly this groups each employee together across days.
+    if (filterPeriod === 'daily' || filterPeriod === 'weekly' || filterPeriod === 'monthly') {
+      const collator = new Intl.Collator(undefined, {
+        numeric: true, // so "55" sorts before "103"
+        sensitivity: 'base',
+      });
+
+      const toDateKey = (v) => {
+        if (!v) return '';
+        const s = String(v);
+        // Prefer YYYY-MM-DD prefix when available (works for ISO strings too).
+        if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+        const d = new Date(s);
+        if (Number.isNaN(d.getTime())) return '';
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+      };
+
+      const toTimeKey = (hm) => {
+        if (!hm) return '';
+        const s = String(hm).trim();
+        return /^\d{1,2}:\d{2}$/.test(s) ? s.padStart(5, '0') : s;
+      };
+
+      filtered.sort((a, b) => {
+        const acRaw = String(a?.biometricId ?? '').trim();
+        const bcRaw = String(b?.biometricId ?? '').trim();
+        const acEmpty = acRaw === '';
+        const bcEmpty = bcRaw === '';
+        if (acEmpty !== bcEmpty) return acEmpty ? 1 : -1; // empty codes at bottom
+
+        const ac = acRaw.toLowerCase();
+        const bc = bcRaw.toLowerCase();
+        if (ac !== bc) return collator.compare(ac, bc);
+
+        const ad = toDateKey(a?.date);
+        const bd = toDateKey(b?.date);
+        if (ad !== bd) return collator.compare(ad, bd); // oldest → newest
+
+        const at = toTimeKey(a?.timeIn);
+        const bt = toTimeKey(b?.timeIn);
+        if (at !== bt) return collator.compare(at, bt);
+
+        const an = String(a?.employeeName || '').toLowerCase();
+        const bn = String(b?.employeeName || '').toLowerCase();
+        return collator.compare(an, bn);
+      });
+    }
+
     return filtered;
-  }, [attendance, filterDepartment, searchQuery]);
+  }, [attendance, filterDepartment, searchQuery, filterPeriod]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [filterDepartment, filterLocation, searchQuery, attendance.length, pageSize]);
+
+  const pageCount = useMemo(() => {
+    return Math.max(1, Math.ceil(filteredAttendance.length / pageSize));
+  }, [filteredAttendance.length, pageSize]);
+
+  useEffect(() => {
+    setPage((p) => Math.min(Math.max(0, p), pageCount - 1));
+  }, [pageCount]);
+
+  const paginatedAttendance = useMemo(() => {
+    const start = page * pageSize;
+    return filteredAttendance.slice(start, start + pageSize);
+  }, [filteredAttendance, page, pageSize]);
+
+  const showingFrom = filteredAttendance.length === 0 ? 0 : (page * pageSize + 1);
+  const showingTo = Math.min((page + 1) * pageSize, filteredAttendance.length);
 
   // Format date for display
   const formatDate = (dateStr) => {
@@ -870,49 +1094,8 @@ const AttendanceOverviewPage = () => {
       >
         {/* Filters and Actions */}
         <div className="mb-6 space-y-4">
-          <div className="flex flex-wrap items-center gap-4">
-            <select
-              value={filterPeriod}
-              onChange={(e) => setFilterPeriod(e.target.value)}
-              className="px-4 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="daily">Daily (Default)</option>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
-            </select>
-            <select
-              value={filterDepartment}
-              onChange={(e) => setFilterDepartment(e.target.value)}
-              className="px-4 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">All Departments</option>
-              {Array.from(new Set(employees.map(emp => emp.department).filter(Boolean))).sort().map(dept => (
-                <option key={dept} value={dept}>{dept}</option>
-              ))}
-            </select>
-            <select
-              value={filterLocation}
-              onChange={(e) => setFilterLocation(e.target.value)}
-              className="px-4 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">All Locations</option>
-              <option value="office">Office</option>
-              <option value="remote">Remote</option>
-            </select>
-            <Button
-              className="bg-blue-600 text-white hover:bg-blue-700"
-              icon={<Plus className="w-4 h-4" />}
-              onClick={() => setShowUploadForm(true)}
-            >
-              Mark Attendance
-            </Button>
-            <Button
-              className="bg-transparent border border-neutral-300 text-neutral-700 hover:bg-neutral-50"
-              onClick={handleUploadAttendance}
-            >
-              Import from Biometric
-            </Button>
-            <div className="flex-1 min-w-[200px]">
+          <div className="flex items-center gap-3 flex-nowrap overflow-x-auto pb-2">
+            <div className="flex-none w-[260px]">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <input
@@ -924,31 +1107,118 @@ const AttendanceOverviewPage = () => {
                 />
               </div>
             </div>
+            <select
+              value={filterPeriod}
+              onChange={(e) => setFilterPeriod(e.target.value)}
+              className="px-4 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 flex-none"
+            >
+              <option value="daily">Daily (Default)</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+            </select>
+            <div className="flex items-center gap-2 flex-none">
+              <span className="text-sm text-slate-600">Date</span>
+              <input
+                type="date"
+                value={baseDate}
+                onChange={(e) => setBaseDate(e.target.value)}
+                className="px-3 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <select
+              value={filterDepartment}
+              onChange={(e) => setFilterDepartment(e.target.value)}
+              className="px-4 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 flex-none"
+            >
+              <option value="all">All Departments</option>
+              {Array.from(new Set(employees.map(emp => emp.department).filter(Boolean))).sort().map(dept => (
+                <option key={dept} value={dept}>{dept}</option>
+              ))}
+            </select>
+            <select
+              value={filterLocation}
+              onChange={(e) => setFilterLocation(e.target.value)}
+              className="px-4 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 flex-none"
+            >
+              <option value="all">All Locations</option>
+              <option value="office">Office</option>
+              <option value="remote">Remote</option>
+            </select>
+            <div className="flex items-center gap-2 flex-none ml-auto">
+              <Button
+                className="bg-transparent border border-neutral-300 text-neutral-700 hover:bg-neutral-50 p-2"
+                icon={<Download className="w-4 h-4" />}
+                onClick={handleDownloadCurrentList}
+                aria-label="Download List"
+                title="Download List"
+              >
+                <span className="sr-only">Download List</span>
+              </Button>
+              <Button
+                className="bg-transparent border border-neutral-300 text-neutral-700 hover:bg-neutral-50"
+                onClick={() => setShowBiometricExport(true)}
+              >
+                Import Biometric Attendance
+              </Button>
+            </div>
           </div>
         </div>
 
         {/* Table */}
         <Table
           columns={attendanceLogColumns}
-          data={filteredAttendance.slice(0, 10)}
+          data={paginatedAttendance}
           emptyMessage="No attendance records found"
         />
 
         {/* Pagination */}
         <div className="flex items-center justify-between mt-4 text-sm text-slate-600">
-          <span>Showing 1 to {Math.min(10, filteredAttendance.length)} of {filteredAttendance.length} records</span>
-          <div className="flex items-center gap-2">
+          <span>
+            Showing {showingFrom} to {showingTo} of {filteredAttendance.length} records
+          </span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-slate-600">Items per page</span>
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value) || 10)}
+                className="px-2 py-1 border border-neutral-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {[10, 20, 50, 100].map((n) => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-slate-600">Page</span>
+              <select
+                value={Math.min(page, pageCount - 1)}
+                onChange={(e) => setPage(Math.min(pageCount - 1, Math.max(0, Number(e.target.value) || 0)))}
+                className="px-2 py-1 border border-neutral-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={filteredAttendance.length === 0}
+              >
+                {Array.from({ length: pageCount }, (_, i) => (
+                  <option key={i} value={i}>
+                    {i + 1} / {pageCount}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <Button
               size="sm"
               className="bg-transparent border border-neutral-300 text-neutral-700 hover:bg-neutral-50"
-              disabled={true}
+              disabled={page === 0}
+              onClick={() => setPage(p => Math.max(0, p - 1))}
             >
               Previous
             </Button>
             <Button
               size="sm"
               className="bg-transparent border border-neutral-300 text-neutral-700 hover:bg-neutral-50"
-              disabled={filteredAttendance.length <= 10}
+              disabled={page >= pageCount - 1}
+              onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}
             >
               Next
             </Button>
@@ -967,6 +1237,97 @@ const AttendanceOverviewPage = () => {
           onSubmit={handleSubmitAttendance}
           onCancel={() => setShowUploadForm(false)}
         />
+      </Modal>
+
+      {/* Biometric Export Modal */}
+      <Modal
+        isOpen={showBiometricExport}
+        onClose={() => setShowBiometricExport(false)}
+        title="Import Biometric Attendance"
+        size="lg"
+      >
+        <div className="space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <div className="text-sm font-medium text-slate-700 mb-1">Start date</div>
+              <input
+                type="date"
+                value={bioStartDate}
+                onChange={(e) => setBioStartDate(e.target.value)}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <div className="text-sm font-medium text-slate-700 mb-1">End date</div>
+              <input
+                type="date"
+                value={bioEndDate}
+                onChange={(e) => setBioEndDate(e.target.value)}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <div className="text-sm font-medium text-slate-700 mb-1">Employee</div>
+            <select
+              value={bioEmployeeCode}
+              onChange={(e) => setBioEmployeeCode(e.target.value)}
+              className="w-full px-3 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All employees</option>
+              {employees
+                .map((emp) => {
+                  const code =
+                    emp?.biometricId ||
+                    emp?.emp_code ||
+                    emp?.employeeCode ||
+                    emp?.employeeId ||
+                    emp?.id;
+                  const name = emp?.name || emp?.employeeName || code || 'Unknown';
+                  const codeStr = code ? String(code) : null;
+                  const nameStr = name ? String(name) : 'Unknown';
+                  return {
+                    code: codeStr,
+                    name: nameStr,
+                    label: `${nameStr}${codeStr ? ` (${codeStr})` : ''}`,
+                    // Use a composite key to avoid duplicate <option> keys when emp codes repeat (e.g. ECOS0000).
+                    key: codeStr ? `${codeStr}::${nameStr}` : null,
+                  };
+                })
+                .filter((x) => x.code && x.key)
+                // Deduplicate identical code+name pairs (still allows same code for different names).
+                .filter(
+                  (() => {
+                    const seen = new Set();
+                    return (x) => {
+                      if (seen.has(x.key)) return false;
+                      seen.add(x.key);
+                      return true;
+                    };
+                  })()
+                )
+                .sort((a, b) => a.label.localeCompare(b.label))
+                .map((x) => (
+                  <option key={x.key} value={x.code}>
+                    {x.label}
+                  </option>
+                ))}
+            </select>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2 border-t">
+            <Button
+              className="bg-transparent border border-neutral-300 text-neutral-700 hover:bg-neutral-50"
+              onClick={() => setShowBiometricExport(false)}
+            >
+              Cancel
+            </Button>
+            <Button className="bg-blue-600 text-white hover:bg-blue-700" onClick={downloadBiometricCsv}>
+              Download CSV
+            </Button>
+          </div>
+        </div>
       </Modal>
 
       {/* Employee List Modal */}
