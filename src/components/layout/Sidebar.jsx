@@ -341,12 +341,6 @@ export const EMPLOYEE_PORTAL_MENU_ITEMS = [
     icon: <Clock className="w-5 h-5" />
   },
   {
-    id: 'requests',
-    label: 'Requests',
-    path: '/employee-portal/requests',
-    icon: <Settings className="w-5 h-5" />
-  },
-  {
     id: 'my-organisation',
     label: 'My Organisation',
     path: '/employee-portal/my-organisation',

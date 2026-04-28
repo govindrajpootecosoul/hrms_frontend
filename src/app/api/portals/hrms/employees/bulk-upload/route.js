@@ -4,6 +4,13 @@ import { API_BASE_URL } from '@/lib/utils/constants';
 
 // Maps Excel column names to employee form fields
 const COLUMN_MAP = {
+  'Status': 'status',
+  'status': 'status',
+  'Status *': 'status',
+  'Full Name': 'fullName',
+  'full name': 'fullName',
+  'FullName': 'fullName',
+  'fullName': 'fullName',
   'First Name': 'firstName',
   'first name': 'firstName',
   'firstName': 'firstName',
@@ -15,6 +22,8 @@ const COLUMN_MAP = {
   'Email': 'email',
   'email': 'email',
   'Email *': 'email',
+  'Password': 'password',
+  'password': 'password',
   'Phone': 'phone',
   'phone': 'phone',
   'Phone *': 'phone',
@@ -24,28 +33,38 @@ const COLUMN_MAP = {
   'Date of Birth *': 'dateOfBirth',
   'DOB': 'dateOfBirth',
   'dob': 'dateOfBirth',
+  'Actual DOB': 'actualDob',
+  'actual dob': 'actualDob',
+  'ActualDob': 'actualDob',
+  'actualDob': 'actualDob',
   'Gender': 'gender',
   'gender': 'gender',
   'Gender *': 'gender',
-  'Address': 'address',
-  'address': 'address',
-  'Address *': 'address',
-  'City': 'city',
-  'city': 'city',
-  'City *': 'city',
-  'State': 'state',
-  'state': 'state',
-  'State *': 'state',
-  'Zip Code': 'zipCode',
-  'zip code': 'zipCode',
-  'zipCode': 'zipCode',
-  'Zip Code *': 'zipCode',
-  'Postal Code': 'zipCode',
-  'postal code': 'zipCode',
-  'Emergency Contact': 'emergencyContact',
-  'emergency contact': 'emergencyContact',
-  'emergencyContact': 'emergencyContact',
-  'Emergency Contact *': 'emergencyContact',
+  'Personal Email Id': 'personalEmail',
+  'personal email id': 'personalEmail',
+  'Personal Email': 'personalEmail',
+  'personalEmail': 'personalEmail',
+  "Father's Name": 'fatherName',
+  'Father Name': 'fatherName',
+  'fatherName': 'fatherName',
+  'Marital Status': 'maritalStatus',
+  'marital status': 'maritalStatus',
+  'maritalStatus': 'maritalStatus',
+  'Blood Group': 'bloodGroup',
+  'blood group': 'bloodGroup',
+  'bloodGroup': 'bloodGroup',
+  'Present Address': 'presentAddress',
+  'present address': 'presentAddress',
+  'presentAddress': 'presentAddress',
+  'Permanent Address': 'permanentAddress',
+  'permanent address': 'permanentAddress',
+  'permanentAddress': 'permanentAddress',
+  'Work Phone': 'workPhone',
+  'work phone': 'workPhone',
+  'workPhone': 'workPhone',
+  'Home Phone': 'homePhone',
+  'home phone': 'homePhone',
+  'homePhone': 'homePhone',
   'Emergency Phone': 'emergencyPhone',
   'emergency phone': 'emergencyPhone',
   'emergencyPhone': 'emergencyPhone',
@@ -54,6 +73,14 @@ const COLUMN_MAP = {
   'employee id': 'employeeId',
   'employeeId': 'employeeId',
   'Employee ID *': 'employeeId',
+  'Emp Code': 'emp_code',
+  'emp code': 'emp_code',
+  'EMP CODE': 'emp_code',
+  'emp_code': 'emp_code',
+  'Card No': 'card_no',
+  'card no': 'card_no',
+  'Card Number': 'card_no',
+  'card_no': 'card_no',
   'Job Title': 'jobTitle',
   'job title': 'jobTitle',
   'jobTitle': 'jobTitle',
@@ -61,6 +88,8 @@ const COLUMN_MAP = {
   'Department': 'department',
   'department': 'department',
   'Department *': 'department',
+  'Company': 'company',
+  'company': 'company',
   'Location': 'location',
   'location': 'location',
   'Location *': 'location',
@@ -72,6 +101,15 @@ const COLUMN_MAP = {
   'joining date': 'joiningDate',
   'joiningDate': 'joiningDate',
   'Joining Date *': 'joiningDate',
+  'Exit Date': 'exitDate',
+  'exit date': 'exitDate',
+  'exitDate': 'exitDate',
+  'Role': 'role',
+  'role': 'role',
+  'Has Credential Access': 'hasCredentialAccess',
+  'has credential access': 'hasCredentialAccess',
+  'Has Subscription Access': 'hasSubscriptionAccess',
+  'has subscription access': 'hasSubscriptionAccess',
   'Bank Account Number': 'bankAccount',
   'bank account number': 'bankAccount',
   'bankAccount': 'bankAccount',
@@ -128,8 +166,17 @@ function mapRowToEmployee(row, rowNumber) {
       // Convert to string and trim
       value = String(value).trim();
 
+      // Special handling for boolean fields (Yes/No, True/False, 1/0)
+      if (fieldName === 'hasCredentialAccess' || fieldName === 'hasSubscriptionAccess') {
+        const lc = value.toLowerCase();
+        if (lc === 'yes' || lc === 'y' || lc === 'true' || lc === '1') employee[fieldName] = true;
+        else if (lc === 'no' || lc === 'n' || lc === 'false' || lc === '0') employee[fieldName] = false;
+        else employee[fieldName] = value; // let backend coerce / ignore; we will validate below
+        return;
+      }
+
       // Special handling for date fields
-      if (fieldName === 'dateOfBirth' || fieldName === 'joiningDate') {
+      if (fieldName === 'dateOfBirth' || fieldName === 'actualDob' || fieldName === 'joiningDate' || fieldName === 'exitDate') {
         // Try to parse Excel date serial number or date string
         if (value && !isNaN(value) && value > 25569) {
           // Excel date serial number (days since 1900-01-01)
@@ -151,36 +198,29 @@ function mapRowToEmployee(row, rowNumber) {
     }
   });
 
-  // Validate required fields (Phase 1-3)
-  const requiredFields = {
-    firstName: 'First Name',
-    lastName: 'Last Name',
-    email: 'Email',
-    phone: 'Phone',
-    dateOfBirth: 'Date of Birth',
-    gender: 'Gender',
-    address: 'Address',
-    city: 'City',
-    state: 'State',
-    zipCode: 'Zip Code',
-    emergencyContact: 'Emergency Contact',
-    emergencyPhone: 'Emergency Phone',
-    jobTitle: 'Job Title',
-    department: 'Department',
-    location: 'Location',
-    reportingManager: 'Reporting Manager',
-    joiningDate: 'Joining Date',
-  };
+  // Minimal validation aligned with admin portal form (mostly optional),
+  // but require an email to avoid creating unusable/duplicate-less records.
+  if (!employee.email || employee.email.trim() === '') {
+    errors.push('Email is required');
+  }
 
-  Object.keys(requiredFields).forEach((field) => {
-    if (!employee[field] || employee[field].trim() === '') {
-      errors.push(`${requiredFields[field]} is required`);
-    }
-  });
+  // Normalize name: accept either Full Name or First+Last
+  const full = (employee.fullName || '').toString().trim();
+  const first = (employee.firstName || '').toString().trim();
+  const last = (employee.lastName || '').toString().trim();
+  employee.name = full || `${first} ${last}`.trim();
+  if (employee.name) {
+    employee.name = employee.name.replace(/\s+/g, ' ').trim();
+  }
 
   // Email validation
   if (employee.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(employee.email)) {
     errors.push('Invalid email format');
+  }
+
+  // Password validation (optional)
+  if (employee.password && employee.password.trim() !== '' && employee.password.trim().length < 6) {
+    errors.push('Password must be at least 6 characters');
   }
 
   // Phone validation (basic)
@@ -191,6 +231,33 @@ function mapRowToEmployee(row, rowNumber) {
   // Gender validation
   if (employee.gender && !['Male', 'Female', 'Other'].includes(employee.gender)) {
     errors.push('Gender must be Male, Female, or Other');
+  }
+
+  // Status/exitDate validation
+  const statusLc = (employee.status || 'Active').toString().trim().toLowerCase();
+  if (employee.status && !['active', 'inactive'].includes(statusLc)) {
+    errors.push('Status must be Active or Inactive');
+  }
+  if (statusLc === 'inactive') {
+    if (!employee.exitDate || employee.exitDate.toString().trim() === '') {
+      errors.push('Exit Date is required when Status is Inactive');
+    }
+  }
+
+  // Role validation (optional)
+  if (employee.role && !['user', 'admin'].includes(employee.role.toString().trim().toLowerCase())) {
+    errors.push('Role must be user or admin');
+  }
+
+  // Boolean validation (optional)
+  const boolFields = ['hasCredentialAccess', 'hasSubscriptionAccess'];
+  for (const f of boolFields) {
+    if (employee[f] === '' || employee[f] === undefined) continue;
+    if (typeof employee[f] === 'boolean') continue;
+    const lc = employee[f].toString().trim().toLowerCase();
+    if (!['yes', 'no', 'true', 'false', '1', '0', 'y', 'n'].includes(lc)) {
+      errors.push(`${f} must be Yes/No`);
+    }
   }
 
   return { employee, errors };
@@ -267,11 +334,14 @@ export async function POST(request) {
       // Prepare employee data for backend save
       const employeeData = {
         employeeId: employee.employeeId,
-        name: `${employee.firstName} ${employee.lastName}`,
+        name: employee.name || '',
         jobTitle: employee.jobTitle,
         department: employee.department,
         location: employee.location,
-        status: 'Active',
+        active:
+          (employee.status || 'Active').toString().trim().toLowerCase() === 'inactive'
+            ? false
+            : true,
         tenure: employee.tenure || '0 years 0 months',
         joiningDate: employee.joiningDate,
         email: employee.email,
@@ -304,14 +374,17 @@ export async function POST(request) {
     for (const item of created) {
       const { rowNumber, employeeData } = item;
       try {
+        const companyFromRow = String(employeeData.company || '').trim();
+        const companyToUse = companyFromRow || resolvedCompany;
+
         const backendResponse = await fetch(
-          `${API_BASE_URL}/admin-users?company=${encodeURIComponent(resolvedCompany)}`,
+          `${API_BASE_URL}/admin-users?company=${encodeURIComponent(companyToUse)}`,
           {
             method: 'POST',
             headers,
             body: JSON.stringify({
               ...employeeData,
-              company: resolvedCompany,
+              company: companyToUse,
             }),
           }
         );
@@ -335,7 +408,7 @@ export async function POST(request) {
           savedEmployees.push({
             ...employeeData,
             id: `${Date.now()}-${rowNumber}`,
-            status: 'Active',
+            status: employeeData.active === false ? 'Inactive' : 'Active',
           });
         }
         createdCount++;

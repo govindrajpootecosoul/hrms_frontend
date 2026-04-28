@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
 import Navbar from '@/components/layout/Navbar';
@@ -10,7 +10,7 @@ export default function EmployeePortalLayout({ children }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, loading, logout } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
+  usePathname();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -19,26 +19,20 @@ export default function EmployeePortalLayout({ children }) {
     }
   }, [user, loading, router]);
 
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-  };
+  const toggleMenu = () => setIsMenuOpen((v) => !v);
 
-  // Build menu items for top navigation
-  const mappedMenuItems = useMemo(
-    () => {
-      return EMPLOYEE_PORTAL_MENU_ITEMS.map((item) => ({
-        ...item,
-        path: item.path || '',
-        children: item.children
-          ? item.children.map((child) => ({
-              ...child,
-              path: child.path || '',
-            }))
-          : item.children,
-      }));
-    },
-    []
-  );
+  const mappedMenuItems = useMemo(() => {
+    return EMPLOYEE_PORTAL_MENU_ITEMS.map((item) => ({
+      ...item,
+      path: item.path || '',
+      children: item.children
+        ? item.children.map((child) => ({
+            ...child,
+            path: child.path || '',
+          }))
+        : item.children,
+    }));
+  }, []);
 
   // Show loading state while checking auth
   if (loading) {
@@ -56,16 +50,10 @@ export default function EmployeePortalLayout({ children }) {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <Navbar
-        onMenuToggle={toggleMenu}
-        isMenuOpen={isMenuOpen}
-        menuItems={mappedMenuItems}
-      />
-      
+      <Navbar onMenuToggle={toggleMenu} isMenuOpen={isMenuOpen} menuItems={mappedMenuItems} />
+
       <main className="w-full">
-        <div className="max-w-[1600px] mx-auto w-full px-4 py-6 space-y-6">
-          {children}
-        </div>
+        <div className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-6">{children}</div>
       </main>
     </div>
   );

@@ -295,12 +295,16 @@ export default function EmployeesPage() {
                 // Personal details
                 phone: user.phone || '',
                 dateOfBirth: user.dateOfBirth || '',
+                actualDob: user.actualDob || '',
                 gender: user.gender || '',
-                address: user.address || '',
-                city: user.city || '',
-                state: user.state || '',
-                zipCode: user.zipCode || '',
-                emergencyContact: user.emergencyContact || '',
+                personalEmail: user.personalEmail || '',
+                fatherName: user.fatherName || '',
+                maritalStatus: user.maritalStatus || '',
+                bloodGroup: user.bloodGroup || '',
+                presentAddress: user.presentAddress || '',
+                permanentAddress: user.permanentAddress || '',
+                workPhone: user.workPhone || '',
+                homePhone: user.homePhone || '',
                 emergencyPhone: user.emergencyPhone || '',
                 
                 // Work details
@@ -392,12 +396,16 @@ export default function EmployeesPage() {
           // Personal details
           phone: employeeData.phone !== undefined ? employeeData.phone : '',
           dateOfBirth: employeeData.dateOfBirth !== undefined ? employeeData.dateOfBirth : '',
+          actualDob: employeeData.actualDob !== undefined ? employeeData.actualDob : '',
           gender: employeeData.gender !== undefined ? employeeData.gender : '',
-          address: employeeData.address !== undefined ? employeeData.address : '',
-          city: employeeData.city !== undefined ? employeeData.city : '',
-          state: employeeData.state !== undefined ? employeeData.state : '',
-          zipCode: employeeData.zipCode !== undefined ? employeeData.zipCode : '',
-          emergencyContact: employeeData.emergencyContact !== undefined ? employeeData.emergencyContact : '',
+          personalEmail: employeeData.personalEmail !== undefined ? employeeData.personalEmail : '',
+          fatherName: employeeData.fatherName !== undefined ? employeeData.fatherName : '',
+          maritalStatus: employeeData.maritalStatus !== undefined ? employeeData.maritalStatus : '',
+          bloodGroup: employeeData.bloodGroup !== undefined ? employeeData.bloodGroup : '',
+          presentAddress: employeeData.presentAddress !== undefined ? employeeData.presentAddress : '',
+          permanentAddress: employeeData.permanentAddress !== undefined ? employeeData.permanentAddress : '',
+          workPhone: employeeData.workPhone !== undefined ? employeeData.workPhone : '',
+          homePhone: employeeData.homePhone !== undefined ? employeeData.homePhone : '',
           emergencyPhone: employeeData.emergencyPhone !== undefined ? employeeData.emergencyPhone : '',
           
           // Work details
@@ -491,11 +499,14 @@ export default function EmployeesPage() {
           gender: employeeData.gender || '',
           
           // Personal Details
-          address: employeeData.address || '',
-          city: employeeData.city || '',
-          state: employeeData.state || '',
-          zipCode: employeeData.zipCode || '',
-          emergencyContact: employeeData.emergencyContact || '',
+          personalEmail: employeeData.personalEmail || '',
+          fatherName: employeeData.fatherName || '',
+          maritalStatus: employeeData.maritalStatus || '',
+          bloodGroup: employeeData.bloodGroup || '',
+          presentAddress: employeeData.presentAddress || '',
+          permanentAddress: employeeData.permanentAddress || '',
+          workPhone: employeeData.workPhone || '',
+          homePhone: employeeData.homePhone || '',
           emergencyPhone: employeeData.emergencyPhone || '',
           
           // Work Details
@@ -851,9 +862,6 @@ export default function EmployeesPage() {
         jobTitle: employee.jobTitle,
         department: employee.department,
         location: employee.location,
-        address: employee.address,
-        city: employee.city,
-        state: employee.state,
       });
       
       // Close action menu first
@@ -936,24 +944,36 @@ export default function EmployeesPage() {
   const handleDownloadTemplate = () => {
     // Define all employee fields with headers
     const headers = [
-      'First Name',
-      'Last Name',
+      'Status', // Active / Inactive
+      'Full Name',
       'Email',
+      'Password', // optional (min 6); blank will auto-generate
       'Phone',
       'Date of Birth',
+      'Actual DOB',
       'Gender',
-      'Address',
-      'City',
-      'State',
-      'Zip Code',
-      'Emergency Contact',
+      "Father's Name",
+      'Personal Email Id',
+      'Marital Status',
+      'Blood Group',
+      'Present Address',
+      'Permanent Address',
+      'Work Phone',
+      'Home Phone',
       'Emergency Phone',
       'Employee ID',
+      'Emp Code',
+      'Card No',
       'Job Title',
       'Department',
+      'Company',
       'Location',
       'Reporting Manager',
       'Joining Date',
+      'Exit Date',
+      'Role',
+      'Has Credential Access',
+      'Has Subscription Access',
       'Bank Account Number',
       'IFSC Code',
       'PAN Number',
@@ -965,24 +985,36 @@ export default function EmployeesPage() {
 
     // Create a sample row with empty values and instructions
     const sampleRow = [
-      'John', // First Name
-      'Doe', // Last Name
+      'Active', // Status
+      'John Doe', // Full Name
       'john.doe@example.com', // Email
+      '', // Password (optional)
       '1234567890', // Phone
       '1990-01-15', // Date of Birth (YYYY-MM-DD format)
+      '1990-01-15', // Actual DOB (YYYY-MM-DD format)
       'Male', // Gender (Male/Female/Other)
-      '123 Main Street', // Address
-      'Bangalore', // City
-      'Karnataka', // State
-      '560001', // Zip Code
-      'Jane Doe', // Emergency Contact
+      'Robert Doe', // Father's Name
+      'john.personal@example.com', // Personal Email Id
+      'Single', // Marital Status
+      'O+', // Blood Group
+      '203, Tower No. 4, Emerald Court Aspire, Noida Sec-93A', // Present Address
+      '203, Tower No. 4, Emerald Court Aspire, Noida Sec-93A', // Permanent Address
+      '', // Work Phone (optional)
+      '', // Home Phone (optional)
       '9876543210', // Emergency Phone
       '', // Employee ID (leave empty for auto-generation)
+      '', // Emp Code (optional)
+      '', // Card No (optional)
       'Software Engineer', // Job Title
       'Engineering', // Department
+      '', // Company (optional; if blank upload will use selected company)
       'Bangalore', // Location
       'Manager Name', // Reporting Manager
       '2024-01-15', // Joining Date (YYYY-MM-DD format)
+      '', // Exit Date (required if Status=Inactive)
+      'user', // Role (user/admin)
+      'Yes', // Has Credential Access (Yes/No)
+      'Yes', // Has Subscription Access (Yes/No)
       '', // Bank Account Number (optional)
       '', // IFSC Code (optional)
       '', // PAN Number (optional)

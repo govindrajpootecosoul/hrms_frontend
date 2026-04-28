@@ -8,8 +8,23 @@ import Input from '@/components/common/Input';
 import { API_BASE_URL } from '@/lib/utils/constants';
 
 const PHASES = [
-  { id: 1, name: 'Basic Details', fields: ['firstName', 'lastName', 'email', 'phone', 'dateOfBirth', 'gender'] },
-  { id: 2, name: 'Personal Details', fields: ['address', 'city', 'state', 'zipCode', 'emergencyContact', 'emergencyPhone'] },
+  { id: 1, name: 'Basic Details', fields: ['fullName', 'email', 'phone', 'dateOfBirth', 'gender'] },
+  {
+    id: 2,
+    name: 'Personal Details',
+    fields: [
+      'fatherName',
+      'personalEmail',
+      'actualDob',
+      'maritalStatus',
+      'bloodGroup',
+      'presentAddress',
+      'permanentAddress',
+      'workPhone',
+      'homePhone',
+      'emergencyPhone',
+    ],
+  },
   { id: 3, name: 'Work Details', fields: ['employeeId', 'emp_code', 'card_no', 'jobTitle', 'department', 'company', 'location', 'reportingManager', 'joiningDate', 'role', 'hasCredentialAccess', 'hasSubscriptionAccess'] },
   { id: 4, name: 'Bank & Insurance', fields: ['bankAccount', 'ifsc', 'pan', 'aadhaar', 'uan', 'esiNo', 'pfNo'] },
 ];
@@ -35,11 +50,6 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
     console.log('[getInitialFormData] employeeToEdit prop:', employeeToEdit);
     
     if (employee) {
-      // Split name into first and last name
-      const nameParts = (employee.name || '').split(' ');
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
-      
       // Helper function to safely get date value
       const getDateValue = (dateValue) => {
         if (!dateValue) return '';
@@ -67,18 +77,21 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
       
       const formData = {
         // Basic Details
-        firstName: firstName,
-        lastName: lastName,
+        fullName: getFieldValue(employee.name) || '',
         email: getFieldValue(employee.email),
         phone: getFieldValue(employee.phone),
         dateOfBirth: getDateValue(employee.dateOfBirth),
         gender: getFieldValue(employee.gender),
         // Personal Details
-        address: getFieldValue(employee.address),
-        city: getFieldValue(employee.city),
-        state: getFieldValue(employee.state),
-        zipCode: getFieldValue(employee.zipCode),
-        emergencyContact: getFieldValue(employee.emergencyContact),
+        fatherName: getFieldValue(employee.fatherName),
+        personalEmail: getFieldValue(employee.personalEmail),
+        actualDob: getDateValue(employee.actualDob),
+        maritalStatus: getFieldValue(employee.maritalStatus),
+        bloodGroup: getFieldValue(employee.bloodGroup),
+        presentAddress: getFieldValue(employee.presentAddress),
+        permanentAddress: getFieldValue(employee.permanentAddress),
+        workPhone: getFieldValue(employee.workPhone),
+        homePhone: getFieldValue(employee.homePhone),
         emergencyPhone: getFieldValue(employee.emergencyPhone),
         // Work Details
         employeeId: getFieldValue(employee.employeeId),
@@ -115,13 +128,11 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
           jobTitle: employee.jobTitle,
           department: employee.department,
           location: employee.location,
-          address: employee.address,
           city: employee.city,
           state: employee.state,
         },
         mapped: {
-          firstName: formData.firstName,
-          lastName: formData.lastName,
+          fullName: formData.fullName,
           email: formData.email,
           phone: formData.phone,
           employeeId: formData.employeeId,
@@ -129,9 +140,8 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
           jobTitle: formData.jobTitle,
           department: formData.department,
           location: formData.location,
-          address: formData.address,
-          city: formData.city,
-          state: formData.state,
+          personalEmail: formData.personalEmail,
+          maritalStatus: formData.maritalStatus,
         }
       });
       
@@ -140,18 +150,21 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
     
     return {
       // Basic Details
-      firstName: '',
-      lastName: '',
+      fullName: '',
       email: '',
       phone: '',
       dateOfBirth: '',
       gender: '',
       // Personal Details
-      address: '',
-      city: '',
-      state: '',
-      zipCode: '',
-      emergencyContact: '',
+      fatherName: '',
+      personalEmail: '',
+      actualDob: '',
+      maritalStatus: '',
+      bloodGroup: '',
+      presentAddress: '',
+      permanentAddress: '',
+      workPhone: '',
+      homePhone: '',
       emergencyPhone: '',
       // Work Details
       employeeId: '',
@@ -190,10 +203,9 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
   
   // Log formData changes
   useEffect(() => {
-    if (formData.email || formData.firstName) {
+    if (formData.email || formData.fullName) {
       console.log('[AddEmployeeDialog] formData state changed:', {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
+        fullName: formData.fullName,
         email: formData.email,
         phone: formData.phone,
         employeeId: formData.employeeId,
@@ -201,9 +213,7 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
         jobTitle: formData.jobTitle,
         department: formData.department,
         location: formData.location,
-        address: formData.address,
-        city: formData.city,
-        state: formData.state,
+        personalEmail: formData.personalEmail,
       });
     }
   }, [formData]);
@@ -227,8 +237,7 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
       console.log('[AddEmployeeDialog] getInitialFormData() returned:');
       console.log(JSON.stringify(initialData, null, 2));
       console.log('[AddEmployeeDialog] Key form fields:', {
-        firstName: initialData.firstName,
-        lastName: initialData.lastName,
+        fullName: initialData.fullName,
         email: initialData.email,
         phone: initialData.phone,
         employeeId: initialData.employeeId,
@@ -236,9 +245,7 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
         jobTitle: initialData.jobTitle,
         department: initialData.department,
         location: initialData.location,
-        address: initialData.address,
-        city: initialData.city,
-        state: initialData.state,
+        personalEmail: initialData.personalEmail,
       });
       
       // Set form data immediately
@@ -488,7 +495,7 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
       id: employeeToEdit ? (employeeToEdit.id || employeeToEdit._id) : Date.now().toString(),
       _id: employeeToEdit ? (employeeToEdit._id || employeeToEdit.id) : null,
       // Basic fields
-      name: `${finalFormData.firstName || ''} ${finalFormData.lastName || ''}`.trim() || 'Employee',
+      name: (finalFormData.fullName || '').trim() || 'Employee',
       email: finalFormData.email ? finalFormData.email.trim().toLowerCase() : '',
       password: finalFormData.password || '', // Optional
       role: finalFormData.role || 'user',
@@ -497,18 +504,21 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
       
       // Include ALL fields for both new and existing employees
       // Basic Details
-      firstName: finalFormData.firstName || '',
-      lastName: finalFormData.lastName || '',
+      fullName: finalFormData.fullName || '',
       phone: finalFormData.phone || '',
       dateOfBirth: finalFormData.dateOfBirth || '',
       gender: finalFormData.gender || '',
       
       // Personal Details
-      address: finalFormData.address || '',
-      city: finalFormData.city || '',
-      state: finalFormData.state || '',
-      zipCode: finalFormData.zipCode || '',
-      emergencyContact: finalFormData.emergencyContact || '',
+      fatherName: finalFormData.fatherName || '',
+      personalEmail: finalFormData.personalEmail || '',
+      actualDob: finalFormData.actualDob || '',
+      maritalStatus: finalFormData.maritalStatus || '',
+      bloodGroup: finalFormData.bloodGroup || '',
+      presentAddress: finalFormData.presentAddress || '',
+      permanentAddress: finalFormData.permanentAddress || '',
+      workPhone: finalFormData.workPhone || '',
+      homePhone: finalFormData.homePhone || '',
       emergencyPhone: finalFormData.emergencyPhone || '',
       
       // Work Details
@@ -570,8 +580,7 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
     setFormData({ ...formData, [fieldName]: value });
     console.log(`[Input] Updated formData.${fieldName}:`, value);
     console.log(`[Input] Full formData after ${fieldName} change:`, {
-      firstName: formData.firstName,
-      lastName: formData.lastName,
+      fullName: formData.fullName,
       email: formData.email,
       phone: formData.phone,
       employeeId: formData.employeeId,
@@ -579,9 +588,7 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
       jobTitle: formData.jobTitle,
       department: formData.department,
       location: formData.location,
-      address: formData.address,
-      city: formData.city,
-      state: formData.state,
+      personalEmail: formData.personalEmail,
     });
   };
 
@@ -590,25 +597,15 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
       case 1: // Basic Details
         return (
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">First Name</label>
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
               <Input
-                value={formData.firstName}
-                onChange={(e) => handleInputChange('firstName', e.target.value)}
-                className={errors.firstName ? 'border-red-500' : ''}
-                placeholder="Enter first name"
+                value={formData.fullName}
+                onChange={(e) => handleInputChange('fullName', e.target.value)}
+                className={errors.fullName ? 'border-red-500' : ''}
+                placeholder="Enter full name"
               />
-              {errors.firstName && <p className="text-sm text-red-500 mt-1">{errors.firstName}</p>}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Last Name</label>
-              <Input
-                value={formData.lastName}
-                onChange={(e) => handleInputChange('lastName', e.target.value)}
-                className={errors.lastName ? 'border-red-500' : ''}
-                placeholder="Enter last name"
-              />
-              {errors.lastName && <p className="text-sm text-red-500 mt-1">{errors.lastName}</p>}
+              {errors.fullName && <p className="text-sm text-red-500 mt-1">{errors.fullName}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
@@ -671,54 +668,103 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
         return (
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Address</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Father's Name</label>
               <Input
-                value={formData.address}
-                onChange={(e) => handleInputChange('address', e.target.value)}
-                className={errors.address ? 'border-red-500' : ''}
-                placeholder="Enter address"
+                value={formData.fatherName}
+                onChange={(e) => handleInputChange('fatherName', e.target.value)}
+                className={errors.fatherName ? 'border-red-500' : ''}
+                placeholder="Enter father's name"
               />
-              {errors.address && <p className="text-sm text-red-500 mt-1">{errors.address}</p>}
+              {errors.fatherName && <p className="text-sm text-red-500 mt-1">{errors.fatherName}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">City</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Personal Email Id</label>
               <Input
-                value={formData.city}
-                onChange={(e) => handleInputChange('city', e.target.value)}
-                className={errors.city ? 'border-red-500' : ''}
-                placeholder="Enter city"
+                type="email"
+                value={formData.personalEmail}
+                onChange={(e) => handleInputChange('personalEmail', e.target.value)}
+                className={errors.personalEmail ? 'border-red-500' : ''}
+                placeholder="Enter personal email"
               />
-              {errors.city && <p className="text-sm text-red-500 mt-1">{errors.city}</p>}
+              {errors.personalEmail && <p className="text-sm text-red-500 mt-1">{errors.personalEmail}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">State</label>
-              <Input
-                value={formData.state}
-                onChange={(e) => handleInputChange('state', e.target.value)}
-                className={errors.state ? 'border-red-500' : ''}
-                placeholder="Enter state"
-              />
-              {errors.state && <p className="text-sm text-red-500 mt-1">{errors.state}</p>}
+              <label className="block text-sm font-medium text-slate-700 mb-1">Actual DOB</label>
+              <div className="relative">
+                <Input
+                  type="date"
+                  value={formData.actualDob}
+                  onChange={(e) => handleInputChange('actualDob', e.target.value)}
+                  className={`${errors.actualDob ? 'border-red-500' : ''} pr-10`}
+                  data-lpignore="true"
+                  data-form-type="other"
+                  autoComplete="off"
+                  style={{ position: 'relative', zIndex: 1 }}
+                />
+              </div>
+              {errors.actualDob && <p className="text-sm text-red-500 mt-1">{errors.actualDob}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Zip Code</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Marital Status</label>
               <Input
-                value={formData.zipCode}
-                onChange={(e) => handleInputChange('zipCode', e.target.value)}
-                className={errors.zipCode ? 'border-red-500' : ''}
-                placeholder="Enter zip code"
+                value={formData.maritalStatus}
+                onChange={(e) => handleInputChange('maritalStatus', e.target.value)}
+                className={errors.maritalStatus ? 'border-red-500' : ''}
+                placeholder="Single / Married"
               />
-              {errors.zipCode && <p className="text-sm text-red-500 mt-1">{errors.zipCode}</p>}
+              {errors.maritalStatus && <p className="text-sm text-red-500 mt-1">{errors.maritalStatus}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Emergency Contact</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Blood Group</label>
               <Input
-                value={formData.emergencyContact}
-                onChange={(e) => handleInputChange('emergencyContact', e.target.value)}
-                className={errors.emergencyContact ? 'border-red-500' : ''}
-                placeholder="Enter emergency contact name"
+                value={formData.bloodGroup}
+                onChange={(e) => handleInputChange('bloodGroup', e.target.value)}
+                className={errors.bloodGroup ? 'border-red-500' : ''}
+                placeholder="O+ / A+"
               />
-              {errors.emergencyContact && <p className="text-sm text-red-500 mt-1">{errors.emergencyContact}</p>}
+              {errors.bloodGroup && <p className="text-sm text-red-500 mt-1">{errors.bloodGroup}</p>}
+            </div>
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Present Address</label>
+              <Input
+                value={formData.presentAddress}
+                onChange={(e) => handleInputChange('presentAddress', e.target.value)}
+                className={errors.presentAddress ? 'border-red-500' : ''}
+                placeholder="203, Tower No. 4, Emerald Court Aspire, Noida Sec-93A"
+              />
+              {errors.presentAddress && <p className="text-sm text-red-500 mt-1">{errors.presentAddress}</p>}
+            </div>
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Permanent Address</label>
+              <Input
+                value={formData.permanentAddress}
+                onChange={(e) => handleInputChange('permanentAddress', e.target.value)}
+                className={errors.permanentAddress ? 'border-red-500' : ''}
+                placeholder="203, Tower No. 4, Emerald Court Aspire, Noida Sec-93A"
+              />
+              {errors.permanentAddress && <p className="text-sm text-red-500 mt-1">{errors.permanentAddress}</p>}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Work Phone</label>
+              <Input
+                type="tel"
+                value={formData.workPhone}
+                onChange={(e) => handleInputChange('workPhone', e.target.value)}
+                className={errors.workPhone ? 'border-red-500' : ''}
+                placeholder="Enter work phone"
+              />
+              {errors.workPhone && <p className="text-sm text-red-500 mt-1">{errors.workPhone}</p>}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Home Phone</label>
+              <Input
+                type="tel"
+                value={formData.homePhone}
+                onChange={(e) => handleInputChange('homePhone', e.target.value)}
+                className={errors.homePhone ? 'border-red-500' : ''}
+                placeholder="Enter home phone"
+              />
+              {errors.homePhone && <p className="text-sm text-red-500 mt-1">{errors.homePhone}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Emergency Phone</label>

@@ -88,28 +88,44 @@ export default function ViewEmployeeDetailsDialog({
           </h3>
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <label className="text-sm font-medium text-slate-600">Address</label>
-              <p className="text-sm text-slate-900 mt-1">{employee.address || 'Not provided'}</p>
+              <label className="text-sm font-medium text-slate-600">Father&apos;s Name</label>
+              <p className="text-sm text-slate-900 mt-1">{employee.fatherName || 'Not provided'}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-slate-600">City</label>
-              <p className="text-sm text-slate-900 mt-1">{employee.city || 'Not provided'}</p>
+              <label className="text-sm font-medium text-slate-600">Personal Email Id</label>
+              <p className="text-sm text-slate-900 mt-1">{employee.personalEmail || 'Not provided'}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-slate-600">State</label>
-              <p className="text-sm text-slate-900 mt-1">{employee.state || 'Not provided'}</p>
+              <label className="text-sm font-medium text-slate-600">Actual DOB</label>
+              <p className="text-sm text-slate-900 mt-1">{formatDate(employee.actualDob) || 'Not provided'}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-slate-600">Zip Code</label>
-              <p className="text-sm text-slate-900 mt-1">{employee.zipCode || 'Not provided'}</p>
+              <label className="text-sm font-medium text-slate-600">Marital Status</label>
+              <p className="text-sm text-slate-900 mt-1">{employee.maritalStatus || 'Not provided'}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-slate-600">Emergency Contact</label>
-              <p className="text-sm text-slate-900 mt-1">{employee.emergencyContact || 'Not provided'}</p>
+              <label className="text-sm font-medium text-slate-600">Blood Group</label>
+              <p className="text-sm text-slate-900 mt-1">{employee.bloodGroup || 'Not provided'}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-slate-600">Emergency Phone</label>
               <p className="text-sm text-slate-900 mt-1">{employee.emergencyPhone || 'Not provided'}</p>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-slate-600">Work Phone</label>
+              <p className="text-sm text-slate-900 mt-1">{employee.workPhone || 'Not provided'}</p>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-slate-600">Home Phone</label>
+              <p className="text-sm text-slate-900 mt-1">{employee.homePhone || 'Not provided'}</p>
+            </div>
+            <div className="col-span-2">
+              <label className="text-sm font-medium text-slate-600">Present Address</label>
+              <p className="text-sm text-slate-900 mt-1">{employee.presentAddress || 'Not provided'}</p>
+            </div>
+            <div className="col-span-2">
+              <label className="text-sm font-medium text-slate-600">Permanent Address</label>
+              <p className="text-sm text-slate-900 mt-1">{employee.permanentAddress || 'Not provided'}</p>
             </div>
           </div>
         </div>

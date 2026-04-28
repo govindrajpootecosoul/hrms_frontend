@@ -6,21 +6,19 @@ import { useAuth } from '@/lib/context/AuthContext';
 import Card from '@/components/common/Card';
 import Button from '@/components/common/Button';
 import Badge from '@/components/common/Badge';
-import { Progress } from '@/components/common/Skeleton';
 import { API_BASE_URL } from '@/lib/utils/constants';
 import { getCompanyFromEmail } from '@/lib/config/database.config';
 import {
+  Bell,
   Clock,
+  CreditCard,
+  Headset,
+  Megaphone,
+  Plane,
   Play,
   Square,
-  CalendarCheck,
-  ClipboardList,
-  Megaphone,
-  Laptop,
-  CheckCircle2,
-  BookOpen,
-  HeartPulse,
-  PartyPopper,
+  Sparkles,
+  Users,
 } from 'lucide-react';
 // Removed mock data - using live data from backend
 
@@ -50,10 +48,82 @@ const formatDuration = (minutes) => {
   return `${hrs}h ${mins.toString().padStart(2, '0')}m ${secs.toString().padStart(2, '0')}s`;
 };
 
+const formatHmsTimer = (minutes) => {
+  const totalSeconds = Math.floor(Math.max(0, minutes) * 60);
+  const hrs = Math.floor(totalSeconds / 3600);
+  const mins = Math.floor((totalSeconds % 3600) / 60);
+  const secs = totalSeconds % 60;
+  return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+};
+
 const formatTime = (iso) => {
   const date = new Date(iso);
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
+
+function ProgressBar({ value = 0 }) {
+  const pct = Math.max(0, Math.min(100, Number(value) || 0));
+  return (
+    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+      <div className="h-full rounded-full bg-slate-900 transition-[width]" style={{ width: `${pct}%` }} />
+    </div>
+  );
+}
+
+function CircularProgress({ value = 0 }) {
+  const pct = Math.max(0, Math.min(100, Number(value) || 0));
+  const r = 18;
+  const c = 2 * Math.PI * r;
+  const dash = (pct / 100) * c;
+  return (
+    <svg width="44" height="44" viewBox="0 0 44 44" className="shrink-0">
+      <circle cx="22" cy="22" r={r} fill="none" stroke="#E2E8F0" strokeWidth="4" />
+      <circle
+        cx="22"
+        cy="22"
+        r={r}
+        fill="none"
+        stroke="#7C3AED"
+        strokeWidth="4"
+        strokeLinecap="round"
+        strokeDasharray={`${dash} ${c - dash}`}
+        transform="rotate(-90 22 22)"
+      />
+    </svg>
+  );
+}
+
+function BentoCard({ className = '', children }) {
+  return (
+    <Card
+      className={[
+        'rounded-2xl border border-slate-200/70 bg-white/70 backdrop-blur-md shadow-xl shadow-slate-100/50 transition',
+        'hover:-translate-y-1 hover:shadow-md',
+        className,
+      ].join(' ')}
+    >
+      {children}
+    </Card>
+  );
+}
+
+function QuickAction({ icon: Icon, label, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        'group flex flex-1 items-center gap-3 rounded-2xl border border-slate-200/70 bg-white/70 px-4 py-3 text-left backdrop-blur-md',
+        'transition hover:bg-slate-50',
+      ].join(' ')}
+    >
+      <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-900 text-white">
+        <Icon className="h-5 w-5" />
+      </span>
+      <span className="text-sm font-semibold text-slate-900">{label}</span>
+    </button>
+  );
+}
 
 /** Backend totalMinutes includes the open session; strip it so workedMinutes can add live elapsed from checkInTime. */
 function baseMinutesFromCheckinStatus({ status, checkInTime, totalMinutes }) {
@@ -81,8 +151,23 @@ const EmployeePortalHome = () => {
   const [checkInHistory, setCheckInHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [now, setNow] = useState(new Date());
+  const [serverOffsetMs, setServerOffsetMs] = useState(0);
   const [selectedCompany, setSelectedCompany] = useState(null);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+  const [activeTab, setActiveTab] = useState('activities'); // activities | feeds | profile
+  const [weeklyAttendance, setWeeklyAttendance] = useState([]);
+  const [loadingWeekly, setLoadingWeekly] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState('Available'); // Available | In a Meeting | OOO
+  const [mood, setMood] = useState(null); // 1-5
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const [leaveSubmitting, setLeaveSubmitting] = useState(false);
+  const [leaveMessage, setLeaveMessage] = useState(null); // { type: 'success'|'error', text: string }
+  const [leaveForm, setLeaveForm] = useState({
+    leaveType: 'Casual Leave',
+    from: getTodayKey(),
+    to: getTodayKey(),
+    reason: '',
+  });
 
   // Company for API calls: profile first (any tenant), then email domain (legacy)
   useEffect(() => {
@@ -107,15 +192,37 @@ const EmployeePortalHome = () => {
   }, [user]);
 
   useEffect(() => {
-    const interval = setInterval(() => setNow(new Date()), 1000);
+    const interval = setInterval(() => setNow(new Date(Date.now() + serverOffsetMs)), 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [serverOffsetMs]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem('employee-time-state', JSON.stringify(timeState));
     }
   }, [timeState]);
+
+  // Sync client clock against server time (anti-tamper)
+  useEffect(() => {
+    const sync = async () => {
+      try {
+        const res = await fetch('/api/portals/employee-portal/time', { cache: 'no-store' });
+        if (!res.ok) return;
+        const json = await res.json();
+        const serverTimeMs = json?.data?.serverTimeMs;
+        if (typeof serverTimeMs === 'number' && Number.isFinite(serverTimeMs)) {
+          setServerOffsetMs(serverTimeMs - Date.now());
+          setNow(new Date(serverTimeMs));
+        }
+      } catch (e) {
+        // best-effort; fallback to local time
+      }
+    };
+
+    sync();
+    const interval = setInterval(sync, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const workedMinutes = useMemo(() => {
     // Only calculate if this state belongs to the current user
@@ -160,6 +267,51 @@ const EmployeePortalHome = () => {
     return Math.max(0, minutes);
   }, [timeState, now, user?.employeeId]);
 
+  const employeeProfile = useMemo(() => {
+    if (!user) return null;
+    return {
+      designation: user.department || 'Team Member',
+      department: user.department || '',
+      name: user.name || '',
+      email: user.email || '',
+      employeeId: user.employeeId || '',
+    };
+  }, [user]);
+
+  // Weekly attendance strip (7 days, includes Weekend)
+  useEffect(() => {
+    const fetchWeekly = async () => {
+      if (!user?.employeeId) return;
+      try {
+        setLoadingWeekly(true);
+        const token = localStorage.getItem('auth_token');
+        const company = selectedCompany || (typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null);
+
+        const params = new URLSearchParams();
+        params.append('employeeId', user.employeeId);
+        if (user.empCode) params.append('empCode', user.empCode);
+        if (company) params.append('company', company);
+        params.append('timeframe', '7d');
+
+        const res = await fetch(`/api/portals/employee-portal/attendance?${params.toString()}`, {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        const last7 = json?.data?.attendanceLast7Days || [];
+        const ordered = [...last7].sort((a, b) => (a.date > b.date ? 1 : -1));
+        setWeeklyAttendance(ordered.slice(-7));
+      } catch (e) {
+        // ignore
+      } finally {
+        setLoadingWeekly(false);
+      }
+    };
+    fetchWeekly();
+  }, [user?.employeeId, user?.empCode, selectedCompany]);
+
   // Fetch check-in status from backend - runs on mount and when employeeId changes
   useEffect(() => {
     const fetchCheckInStatus = async () => {
@@ -170,7 +322,7 @@ const EmployeePortalHome = () => {
         const company = selectedCompany || (typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null);
         
         // Build API URL - use Next.js API route as proxy
-        let apiUrl = `/api/employee-portal/checkin/status?employeeId=${encodeURIComponent(user.employeeId)}`;
+        let apiUrl = `/api/portals/employee-portal/checkin/status?employeeId=${encodeURIComponent(user.employeeId)}`;
         if (company) {
           apiUrl += `&company=${encodeURIComponent(company)}`;
         }
@@ -260,7 +412,7 @@ const EmployeePortalHome = () => {
         const token = localStorage.getItem('auth_token');
         const company = selectedCompany || (typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null);
         
-        let apiUrl = `/api/employee-portal/checkin/history?employeeId=${encodeURIComponent(user.employeeId)}&limit=10`;
+        let apiUrl = `/api/portals/employee-portal/checkin/history?employeeId=${encodeURIComponent(user.employeeId)}&limit=10`;
         if (company) {
           apiUrl += `&company=${encodeURIComponent(company)}`;
         }
@@ -310,7 +462,7 @@ const EmployeePortalHome = () => {
 
         // Use Next.js API proxy route
         const res = await fetch(
-          `/api/employee-portal/attendance-requests?${params.toString()}`,
+          `/api/portals/employee-portal/attendance-requests?${params.toString()}`,
           { headers }
         );
         if (res.ok) {
@@ -343,16 +495,19 @@ const EmployeePortalHome = () => {
     return 'Good evening';
   }, [now]);
 
-  // Use live user data instead of mock data
-  const employeeProfile = useMemo(() => {
-    if (!user) return null;
-    return {
-      designation: user.department || 'Team Member',
-      department: user.department || '',
-      name: user.name || '',
-      email: user.email || '',
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (!leaveOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    const prevPaddingRight = document.body.style.paddingRight;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    document.body.style.overflow = 'hidden';
+    if (scrollbarWidth > 0) document.body.style.paddingRight = `${scrollbarWidth}px`;
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.body.style.paddingRight = prevPaddingRight;
     };
-  }, [user]);
+  }, [leaveOpen]);
 
   const handleToggleCheck = async () => {
     if (!user?.employeeId) {
@@ -372,7 +527,7 @@ const EmployeePortalHome = () => {
           const company = selectedCompany || (typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null);
           
           // Build API URL with company parameter
-        let apiUrl = `/api/employee-portal/checkin/status?employeeId=${encodeURIComponent(user.employeeId)}`;
+        let apiUrl = `/api/portals/employee-portal/checkin/status?employeeId=${encodeURIComponent(user.employeeId)}`;
         if (company) {
           apiUrl += `&company=${encodeURIComponent(company)}`;
         }
@@ -420,7 +575,7 @@ const EmployeePortalHome = () => {
       const endpoint = isCheckingIn ? '/checkin' : '/checkout';
       
       // Build API URL - use Next.js API route as proxy
-      let apiUrl = `/api/employee-portal${endpoint}`;
+      let apiUrl = `/api/portals/employee-portal${endpoint}`;
       if (company) {
         apiUrl += `?company=${encodeURIComponent(company)}`;
       }
@@ -495,7 +650,7 @@ const EmployeePortalHome = () => {
             // Then refresh from backend to ensure consistency after a short delay
             setTimeout(async () => {
               try {
-                let statusUrl = `/api/employee-portal/checkin/status?employeeId=${encodeURIComponent(user.employeeId)}`;
+                let statusUrl = `/api/portals/employee-portal/checkin/status?employeeId=${encodeURIComponent(user.employeeId)}`;
                 if (company) {
                   statusUrl += `&company=${encodeURIComponent(company)}`;
                 }
@@ -536,7 +691,7 @@ const EmployeePortalHome = () => {
             // For check-out, refresh status from backend
             const refreshStatus = async () => {
               try {
-                let statusUrl = `/api/employee-portal/checkin/status?employeeId=${encodeURIComponent(user.employeeId)}`;
+                let statusUrl = `/api/portals/employee-portal/checkin/status?employeeId=${encodeURIComponent(user.employeeId)}`;
                 if (company) {
                   statusUrl += `&company=${encodeURIComponent(company)}`;
                 }
@@ -577,7 +732,7 @@ const EmployeePortalHome = () => {
           const refreshHistory = async () => {
             try {
               const company = selectedCompany || (typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null);
-              let historyUrl = `/api/employee-portal/checkin/history?employeeId=${encodeURIComponent(user.employeeId)}&limit=10`;
+              let historyUrl = `/api/portals/employee-portal/checkin/history?employeeId=${encodeURIComponent(user.employeeId)}&limit=10`;
               if (company) {
                 historyUrl += `&company=${encodeURIComponent(company)}`;
               }
@@ -615,7 +770,6 @@ const EmployeePortalHome = () => {
 
   // Use live data from backend, show empty arrays if data not loaded yet
   const announcements = dashboardData?.announcements || [];
-  const attendanceTrend = dashboardData?.attendanceTrend || [];
   const quickStats = {
     ...(dashboardData?.quickStats || {
       leaveBalance: 0,
@@ -624,403 +778,466 @@ const EmployeePortalHome = () => {
     }),
     pendingRequests: pendingRequestsCount, // Use real-time pending requests count
   };
-  const requestHistory = dashboardData?.requestHistory || [];
-  const assets = dashboardData?.assets || [];
-  const learningJourneys = dashboardData?.learningJourneys || [];
-  const kudos = dashboardData?.kudos || [];
-  const communityHighlights = dashboardData?.communityHighlights || [];
+
+  const performance = dashboardData?.performanceSnapshot || null;
+  const performancePct = Number(performance?.percent ?? performance?.progress ?? 0);
+  const events = dashboardData?.upcomingEvents || dashboardData?.holidays || [];
+
+  const timeLogPendingCount = Number(dashboardData?.timeLogPendingCount ?? dashboardData?.pendingTimeLogs ?? 0);
+  const showTimeLogStrip = Number.isFinite(timeLogPendingCount) && timeLogPendingCount > 0;
+
+  const departmentMemberStatus = dashboardData?.departmentMembersStatus || null;
+
+  const submitLeaveRequest = async () => {
+    if (!user?.employeeId) return;
+    if (!leaveForm.leaveType || !leaveForm.from || !leaveForm.to || !leaveForm.reason.trim()) {
+      setLeaveMessage({ type: 'error', text: 'Please fill all fields.' });
+      return;
+    }
+
+    try {
+      setLeaveSubmitting(true);
+      setLeaveMessage(null);
+      const token = localStorage.getItem('auth_token');
+      const company = selectedCompany || (typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null);
+
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
+      if (company) headers['x-company'] = company;
+
+      const res = await fetch('/api/portals/employee-portal/attendance-request', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          employeeId: user.employeeId,
+          type: 'time-off',
+          leaveType: leaveForm.leaveType,
+          dateRange: `${leaveForm.from} to ${leaveForm.to}`,
+          reason: leaveForm.reason.trim(),
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json?.success) {
+        setLeaveMessage({ type: 'error', text: json?.error || 'Failed to submit leave request.' });
+        return;
+      }
+      setLeaveMessage({ type: 'success', text: 'Leave request submitted.' });
+      // Reset but keep dates convenient.
+      setLeaveForm((prev) => ({ ...prev, reason: '' }));
+      setTimeout(() => setLeaveOpen(false), 700);
+    } catch (e) {
+      setLeaveMessage({ type: 'error', text: 'Failed to submit leave request.' });
+    } finally {
+      setLeaveSubmitting(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <section className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-        <Card className="relative overflow-hidden border-none bg-gradient-to-br from-sky-500/20 via-indigo-500/20 to-purple-500/20 shadow-lg shadow-sky-900/10">
-          <div
-            className="pointer-events-none absolute inset-0 opacity-60"
-            style={{ backgroundImage: 'radial-gradient(circle at 20% 20%, rgba(255,255,255,0.25), transparent 40%)' }}
-          />
-          <div className="relative p-6 space-y-6">
-            <div>
-              <p className="text-sm text-slate-700">
-                {greeting}, {user?.name}
-              </p>
-              <div className="flex flex-wrap items-center gap-2 mt-2">
-                <p className="text-xl font-semibold text-slate-900">
-                  {employeeProfile?.designation || 'Team Member'}
-                </p>
-                {employeeProfile?.department && (
-                  <Badge className="bg-white/80 text-slate-900">
-                    {employeeProfile.department}
-                  </Badge>
-                )}
-              </div>
-              <p className="text-sm text-slate-600 mt-1">
-                Keep your day in sync with self check-in
-              </p>
+      {/* Hero */}
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200/70 bg-white/70 p-6 backdrop-blur-md shadow-xl shadow-slate-100/50">
+        <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900 text-white">
+              <span className="text-lg font-semibold">{String(employeeProfile?.name || 'U').slice(0, 1).toUpperCase()}</span>
             </div>
+            <div className="min-w-0">
+              <p className="text-sm text-slate-600">{greeting},</p>
+              <p className="truncate text-2xl font-semibold tracking-tight text-slate-900">{employeeProfile?.name || user?.name}</p>
+              <p className="mt-1 text-sm text-slate-500">Here is your pulse check for today.</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-600">
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                  ID: {employeeProfile?.employeeId || '—'}
+                </span>
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                  {employeeProfile?.designation || 'Team Member'}
+                </span>
+              </div>
+            </div>
+          </div>
 
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
-              <div className="flex-1">
-                <p className="text-sm text-slate-600">Today's logged hours</p>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-semibold text-slate-900">
-                    {formatDuration(workedMinutes)}
-                  </span>
-                  <span className="text-xs text-slate-600">Target 8h</span>
-                </div>
-                <div className="mt-3 h-2 rounded-full bg-white/40 overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-sky-500"
-                    style={{ width: `${Math.min(100, (workedMinutes / WORKDAY_TARGET_MINUTES) * 100)}%` }}
-                  />
-                </div>
-                <p className="mt-1 text-xs text-slate-600">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-2 rounded-2xl border border-slate-200/70 bg-white/60 p-1 backdrop-blur-md">
+              {['Available', 'In a Meeting', 'OOO'].map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setCurrentStatus(s)}
+                  className={[
+                    'rounded-xl px-3 py-2 text-xs font-semibold transition',
+                    currentStatus === s ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900',
+                  ].join(' ')}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+            <div className="hidden items-center gap-2 text-xs text-slate-500 sm:flex">
+              <Sparkles className="h-4 w-4" />
+              <span>{currentStatus}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick actions */}
+        <div className="relative mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <QuickAction icon={Plane} label="Apply Leave" onClick={() => setLeaveOpen(true)} />
+          <QuickAction icon={Headset} label="Company policy" onClick={() => {}} />
+          <QuickAction icon={CreditCard} label="Payslip" onClick={() => router.push('/employee-portal/requests')} />
+        </div>
+      </div>
+
+      {/* Bento */}
+      <section className="grid gap-6 lg:grid-cols-12">
+        {/* Attendance (tall) */}
+        <BentoCard className="relative overflow-hidden lg:col-span-4 lg:row-span-2">
+          <div className="relative p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Attendance</p>
+                <p className="mt-2 font-mono text-4xl font-semibold tracking-tight text-slate-900">{formatHmsTimer(workedMinutes)}</p>
+                <p className="mt-1 text-xs text-slate-500">
                   {timeState.status === 'checked-in' && timeState.checkInTime ? (
-                    <>
-                      Checked in at {formatTime(timeState.checkInTime)}
-                      {timeState.earliestPunchInTime ? (
-                        <span className="block text-slate-500 mt-0.5">
-                          First office punch {formatTime(timeState.earliestPunchInTime)}
-                        </span>
-                      ) : null}
-                    </>
+                    <>Checked in at {formatTime(timeState.checkInTime)}</>
                   ) : (
                     'Not checked in yet'
                   )}
                 </p>
               </div>
-              <div className="flex flex-col gap-3">
-                <Button
-                  onClick={handleToggleCheck}
-                  className={
-                    timeState.status === 'checked-in'
-                      ? 'bg-rose-500 hover:bg-rose-600'
-                      : 'bg-primary-600 hover:bg-primary-700'
-                  }
-                >
-                  {timeState.status === 'checked-in' ? (
-                    <>
-                      <Square className="w-4 h-4 mr-2" />
-                      Check out
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-4 h-4 mr-2" />
-                      Check in
-                    </>
-                  )}
-                </Button>
-                <Button variant="outline">
-                  <Clock className="w-4 h-4 mr-2" />
-                  Log manual entry
-                </Button>
-              </div>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              {[
-                { label: 'Available leaves', value: `${quickStats.leaveBalance} days`, icon: CalendarCheck },
-                { label: 'Next shift', value: quickStats.upcomingShift, icon: Clock },
-              ].map((item) => {
-                const Icon = item.icon;
-                return (
-                  <div
-                    key={item.label}
-                    className="flex items-center gap-3 rounded-xl border border-white/40 bg-white/90 p-3 shadow-sm"
-                  >
-                    <div className="rounded-full bg-gradient-to-br from-sky-500/20 to-indigo-500/20 p-2 text-primary-600">
-                      <Icon className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <p className="text-xs uppercase text-slate-500">{item.label}</p>
-                      <p className="text-sm font-semibold text-slate-900">{item.value}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </Card>
-
-        <Card className="border-none bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 shadow-inner shadow-blue-200/60 p-6">
-          <h2 className="text-slate-900 font-semibold">My Snapshot</h2>
-          <p className="text-sm text-slate-600 mb-4">Items that need your attention</p>
-          <div className="space-y-3">
-            <button
-              type="button"
-              onClick={() => router.push('/employee-portal/requests')}
-              className="w-full text-left rounded-xl bg-white/80 p-3 shadow-sm transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-primary-300"
-              title="Open requests"
-            >
-              <p className="text-xs text-slate-500">Pending requests</p>
-              <p className="text-2xl font-semibold text-slate-900">{quickStats.pendingRequests}</p>
-              <p className="text-xs text-slate-500">Awaiting approvals</p>
-            </button>
-            <div className="rounded-xl bg-white/80 p-3 shadow-sm">
-              <p className="text-xs text-slate-500">Last payout</p>
-              <p className="text-lg font-semibold text-slate-900">{quickStats.lastPayout}</p>
-              <p className="text-xs text-slate-500">View payslip in requests</p>
-            </div>
-          </div>
-        </Card>
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-3">
-        <Card className="border-none bg-gradient-to-br from-amber-50 to-orange-100/60 shadow-lg shadow-amber-100/70 p-6 space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-amber-900 font-semibold">Learning lane</h3>
-              <p className="text-xs text-amber-700/80">Grow along your curated tracks</p>
-            </div>
-            <BookOpen className="h-5 w-5 text-amber-600" />
-          </div>
-          <div className="space-y-3">
-            {learningJourneys.map((journey) => (
-              <div key={journey.id} className="rounded-lg bg-white/80 p-3 shadow-sm">
-                <div className="flex items-center justify-between text-sm font-semibold text-amber-900">
-                  <span>{journey.title}</span>
-                  <Badge>{journey.badge}</Badge>
-                </div>
-                <p className="text-xs text-amber-700/80">Due {journey.due}</p>
-                <div className="mt-2 h-2 rounded-full bg-amber-100 overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-amber-500"
-                    style={{ width: `${journey.progress}%` }}
-                  />
-                </div>
-                <p className="mt-1 text-xs text-amber-700/80">{journey.progress}% complete</p>
-              </div>
-            ))}
-            <Button variant="outline" className="w-full">
-              Explore learning studio
-            </Button>
-          </div>
-        </Card>
-
-        <Card className="border-none bg-gradient-to-br from-rose-50 via-pink-50 to-fuchsia-50 shadow-lg shadow-rose-100/70 p-6 space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-rose-900 font-semibold">Wellbeing & focus</h3>
-              <p className="text-xs text-rose-700/80">Micro habits to stay energised</p>
-            </div>
-            <HeartPulse className="h-5 w-5 text-rose-500" />
-          </div>
-          <div className="rounded-xl border bg-rose-50 p-3 text-sm text-rose-700 mb-3">
-            <p className="text-xs uppercase tracking-wide text-rose-500">Mood log</p>
-            <p className="text-lg font-semibold">Grounded & productive</p>
-            <p className="text-xs text-rose-600/80">
-              Last updated 9:10 AM • Remember to stretch every hour.
-            </p>
-          </div>
-          <div className="space-y-2 text-sm">
-            {['Hydration break', '10-min walk', 'Breathwork session'].map((habit) => (
-              <div key={habit} className="flex items-center justify-between rounded-lg border px-3 py-2 bg-white/80">
-                <span>{habit}</span>
-                <Badge>Scheduled</Badge>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        <Card className="border-none bg-gradient-to-br from-indigo-50 to-blue-100/60 shadow-lg shadow-indigo-100/70 p-6 space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-indigo-900 font-semibold">Kudos spotlight</h3>
-              <p className="text-xs text-indigo-700/80">Cheers from your teammates</p>
-            </div>
-            <PartyPopper className="h-5 w-5 text-amber-500" />
-          </div>
-          <div className="space-y-3">
-            {kudos.map((note) => (
-              <div key={note.id} className="rounded-lg bg-white/80 p-3 shadow-sm">
-                <p className="text-sm font-semibold">{note.from}</p>
-                <p className="text-xs text-neutral-500">{note.date}</p>
-                <p className="mt-2 text-sm">{note.message}</p>
-              </div>
-            ))}
-          </div>
-          <Button variant="outline" className="w-full">
-            Send gratitude
-          </Button>
-        </Card>
-      </section>
-
-      <section className="grid gap-4 md:grid-cols-2">
-        <Card className="border-none bg-white shadow-lg shadow-slate-200/40 p-6">
-          <h3 className="font-semibold">Attendance pulse</h3>
-          <p className="text-sm text-neutral-500 mb-3">Last 7 days</p>
-          <div className="space-y-2">
-            {attendanceTrend.map((day) => (
-              <div key={day.day} className="flex items-center justify-between rounded-lg border p-2 text-sm">
-                <div className="flex items-center gap-3">
-                  <Badge>{day.day}</Badge>
-                  <span>{day.status}</span>
-                </div>
-                <span className="font-medium">
-                  {day.hours ? `${day.hours} hrs` : '-'}
-                </span>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <h3 className="font-semibold">Announcements</h3>
-          <p className="text-sm text-neutral-500 mb-3">Company wide updates</p>
-          <div className="space-y-3">
-            {announcements.map((announcement) => (
-              <div key={announcement.id} className="rounded-lg border p-3">
-                <div className="flex items-center gap-2 text-xs text-neutral-500">
-                  <Megaphone className="h-3.5 w-3.5" />
-                  <span>{announcement.date}</span>
-                  <span>•</span>
-                  <span className="capitalize">{announcement.type}</span>
-                </div>
-                <p className="mt-1 font-semibold">{announcement.title}</p>
-                <p className="text-xs text-neutral-500">{announcement.audience}</p>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </section>
-
-      <section className="grid gap-4 md:grid-cols-2">
-        <Card className="border-none bg-gradient-to-br from-indigo-50 to-blue-100/60 shadow-inner shadow-blue-200/60 p-6">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h3 className="font-semibold">My requests</h3>
-              <p className="text-sm text-neutral-500">Latest submissions</p>
-            </div>
-            <Button size="sm" variant="outline">
-              <ClipboardList className="mr-2 h-4 w-4" />
-              New request
-            </Button>
-          </div>
-          <div className="space-y-3">
-            {requestHistory.map((request) => (
-              <div key={request.id} className="rounded-lg bg-white/85 p-3 text-sm shadow-sm">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold">{request.id}</span>
-                  <Badge>{request.status}</Badge>
-                </div>
-                <p className="mt-1 text-slate-600">{request.details}</p>
-                <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
-                  <span>{request.type}</span>
-                  <span>Submitted {request.submitted}</span>
+              <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
+                <CircularProgress value={Math.min(100, (workedMinutes / WORKDAY_TARGET_MINUTES) * 100)} />
+                <div className="text-right">
+                  <p className="text-[11px] font-semibold text-slate-500">Target</p>
+                  <p className="text-sm font-semibold text-slate-900">8h</p>
+                  <p className="text-[11px] text-slate-500">{Math.round((workedMinutes / WORKDAY_TARGET_MINUTES) * 100)}%</p>
                 </div>
               </div>
-            ))}
-          </div>
-        </Card>
-
-        <Card className="border-none bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 shadow-inner shadow-emerald-100/60 p-6">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h3 className="font-semibold">Assigned assets</h3>
-              <p className="text-sm text-neutral-500">Physical & digital assets</p>
             </div>
-            <Button size="sm" variant="ghost">
-              <Laptop className="mr-2 h-4 w-4" />
-              Report issue
-            </Button>
-          </div>
-          <div className="space-y-3">
-            {assets.map((asset) => (
-              <div key={asset.tag} className="flex items-center justify-between rounded-lg border border-emerald-100 bg-white/80 p-3 text-sm">
-                <div>
-                  <p className="font-semibold">{asset.name}</p>
-                  <p className="text-xs text-emerald-700/70">{asset.tag}</p>
-                </div>
-                <Badge>{asset.status}</Badge>
-              </div>
-            ))}
-            <div className="rounded-lg border border-dashed border-emerald-200 bg-white/75 p-3 text-sm text-emerald-700">
-              Need something else? Raise a hardware or access request.
-            </div>
-          </div>
-        </Card>
-      </section>
 
-      <Card className="p-6">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h3 className="font-semibold">Community highlights</h3>
-            <p className="text-sm text-neutral-500">Internal events & micro-experiences</p>
-          </div>
-          <Button variant="outline" size="sm">
-            RSVP
-          </Button>
-        </div>
-        <div className="grid gap-3 md:grid-cols-2">
-          {communityHighlights.map((highlight) => (
-            <div key={highlight.id} className="rounded-lg border bg-white p-3">
-              <p className="text-sm font-semibold">{highlight.title}</p>
-              <p className="text-xs text-neutral-500">{highlight.time}</p>
-              <p className="text-xs text-neutral-500">Location: {highlight.location}</p>
-              <Button variant="ghost" size="sm" className="mt-2">
-                View details
+            <div className="mt-5 space-y-2">
+              <Button
+                onClick={handleToggleCheck}
+                className={[
+                  'w-full rounded-2xl shadow-sm',
+                  timeState.status === 'checked-in'
+                    ? 'border border-rose-200 bg-white text-rose-700 hover:bg-rose-50'
+                    : '',
+                ].join(' ')}
+              >
+                {timeState.status === 'checked-in' ? (
+                  <>
+                    <Square className="mr-2 h-4 w-4" />
+                    Check out
+                  </>
+                ) : (
+                  <>
+                    <Play className="mr-2 h-4 w-4" />
+                    Check in
+                  </>
+                )}
+              </Button>
+              <Button variant="outline" className="w-full rounded-2xl border-slate-200 bg-white text-slate-900 hover:bg-slate-50">
+                <Clock className="mr-2 h-4 w-4" />
+                Log manual entry
               </Button>
             </div>
-          ))}
-        </div>
-      </Card>
 
-      <Card className="border-none bg-gradient-to-br from-slate-900/5 to-slate-900/0 p-6">
-        <div className="mb-4">
-          <h3 className="font-semibold">Check-in history</h3>
-          <p className="text-sm text-neutral-500">Recent actions for today</p>
-        </div>
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="space-y-3">
-            {loadingHistory ? (
-              <p className="text-sm text-neutral-500">Loading history...</p>
-            ) : checkInHistory.length === 0 ? (
-              <p className="text-sm text-neutral-500">No check-in history available.</p>
-            ) : (
-              checkInHistory
-                .filter(record => record.date === getTodayKey())
-                .map((record, index) => (
-                  <div
-                    key={`${record.date}-${index}`}
-                    className="rounded-lg border border-slate-200/70 bg-white/90 p-3 text-sm shadow-sm"
-                  >
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-primary-600" />
-                      <span className="font-semibold">
-                        {record.checkInTime ? 'Checked in' : 'Checked out'}
-                      </span>
+            <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-slate-500" />
+                  <p className="text-sm font-semibold text-slate-900">Department members</p>
+                </div>
+                <Badge className="bg-slate-50 text-slate-700">
+                  {departmentMemberStatus?.presentCount != null ? `${departmentMemberStatus.presentCount} Present` : 'Status'}
+                </Badge>
+              </div>
+              <p className="mt-1 text-xs text-slate-500">
+                {departmentMemberStatus?.summary || 'Live status will appear here once enabled.'}
+              </p>
+            </div>
+          </div>
+        </BentoCard>
+
+        {/* Work schedule */}
+        <BentoCard className="lg:col-span-8">
+          <div className="p-5">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">Work schedule</p>
+                <p className="text-sm text-slate-500">This week at a glance</p>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                <Bell className="h-4 w-4" />
+                <span>{loadingData ? 'Syncing…' : 'Up to date'}</span>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-7 gap-2">
+              {loadingWeekly ? (
+                <div className="col-span-7 text-sm text-slate-500">Loading week…</div>
+              ) : (
+                (weeklyAttendance.length ? weeklyAttendance : Array.from({ length: 7 }).map((_, idx) => ({ day: '', status: '—', date: `_${idx}` }))).map((d) => {
+                  const status = String(d.status || '—');
+                  const todayName = now.toLocaleDateString([], { weekday: 'short' });
+                  const isToday = (d.day || '').toLowerCase() === todayName.toLowerCase();
+
+                  const pill =
+                    status === 'Present'
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                      : status === 'Weekend'
+                        ? 'bg-slate-50 text-slate-600 border-slate-200'
+                        : status === 'Absent'
+                          ? 'bg-rose-50 text-rose-700 border-rose-100'
+                          : 'bg-white text-slate-500 border-slate-200';
+
+                  return (
+                    <div
+                      key={d.date}
+                      className={[
+                        'rounded-2xl border bg-white p-3 transition',
+                        isToday ? 'border-purple-300 shadow-[0_0_0_3px_rgba(168,85,247,0.16)]' : 'border-slate-200',
+                      ].join(' ')}
+                    >
+                      <p className="text-xs font-semibold text-slate-700">{d.day || '—'}</p>
+                      <p className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${pill}`}>
+                        {status}
+                      </p>
                     </div>
-                    {record.checkInTime && (
-                      <p className="text-xs text-neutral-500">
-                        Check-in: {formatTime(record.checkInTime)}
-                      </p>
-                    )}
-                    {record.checkOutTime && (
-                      <p className="text-xs text-neutral-500">
-                        Check-out: {formatTime(record.checkOutTime)}
-                      </p>
-                    )}
-                    {record.totalHours && parseFloat(record.totalHours) > 0 && (
-                      <p className="text-xs text-slate-500 mt-1">
-                        Total: {parseFloat(record.totalHours).toFixed(1)} hours
-                      </p>
-                    )}
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </BentoCard>
+
+        {/* Announcements (wide) */}
+        <BentoCard className="lg:col-span-8">
+          <div className="p-5">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">Company announcements</p>
+                <p className="text-sm text-slate-500">What’s new today</p>
+              </div>
+              <Badge className="bg-purple-50 text-purple-700">New</Badge>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              {(announcements || []).slice(0, 4).map((a) => (
+                <div key={a.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <Megaphone className="h-3.5 w-3.5" />
+                    <span>{a.date}</span>
+                    <span>•</span>
+                    <span className="capitalize">{a.type}</span>
+                    <span className="ml-auto inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                      New
+                    </span>
                   </div>
-                ))
-            )}
-            {checkInHistory.filter(record => record.date === getTodayKey()).length === 0 && !loadingHistory && (
-              <p className="text-sm text-neutral-500">No actions captured today yet.</p>
-            )}
+                  <p className="mt-2 text-sm font-semibold text-slate-900">{a.title}</p>
+                  <p className="text-xs text-slate-500">{a.audience}</p>
+                </div>
+              ))}
+              {(!announcements || announcements.length === 0) && (
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                  No announcements yet.
+                </div>
+              )}
+            </div>
           </div>
-          <div className="rounded-lg border border-slate-200/70 bg-white p-4 text-sm text-slate-600 shadow-sm">
-            <p className="font-semibold text-slate-800">Work tips</p>
-            <ul className="mt-2 list-disc space-y-1 pl-4">
-              <li>Remember to pause the timer for extended breaks.</li>
-              <li>Use manual entry for offsite meetings or travel.</li>
-              <li>Once you check out, hours automatically sync to HR.</li>
-            </ul>
+        </BentoCard>
+
+        {/* Right column widgets */}
+        <div className="grid gap-6 lg:col-span-4">
+          <BentoCard>
+            <div className="p-5">
+              <p className="text-sm font-semibold text-slate-900">Task snapshot</p>
+              <p className="text-sm text-slate-500">Pending items</p>
+              <button
+                type="button"
+                onClick={() => router.push('/employee-portal/requests')}
+                className="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left transition hover:bg-slate-100"
+              >
+                <p className="text-xs text-slate-500">Pending requests</p>
+                <p className="mt-1 text-3xl font-semibold text-slate-900">{quickStats.pendingRequests}</p>
+                <p className="text-xs text-slate-500">Awaiting approvals</p>
+              </button>
+            </div>
+          </BentoCard>
+
+          <BentoCard>
+            <div className="p-5">
+              <p className="text-sm font-semibold text-slate-900">Mood tracker</p>
+              <p className="text-sm text-slate-500">How are you feeling today?</p>
+              <div className="mt-4 grid grid-cols-5 gap-2">
+                {[
+                  { v: 1, label: '😞' },
+                  { v: 2, label: '😐' },
+                  { v: 3, label: '🙂' },
+                  { v: 4, label: '😄' },
+                  { v: 5, label: '🔥' },
+                ].map((m) => (
+                  <button
+                    key={m.v}
+                    type="button"
+                    onClick={() => setMood(m.v)}
+                    className={[
+                      'flex h-12 items-center justify-center rounded-2xl border text-lg transition',
+                      mood === m.v ? 'border-purple-300 bg-purple-50' : 'border-slate-200 bg-white hover:bg-slate-50',
+                    ].join(' ')}
+                    aria-label={`Mood ${m.v}`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+              {mood ? <p className="mt-3 text-xs text-slate-500">Saved for today.</p> : null}
+            </div>
+          </BentoCard>
+
+          <BentoCard>
+            <div className="p-5">
+              <p className="text-sm font-semibold text-slate-900">Upcoming holidays & events</p>
+              <p className="text-sm text-slate-500">Next up</p>
+              <div className="mt-4 space-y-2">
+                {(events || []).slice(0, 4).map((e, idx) => (
+                  <div key={e.id || idx} className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">{e.title || e.name || 'Event'}</p>
+                      <p className="text-xs text-slate-500">{e.date || e.when || '—'}</p>
+                    </div>
+                    <Badge className="bg-slate-50 text-slate-700">{e.type || 'Info'}</Badge>
+                  </div>
+                ))}
+                {(!events || events.length === 0) && (
+                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                    No events configured yet.
+                  </div>
+                )}
+              </div>
+            </div>
+          </BentoCard>
+
+          <BentoCard>
+            <div className="p-5">
+              <p className="text-sm font-semibold text-slate-900">Performance snapshot</p>
+              <p className="text-sm text-slate-500">{performance?.label || 'Monthly goals'}</p>
+              <div className="mt-4">
+                <ProgressBar value={Number.isFinite(performancePct) ? performancePct : 0} />
+                <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
+                  <span>{Number.isFinite(performancePct) ? `${Math.round(performancePct)}%` : '—'}</span>
+                  <span>{performance?.meta || 'Keep going'}</span>
+                </div>
+              </div>
+            </div>
+          </BentoCard>
+        </div>
+      </section>
+
+      {showTimeLogStrip ? (
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-slate-900">Time Log reminder</p>
+            <Badge className="bg-amber-50 text-amber-700">{timeLogPendingCount} pending</Badge>
           </div>
-      </div>
-      </Card>
+          <p className="mt-1 text-sm text-slate-600">Please complete your time logs for today.</p>
+        </div>
+      ) : null}
+
+      {leaveOpen ? (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-slate-950/30 backdrop-blur-sm"
+            aria-label="Close"
+            onClick={() => setLeaveOpen(false)}
+          />
+          <div className="relative w-full max-w-xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
+              <div>
+                <p className="text-lg font-semibold text-slate-900">Leave request</p>
+                <p className="text-sm text-slate-500">Submit time-off for approval.</p>
+              </div>
+              <Button variant="outline" className="rounded-2xl" onClick={() => setLeaveOpen(false)}>
+                Close
+              </Button>
+            </div>
+
+            <div className="px-6 py-6">
+              {leaveMessage ? (
+                <div
+                  className={[
+                    'mb-4 rounded-2xl border px-4 py-3 text-sm',
+                    leaveMessage.type === 'success'
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                      : 'border-rose-200 bg-rose-50 text-rose-800',
+                  ].join(' ')}
+                >
+                  {leaveMessage.text}
+                </div>
+              ) : null}
+
+              <div className="grid gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-600">Leave type</label>
+                  <select
+                    value={leaveForm.leaveType}
+                    onChange={(e) => setLeaveForm((p) => ({ ...p, leaveType: e.target.value }))}
+                    className="mt-2 h-11 w-full rounded-2xl border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none focus:border-slate-400"
+                  >
+                    {['Casual Leave', 'Sick Leave', 'Earned Leave', 'Compensatory Off', 'LOP', 'Time Off'].map((t) => (
+                      <option key={t} value={t}>
+                        {t === 'Time Off' ? 'Leave' : t}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600">From</label>
+                    <input
+                      type="date"
+                      value={leaveForm.from}
+                      onChange={(e) => setLeaveForm((p) => ({ ...p, from: e.target.value }))}
+                      className="mt-2 h-11 w-full rounded-2xl border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none focus:border-slate-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600">To</label>
+                    <input
+                      type="date"
+                      value={leaveForm.to}
+                      onChange={(e) => setLeaveForm((p) => ({ ...p, to: e.target.value }))}
+                      className="mt-2 h-11 w-full rounded-2xl border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none focus:border-slate-400"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-600">Reason</label>
+                  <textarea
+                    value={leaveForm.reason}
+                    onChange={(e) => setLeaveForm((p) => ({ ...p, reason: e.target.value }))}
+                    rows={4}
+                    className="mt-2 w-full resize-none rounded-2xl border border-slate-300 bg-white px-3 py-3 text-sm text-slate-900 outline-none focus:border-slate-400"
+                    placeholder="Add a short note for your manager"
+                  />
+                </div>
+
+                <Button
+                  onClick={submitLeaveRequest}
+                  className="h-11 w-full rounded-2xl"
+                  disabled={leaveSubmitting}
+                >
+                  {leaveSubmitting ? 'Submitting…' : 'Submit for approval'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

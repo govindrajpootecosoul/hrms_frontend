@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { ClipboardSignature, Receipt, Headphones, Calendar as CalendarIcon, RefreshCw } from 'lucide-react';
+import { Calendar as CalendarIcon, ClipboardSignature, Headphones, Receipt, RefreshCw } from 'lucide-react';
 import { API_BASE_URL } from '@/lib/utils/constants';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/components/common/Toast';
@@ -25,6 +25,67 @@ const expenseTemplates = [
 ];
 
 const LEAVE_TYPES = ['Casual Leave', 'Sick Leave', 'Earned Leave', 'Work From Home', 'Compensatory Off', 'LOP'];
+
+function FloatingField({ id, label, children }) {
+  return (
+    <div className="group relative">
+      {children}
+      <label
+        htmlFor={id}
+        className={[
+          'pointer-events-none absolute left-3 top-2 text-[11px] font-semibold text-slate-500 transition',
+          'group-focus-within:text-slate-700',
+        ].join(' ')}
+      >
+        {label}
+      </label>
+    </div>
+  );
+}
+
+function Timeline({ status }) {
+  const s = String(status || '').toLowerCase();
+  const steps = [
+    { key: 'submitted', label: 'Submitted' },
+    { key: 'manager', label: 'Manager approved' },
+    { key: 'hr', label: 'HR approved' },
+  ];
+
+  // Current system only exposes pending/approved/rejected. Map:
+  // - pending => submitted
+  // - approved => hr (best-effort)
+  // - rejected => submitted (failed)
+  const activeIdx = s === 'approved' ? 2 : 0;
+  const rejected = s === 'rejected';
+
+  return (
+    <div className="mt-3">
+      <div className="flex items-center gap-2">
+        {steps.map((st, idx) => {
+          const done = idx <= activeIdx && !rejected;
+          const dot = rejected
+            ? idx === 0
+              ? 'bg-rose-500'
+              : 'bg-slate-200'
+            : done
+              ? 'bg-emerald-500'
+              : 'bg-slate-200';
+          const line = rejected ? 'bg-slate-200' : done ? 'bg-emerald-200' : 'bg-slate-200';
+          return (
+            <div key={st.key} className="flex flex-1 items-center gap-2">
+              <span className={`h-2.5 w-2.5 rounded-full ${dot}`} />
+              <span className={`text-[11px] font-semibold ${done && !rejected ? 'text-slate-700' : 'text-slate-500'}`}>
+                {st.label}
+              </span>
+              {idx < steps.length - 1 ? <span className={`mx-2 h-px flex-1 ${line}`} /> : null}
+            </div>
+          );
+        })}
+      </div>
+      {rejected ? <p className="mt-2 text-xs font-semibold text-rose-700">Rejected</p> : null}
+    </div>
+  );
+}
 
 export default function EmployeeRequestsPage() {
   const { user } = useAuth();
@@ -99,7 +160,7 @@ export default function EmployeeRequestsPage() {
 
       // Use Next.js API proxy route
       const res = await fetch(
-        `/api/employee-portal/attendance-requests?${params.toString()}`,
+        `/api/portals/employee-portal/attendance-requests?${params.toString()}`,
         { headers }
       );
       if (res.ok) {
@@ -313,7 +374,7 @@ export default function EmployeeRequestsPage() {
         headers['x-company'] = company;
       }
 
-      const res = await fetch('/api/employee-portal/attendance-request', {
+      const res = await fetch('/api/portals/employee-portal/attendance-request', {
         method: 'POST',
         headers,
         body: JSON.stringify(requestData)
@@ -350,136 +411,142 @@ export default function EmployeeRequestsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className={`grid ${managerScope?.isManager ? 'grid-cols-4' : 'grid-cols-3'}`}>
-          <TabsTrigger value="leave">Leaves</TabsTrigger>
-          {managerScope?.isManager && <TabsTrigger value="team">Team leave requests</TabsTrigger>}
-          <TabsTrigger value="expense">Expense</TabsTrigger>
-          <TabsTrigger value="support">Support</TabsTrigger>
+        <TabsList className={`grid rounded-2xl border border-slate-200 bg-white p-1 ${managerScope?.isManager ? 'grid-cols-4' : 'grid-cols-3'}`}>
+          <TabsTrigger value="leave" className="rounded-xl data-[state=active]:bg-slate-900 data-[state=active]:text-white">
+            Leaves
+          </TabsTrigger>
+          {managerScope?.isManager && (
+            <TabsTrigger value="team" className="rounded-xl data-[state=active]:bg-slate-900 data-[state=active]:text-white">
+              Team
+            </TabsTrigger>
+          )}
+          <TabsTrigger value="expense" className="rounded-xl data-[state=active]:bg-slate-900 data-[state=active]:text-white">
+            Expense
+          </TabsTrigger>
+          <TabsTrigger value="support" className="rounded-xl data-[state=active]:bg-slate-900 data-[state=active]:text-white">
+            Support
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="leave">
-          <Card className="border border-slate-200 bg-white shadow-lg">
-            <CardHeader className="flex flex-row items-start justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <CardTitle className="text-slate-900 text-2xl font-bold mb-1">Leave request</CardTitle>
-                <CardDescription className="text-sm text-slate-600">Send time-off notifications and capture approvals</CardDescription>
-              </div>
-              <Badge variant="secondary" className="flex items-center gap-2 flex-shrink-0 bg-slate-100 text-slate-700">
-                <ClipboardSignature className="h-4 w-4" /> Balance: 12 days
-              </Badge>
-            </CardHeader>
-            <CardContent className="grid gap-6 md:grid-cols-2">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="leave-type" className="text-sm font-medium text-slate-700">Leave type</Label>
-                  <Select value={leaveType} onValueChange={(value) => setLeaveType(value)}>
-                    <SelectTrigger id="leave-type" className="w-full h-10 bg-white">
-                      <SelectValue placeholder="Select leave type" />
-                    </SelectTrigger>
-                    <SelectContent className="z-[100]">
-                      {LEAVE_TYPES.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {type}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+          <div className="space-y-6">
+            <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <CardHeader className="flex flex-row items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <CardTitle className="text-slate-900 text-2xl font-bold mb-1">Leave request</CardTitle>
+                  <CardDescription className="text-sm text-slate-600">Fast, clean submission with smart validations.</CardDescription>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="date-range" className="text-sm font-medium text-slate-700">Date range</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button 
-                        id="date-range"
-                        variant="outline" 
-                        className="w-full justify-start text-left font-normal h-10 overflow-hidden"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
-                        <span className="truncate text-sm">
-                          {dateRange.from && dateRange.to
-                            ? `${format(dateRange.from, 'MMM dd, yyyy')} - ${format(dateRange.to, 'MMM dd, yyyy')}`
-                            : 'Select range'}
-                        </span>
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 bg-white border-slate-200 z-[100]" align="start">
-                      <div className="bg-white">
-                        <Calendar
-                          mode="range"
-                          selected={dateRange}
-                          onSelect={(range) => setDateRange(range ?? { from: undefined, to: undefined })}
-                          numberOfMonths={2}
-                          initialFocus
-                        />
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="reason" className="text-sm font-medium text-slate-700">Reason</Label>
-                  <Textarea 
-                    id="reason"
-                    placeholder="Add context that helps approvals" 
-                    rows={4}
-                    className="resize-none min-h-[100px]"
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                  />
-                </div>
-                <Button 
-                  className="w-full h-10" 
-                  onClick={handleLeaveSubmit}
-                  disabled={submitting}
-                >
-                  {submitting ? 'Submitting...' : 'Submit for approval'}
-                </Button>
-                <div className="rounded-xl border border-slate-200 bg-transparent p-4 text-sm text-slate-700 space-y-2">
-                  <p className="font-semibold text-slate-900">Auto-routing</p>
-                  <ul className="list-disc space-y-1 pl-4">
-                    <li>Manager approval within 24h</li>
-                    <li>HR gets notified on approved leaves</li>
-                    <li>Calendar updates once approval is final</li>
-                  </ul>
-                </div>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-transparent p-4 text-sm text-slate-700 space-y-4">
-                <div>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Leave balance by type
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {leaveBalances.map((balance) => (
-                      <div key={balance.type} className="rounded-lg border bg-white px-3 py-2">
-                        <p className="text-xs text-muted-foreground">{balance.type}</p>
-                        <p className="text-base font-semibold">{balance.balance} days</p>
-                      </div>
-                    ))}
+                <Badge variant="secondary" className="flex items-center gap-2 flex-shrink-0 bg-slate-100 text-slate-700">
+                  <ClipboardSignature className="h-4 w-4" /> Routing: Manager → HR
+                </Badge>
+              </CardHeader>
+              <CardContent className="grid gap-5 md:grid-cols-2">
+                <div className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="group relative">
+                      <Select value={leaveType} onValueChange={(value) => setLeaveType(value)}>
+                        <SelectTrigger id="leave-type" className="h-12 rounded-2xl border-slate-300 bg-white pt-5 text-slate-900">
+                          <SelectValue placeholder="Select leave type" />
+                        </SelectTrigger>
+                        <SelectContent className="z-[100]">
+                          {LEAVE_TYPES.map((type) => (
+                            <SelectItem key={type} value={type}>
+                              {type}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <label htmlFor="leave-type" className="pointer-events-none absolute left-3 top-2 text-[11px] font-semibold text-slate-500">
+                        Leave type
+                      </label>
+                    </div>
+
+                    <div className="group relative">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            id="date-range"
+                            variant="outline"
+                            className="h-12 w-full justify-start rounded-2xl border-slate-300 bg-white pt-5 text-left font-normal"
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0 text-slate-500" />
+                            <span className="truncate text-sm text-slate-900">
+                              {dateRange.from && dateRange.to
+                                ? `${format(dateRange.from, 'MMM dd')} - ${format(dateRange.to, 'MMM dd')}`
+                                : 'Select range'}
+                            </span>
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0 bg-white border-slate-200 z-[100]" align="start">
+                          <div className="bg-white">
+                            <Calendar
+                              mode="range"
+                              selected={dateRange}
+                              onSelect={(range) => setDateRange(range ?? { from: undefined, to: undefined })}
+                              numberOfMonths={2}
+                              initialFocus
+                            />
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                      <label htmlFor="date-range" className="pointer-events-none absolute left-3 top-2 text-[11px] font-semibold text-slate-500">
+                        Date range
+                      </label>
+                    </div>
+                  </div>
+
+                  <FloatingField id="reason" label="Reason">
+                    <Textarea
+                      id="reason"
+                      placeholder=" "
+                      rows={5}
+                      className="min-h-[120px] resize-none rounded-2xl border-slate-300 bg-white pt-6 text-slate-900"
+                      value={reason}
+                      onChange={(e) => setReason(e.target.value)}
+                    />
+                  </FloatingField>
+
+                  <Button className="h-11 w-full rounded-2xl" onClick={handleLeaveSubmit} disabled={submitting}>
+                    {submitting ? 'Submitting…' : 'Submit for approval'}
+                  </Button>
+
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                    <p className="font-semibold text-slate-900">Workflow</p>
+                    <p className="mt-1 text-sm text-slate-600">Submitted → Manager approval → HR approval.</p>
                   </div>
                 </div>
-                <div className="rounded-lg border border-dashed bg-white p-3 space-y-2">
-                  <div className="flex items-center justify-between text-sm font-semibold text-slate-900">
-                    <span>Comp Off credit request</span>
-                    <Badge variant="outline">
-                      Current: {leaveBalances.find((lb) => lb.type === 'Compensatory Off')?.balance ?? 0} day(s)
-                    </Badge>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Leave balance</p>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    {leaveBalances.map((balance) => {
+                      const active = leaveType && String(leaveType) === String(balance.type);
+                      return (
+                        <div
+                          key={balance.type}
+                          className={[
+                            'rounded-2xl border p-3 transition',
+                            active ? 'border-purple-300 bg-purple-50' : 'border-slate-200 bg-white hover:bg-slate-50',
+                          ].join(' ')}
+                        >
+                          <p className="text-xs text-slate-500">{balance.type}</p>
+                          <p className="mt-1 text-xl font-semibold text-slate-900">{balance.balance}</p>
+                          <p className="text-xs text-slate-500">days</p>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div className="grid gap-2 text-sm">
-                    <Input type="date" placeholder="Worked date" />
-                    <Textarea rows={2} placeholder="Explain why you earned the comp off" />
-                    <Button variant="outline" className="w-full">
-                      Send for HR approval
-                    </Button>
+
+                  <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                    <p className="font-semibold text-slate-900">Empty state</p>
+                    <p className="mt-1 text-sm text-slate-600">Balances update after approvals.</p>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Once HR approves, Comp Off balance auto-increments and becomes available for future leave requests.
-                  </p>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
           {/* Leave Requests List */}
-          <Card className="border border-slate-200 bg-white shadow-lg mt-6">
+          <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
             <CardHeader className="flex flex-row items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <CardTitle className="text-slate-900 text-xl font-bold">My Leave Requests</CardTitle>
@@ -500,9 +567,12 @@ export default function EmployeeRequestsPage() {
               {loadingLeaveRequests ? (
                 <div className="text-center py-8 text-sm text-slate-600">Loading leave requests...</div>
               ) : leaveRequests.length === 0 ? (
-                <div className="text-center py-8 text-sm text-slate-600">No leave requests found</div>
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-10 text-center text-sm text-slate-600">
+                  <p className="text-base font-semibold text-slate-900">You haven't submitted any requests yet.</p>
+                  <p className="mt-1 text-sm text-slate-600">Your leave history will appear here once you submit a request.</p>
+                </div>
               ) : (
-                <div className="space-y-3">
+                <div className="max-h-[520px] space-y-3 overflow-y-auto pr-2">
                   {leaveRequests.map((req) => {
                     const statusColors = {
                       'pending': 'bg-yellow-100 text-yellow-800 border-yellow-200',
@@ -519,8 +589,11 @@ export default function EmployeeRequestsPage() {
                               <Badge className={`${statusColor} border font-medium`}>
                                 {req.status || 'Pending'}
                               </Badge>
-                              <span className="text-sm font-semibold text-slate-900">{req.leaveType || 'Time Off'}</span>
+                              <span className="text-sm font-semibold text-slate-900">
+                                {req.leaveType ? (req.leaveType === 'Time Off' ? 'Leave' : req.leaveType) : 'Leave'}
+                              </span>
                             </div>
+                            <Timeline status={req.status} />
                             <div className="space-y-1 text-sm text-slate-600">
                               <p><span className="font-medium">Date Range:</span> {req.dateRange || 'N/A'}</p>
                               {req.reason && (
@@ -548,6 +621,7 @@ export default function EmployeeRequestsPage() {
               )}
             </CardContent>
           </Card>
+          </div>
 
           {/* Attendance Requests List (Regularization / On-duty) */}
           <Card className="border border-slate-200 bg-white shadow-lg mt-6">
@@ -697,7 +771,9 @@ export default function EmployeeRequestsPage() {
                               ) : null}
                             </div>
                             <div className="mt-1 text-xs text-slate-600 flex flex-wrap gap-x-2 gap-y-1">
-                              <span className="font-medium text-slate-700">{req.leaveType || 'Time Off'}</span>
+                              <span className="font-medium text-slate-700">
+                                {req.leaveType ? (req.leaveType === 'Time Off' ? 'Leave' : req.leaveType) : 'Leave'}
+                              </span>
                               {req.employeeDepartment ? <span>• {req.employeeDepartment}</span> : null}
                               <span>• {req.dateRange || 'N/A'}</span>
                               {req.submittedAt ? (
@@ -745,7 +821,7 @@ export default function EmployeeRequestsPage() {
         )}
 
         <TabsContent value="expense">
-          <Card className="border-none bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 shadow-lg shadow-emerald-100/60">
+          <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-slate-900">File reimbursement</CardTitle>
@@ -796,7 +872,7 @@ export default function EmployeeRequestsPage() {
         </TabsContent>
 
         <TabsContent value="support">
-          <Card className="border-none bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 shadow-lg shadow-blue-200/60">
+          <Card className="rounded-2xl border border-slate-200 bg-white shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-slate-900">Ask for help</CardTitle>
@@ -818,7 +894,7 @@ export default function EmployeeRequestsPage() {
                 </div>
                 <Button className="w-full">Create ticket</Button>
               </div>
-              <div className="rounded-lg border border-blue-200/50 bg-white/90 p-4 text-sm text-slate-700 space-y-2 shadow-sm">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700 space-y-2 shadow-sm">
                 <p className="font-semibold text-slate-900">Recent tickets</p>
                 {requests.slice(0, 3).map((req) => (
                   <div key={req.id} className="flex items-center justify-between rounded border bg-white p-2">
