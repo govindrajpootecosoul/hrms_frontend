@@ -734,7 +734,8 @@ const AttendanceOverviewPage = () => {
       
       case 'late':
         return attendance
-          .filter(a => (a.isLate || (a.status === 'present' && a.timeIn)) && isSameLocalDay(a.date, today))
+          // Late list should only include truly-late employees (not all present).
+          .filter((a) => a.isLate && isSameLocalDay(a.date, today))
           .map(a => ({
             employeeCode: a.biometricId,
             employeeName: a.employeeName,
