@@ -202,7 +202,7 @@ export const HRMS_MENU_ITEMS = [
   },
   {
     id: 'recruitment',
-    label: 'Recruitment',
+    label: 'recruitment',
     path: '/hrms/recruitment/analytics', // Default to analytics when clicking main button
     icon: <Briefcase className="w-5 h-5" />,
     children: [
@@ -222,7 +222,7 @@ export const HRMS_MENU_ITEMS = [
   },
   {
     id: 'employees',
-    label: 'Employees',
+    label: 'employee',
     path: '/hrms/employees',
     icon: <Users className="w-5 h-5" />
   },
@@ -253,6 +253,24 @@ export const HRMS_MENU_ITEMS = [
     ]
   },
   {
+    id: 'warehouse-employees',
+    label: 'Warehouse Employees',
+    path: '/hrms/warehouse-employees',
+    icon: <Users className="w-5 h-5" />
+  },
+  {
+    id: 'attendance-warehouse',
+    label: 'Attendance & Leave -Warehouse',
+    path: '/hrms/attendance-warehouse',
+    icon: <Clock className="w-5 h-5" />
+  },
+  {
+    id: 'payroll',
+    label: 'payroll',
+    path: '/hrms/payroll',
+    icon: <Wallet className="w-5 h-5" />
+  },
+  {
     id: 'expenses',
     label: 'Expense & Reimbursement',
     path: '/hrms/expenses',
@@ -279,28 +297,22 @@ export const HRMS_MENU_ITEMS = [
     ]
   },
   {
-    id: 'organisation-chart',
-    label: 'Organisation Chart',
-    path: '/hrms/organisation-chart',
-    icon: <Network className="w-5 h-5" />
-  },
-  {
     id: 'reports',
     label: 'Reports',
     path: '/hrms/reports',
     icon: <FileText className="w-5 h-5" />
   },
   {
+    id: 'organisation-chart',
+    label: 'Organisation Chart',
+    path: '/hrms/organisation-chart',
+    icon: <Network className="w-5 h-5" />
+  },
+  {
     id: 'settings',
     label: 'Settings',
     path: '/hrms/settings',
     icon: <Settings className="w-5 h-5" />
-  },
-  {
-    id: 'warehouse-employees',
-    label: 'Warehouse Employees',
-    path: '/hrms/warehouse-employees',
-    icon: <Users className="w-5 h-5" />
   }
 ];
 

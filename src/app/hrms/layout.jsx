@@ -78,6 +78,7 @@ export default function HRMSLayout({ children }) {
           pathname?.includes('/employees') ||
           pathname?.includes('/warehouse-employees') ||
           pathname?.includes('/reports') ||
+          pathname?.includes('/payroll') ||
           pathname?.includes('/attendance') ||
           pathname?.includes('/leaves') ||
           pathname?.includes('/expenses') ? (

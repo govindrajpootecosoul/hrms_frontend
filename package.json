@@ -37,8 +37,11 @@
     "react-dom": "19.2.0",
     "react-organizational-chart": "^2.1.0",
     "recharts": "^3.6.0",
+    "@tanstack/react-query": "^5.85.0",
+    "zustand": "^5.0.8",
     "tailwind-merge": "^3.3.1",
     "three": "^0.160.1",
+    "zod": "^3.25.76",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

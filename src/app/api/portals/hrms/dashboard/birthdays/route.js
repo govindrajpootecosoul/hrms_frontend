@@ -60,7 +60,10 @@ export async function GET(request) {
 
     // Fetch employees
     const employeesResponse = await fetch(
-      `${API_BASE_URL}/admin-users${queryString ? `?${queryString}` : ''}`
+      `${API_BASE_URL}/admin-users${queryString ? `?${queryString}` : ''}`,
+      {
+        cache: 'no-store',
+      }
     );
 
     if (!employeesResponse.ok) {
@@ -116,10 +119,18 @@ export async function GET(request) {
         return dateA - dateB;
       });
 
-    return NextResponse.json({
-      success: true,
-      data: birthdays,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        data: birthdays,
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+          Pragma: 'no-cache',
+        },
+      }
+    );
   } catch (error) {
     console.error('Birthdays API Error:', error);
     return NextResponse.json(

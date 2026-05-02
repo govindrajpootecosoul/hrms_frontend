@@ -223,6 +223,8 @@ const Dashboard = () => {
   const dashboardLastKeyRef = useRef('');
   const calendarLoadInFlightRef = useRef(false);
   const calendarLastKeyRef = useRef('');
+  const calendarAutoRetryRef = useRef(false);
+  const calendarCompanyRetryCountRef = useRef(0);
   const DASHBOARD_CACHE_KEY = 'hrms_dashboard_cache_v1';
   const CALENDAR_CACHE_KEY = 'hrms_dashboard_calendar_cache_v1';
 
@@ -643,6 +645,19 @@ const Dashboard = () => {
             (companyId ? sessionStorage.getItem(`company_${companyId}`) : null);
         }
 
+        // On initial mount, company context can arrive slightly later than dashboard render.
+        // Avoid caching/locking an empty-company calendar request; auto-retry briefly.
+        if (!company) {
+          if (calendarCompanyRetryCountRef.current < 8) {
+            calendarCompanyRetryCountRef.current += 1;
+            setTimeout(() => {
+              setCalendarRefreshToken(Date.now());
+            }, 400);
+          }
+          return;
+        }
+        calendarCompanyRetryCountRef.current = 0;
+
         const calKey = JSON.stringify({
           companyId: companyId || null,
           company: company || null,
@@ -687,8 +702,20 @@ const Dashboard = () => {
         const calendarQueryString = calendarParams.toString();
 
         const [birthdaysRes, anniversariesRes] = await Promise.all([
-          fetch(`/api/hrms/dashboard/birthdays${calendarQueryString ? `?${calendarQueryString}` : ''}`),
-          fetch(`/api/hrms/dashboard/work-anniversaries${calendarQueryString ? `?${calendarQueryString}` : ''}`),
+          fetch(`/api/hrms/dashboard/birthdays${calendarQueryString ? `?${calendarQueryString}` : ''}`, {
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache',
+              Pragma: 'no-cache',
+            },
+          }),
+          fetch(`/api/hrms/dashboard/work-anniversaries${calendarQueryString ? `?${calendarQueryString}` : ''}`, {
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache',
+              Pragma: 'no-cache',
+            },
+          }),
         ]);
 
         const birthdaysData = birthdaysRes.ok ? await birthdaysRes.json() : null;
@@ -703,6 +730,19 @@ const Dashboard = () => {
           birthdayCalendar,
           workAnniversaryCalendar,
         }));
+
+        // If first load resolves to empty (often due to startup race with company context),
+        // auto-trigger a one-time revalidation so data appears without manual refresh.
+        if (
+          !calendarAutoRetryRef.current &&
+          birthdayCalendar.length === 0 &&
+          workAnniversaryCalendar.length === 0
+        ) {
+          calendarAutoRetryRef.current = true;
+          setTimeout(() => {
+            setCalendarRefreshToken(Date.now());
+          }, 350);
+        }
 
         if (typeof window !== 'undefined') {
           try {

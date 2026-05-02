@@ -31,9 +31,27 @@ import Modal from '@/components/common/Modal';
 import AddEmployeeDialog from './components/AddEmployeeDialog';
 import ConfirmationDialog from './components/ConfirmationDialog';
 import ViewEmployeeDetailsDialog from './components/ViewEmployeeDetailsDialog';
+import SalaryPayslip from './components/SalaryPayslip';
 import { API_BASE_URL } from '@/lib/utils/constants';
 import { useAuth } from '@/lib/context/AuthContext';
 import { getCompanyFromEmail } from '@/lib/config/database.config';
+
+function resolvePfSlabIdFromSettings(ctcAnnual, rule, settings, preferredId) {
+  const r = String(rule || 'NEW').toUpperCase() === 'OLD' ? 'OLD' : 'NEW';
+  const slabs = r === 'OLD' ? settings?.pfSlabsOld : settings?.pfSlabsNew;
+  if (!Array.isArray(slabs) || slabs.length === 0) return preferredId ? String(preferredId) : '';
+  if (preferredId && slabs.some((s) => String(s.id) === String(preferredId))) {
+    return String(preferredId);
+  }
+  const n = Number(ctcAnnual);
+  if (!Number.isFinite(n) || n <= 0) return '';
+  const sorted = [...slabs].sort((a, b) => Number(a.minCtc) - Number(b.minCtc));
+  for (const s of sorted) {
+    const max = Number.isFinite(Number(s.maxCtc)) ? Number(s.maxCtc) : Infinity;
+    if (n >= Number(s.minCtc) && n <= max) return String(s.id);
+  }
+  return sorted.length ? String(sorted[sorted.length - 1].id) : '';
+}
 
 export default function EmployeesPage() {
   const params = useParams();
@@ -145,6 +163,19 @@ export default function EmployeesPage() {
   }, [actionMenuOpen, statusEditEmployeeId]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [pfCompanySettings, setPfCompanySettings] = useState(null);
+  const [payrollFieldSaving, setPayrollFieldSaving] = useState({}); // key -> boolean
+
+  const [salaryMonth, setSalaryMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [payrollOverview, setPayrollOverview] = useState(null);
+  const [payrollOverviewLoading, setPayrollOverviewLoading] = useState(false);
+  const [payslipOpen, setPayslipOpen] = useState(false);
+  const [payslipPreview, setPayslipPreview] = useState(null);
+  const [payslipEmployee, setPayslipEmployee] = useState(null);
+  const [payslipLoading, setPayslipLoading] = useState(false);
 
   const normalizeCompanyName = (value) => {
     if (!value) return null;
@@ -318,6 +349,9 @@ export default function EmployeesPage() {
                 uan: user.uan || '',
                 esiNo: user.esiNo || '',
                 pfNo: user.pfNo || '',
+                annualCtc: user.annualCtc != null && user.annualCtc !== '' ? Number(user.annualCtc) : null,
+                pfRule: user.pfRule || 'NEW',
+                pfSlabId: user.pfSlabId || '',
                 
                 createdAt: user.createdAt,
                 updatedAt: user.updatedAt
@@ -367,6 +401,56 @@ export default function EmployeesPage() {
     
     fetchEmployees();
   }, [companyId, user?.email]);
+
+  useEffect(() => {
+    const company = resolveCompanyName();
+    if (!company) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/hrms-portal/payroll/settings?company=${encodeURIComponent(company)}`,
+          { headers: { 'x-company': company }, cache: 'no-store' }
+        );
+        const j = await res.json().catch(() => null);
+        if (!cancelled && j?.success && j.data) setPfCompanySettings(j.data);
+      } catch {
+        if (!cancelled) setPfCompanySettings(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [companyId, user?.email]);
+
+  useEffect(() => {
+    if (rosterTab !== 'current') {
+      setPayrollOverview(null);
+      return;
+    }
+    const company = resolveCompanyName();
+    if (!company) return;
+    let cancelled = false;
+    (async () => {
+      setPayrollOverviewLoading(true);
+      try {
+        const res = await fetch(
+          `/api/hrms-portal/payroll/employees-month-overview?monthYear=${encodeURIComponent(salaryMonth)}&company=${encodeURIComponent(company)}`,
+          { headers: { 'x-company': company }, cache: 'no-store' }
+        );
+        const j = await res.json().catch(() => null);
+        if (!cancelled && j?.success && j.data) setPayrollOverview(j.data);
+        else if (!cancelled) setPayrollOverview(null);
+      } catch {
+        if (!cancelled) setPayrollOverview(null);
+      } finally {
+        if (!cancelled) setPayrollOverviewLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [salaryMonth, rosterTab, companyId, user?.email]);
 
   // Handle adding/updating employee
   const handleSaveEmployee = async (employeeData) => {
@@ -655,6 +739,32 @@ export default function EmployeesPage() {
       return String(val);
     } catch {
       return '-';
+    }
+  };
+
+  const savePayrollEmployeeFields = async (employee, partial) => {
+    const empId = employee?.id || employee?._id;
+    if (!empId) return;
+    const key = `payroll:${empId}`;
+    setPayrollFieldSaving((p) => ({ ...p, [key]: true }));
+    try {
+      const company = resolveCompanyName();
+      let apiUrl = `${API_BASE_URL}/admin-users/${empId}`;
+      if (company) apiUrl += `?company=${encodeURIComponent(company)}`;
+      const res = await fetch(apiUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(partial),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || `Update failed (${res.status})`);
+      }
+      setEmployeeFieldsLocal(empId, partial);
+    } catch (e) {
+      setErrorDialog({ open: true, message: e.message || 'Failed to save' });
+    } finally {
+      setPayrollFieldSaving((p) => ({ ...p, [key]: false }));
     }
   };
 
@@ -1227,35 +1337,165 @@ export default function EmployeesPage() {
     });
   }, [searchQuery, empCodeQuery, departmentFilter, locationFilter, employees, rosterTab, empCodeSortDirection]);
 
+  const overviewByKey = useMemo(() => {
+    const m = new Map();
+    for (const r of payrollOverview?.employees || []) {
+      if (r?.employeeId) m.set(String(r.employeeId).trim().toUpperCase(), r);
+      if (r?.mongoId) m.set(String(r.mongoId), r);
+    }
+    return m;
+  }, [payrollOverview]);
+
+  const getEmployeeOverview = (emp) => {
+    const id = String(emp?.employeeId || '').trim().toUpperCase();
+    if (id && overviewByKey.has(id)) return overviewByKey.get(id);
+    const mid = String(emp?.id || emp?._id || '');
+    if (mid && overviewByKey.has(mid)) return overviewByKey.get(mid);
+    return null;
+  };
+
+  const payDateForPayslip = useMemo(() => {
+    const m = String(salaryMonth).match(/^(\d{4})-(\d{2})$/);
+    if (!m) return '';
+    const Y = Number(m[1]);
+    const mo = Number(m[2]);
+    if (!Number.isFinite(Y) || !Number.isFinite(mo)) return '';
+    const d = new Date(Y, mo, 2);
+    return d.toLocaleDateString('en-GB');
+  }, [salaryMonth]);
+
+  const payslipCompanyBlock = useMemo(() => {
+    const c = normalizeCompanyName(resolveCompanyName());
+    if (c === 'Ecosoul Home') {
+      return {
+        name: 'EcoSoul Home Private Limited',
+        address:
+          'Advant Navis Business Park Unit No. B-202A, 2nd Floor, Tower-B, Plot No. 7, Sector-142, Noida Gautam Budha Nagar Uttar Pradesh 201305 India',
+      };
+    }
+    return { name: c || 'Company', address: '' };
+  }, [companyId, user?.email]);
+
+  const exportSalaryRegisterExcel = () => {
+    const company = resolveCompanyName();
+    const rows = (filteredEmployees || []).map((e) => {
+      const ov = getEmployeeOverview(e);
+      const slab = ov?.pfSlab;
+      let slabText = '';
+      if (slab) {
+        const ee =
+          String(slab.eeMode || 'percent').toLowerCase() === 'fixed' &&
+          slab.eeFixedRs != null &&
+          Number.isFinite(Number(slab.eeFixedRs))
+            ? `EE ₹${slab.eeFixedRs}`
+            : `EE ${slab.employeePct}%`;
+        const er =
+          String(slab.erMode || 'percent').toLowerCase() === 'fixed' &&
+          slab.erFixedRs != null &&
+          Number.isFinite(Number(slab.erFixedRs))
+            ? `ER ₹${slab.erFixedRs}`
+            : `ER ${slab.employerPct}%`;
+        slabText = `${(slab.label || '').trim() || 'Slab'} (${ee}, ${er})`;
+      }
+      return {
+        Name: e.name,
+        Email: e.email,
+        'Employee ID': e.employeeId,
+        Department: e.department,
+        'Job title': e.jobTitle,
+        'Annual CTC': e.annualCtc ?? '',
+        'PF slab': slabText,
+        'Present days': ov?.ok ? ov.paidDays : '',
+        'LOP days': ov?.ok ? ov.lopDays : '',
+        'Gross salary': ov?.ok ? ov.grossMonthly : ov?.error || '',
+        'PF employee': ov?.ok ? ov.pfEmployee : '',
+        'PF employer': ov?.ok ? ov.pfEmployer : '',
+        'Net salary': ov?.ok ? ov.netMonthly : '',
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Salary register');
+    const safeCo = String(company || 'company').replace(/[^\w-]+/g, '_');
+    XLSX.writeFile(wb, `salary_register_${salaryMonth}_${safeCo}.xlsx`);
+  };
+
+  const openPayslipDownload = async (emp) => {
+    const company = resolveCompanyName();
+    const empId = String(emp?.employeeId || '').trim();
+    const ctc = emp?.annualCtc;
+    if (!company || !empId) {
+      setErrorDialog({ open: true, message: 'Company or employee ID is required for the payslip.' });
+      return;
+    }
+    if (!Number.isFinite(Number(ctc)) || Number(ctc) <= 0) {
+      setErrorDialog({ open: true, message: 'Set a valid annual CTC for this employee first.' });
+      return;
+    }
+    setPayslipEmployee(emp);
+    setPayslipLoading(true);
+    setPayslipOpen(true);
+    setPayslipPreview(null);
+    try {
+      const q = new URLSearchParams();
+      q.append('employeeId', empId);
+      q.append('monthYear', salaryMonth);
+      q.append('company', company);
+      if (companyId) q.append('companyId', String(companyId));
+      q.append('annualCtc', String(ctc));
+      const res = await fetch(`/api/hrms-portal/payroll/preview?${q.toString()}`, {
+        cache: 'no-store',
+        headers: { 'x-company': company },
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.error || `Preview failed (${res.status})`);
+      }
+      setPayslipPreview(json.data);
+    } catch (e) {
+      setPayslipPreview(null);
+      setPayslipOpen(false);
+      setPayslipEmployee(null);
+      setErrorDialog({ open: true, message: e?.message || 'Could not load payslip.' });
+    } finally {
+      setPayslipLoading(false);
+    }
+  };
+
   const allListColumns = useMemo(() => {
-    const base = [
+    const salaryRegister = [
+      { id: 'name', label: 'NAME', required: true },
+      { id: 'email', label: 'EMAIL' },
+      { id: 'employeeId', label: 'EMPLOYEE ID' },
+      { id: 'department', label: 'DEPARTMENT' },
+      { id: 'jobTitle', label: 'JOB TITLE' },
+      { id: 'annualCtc', label: 'ANNUAL CTC (₹)' },
+      { id: 'pfSlabDisplay', label: 'PF SLAB' },
+      { id: 'paidDays', label: 'PRESENT DAYS' },
+      { id: 'lopDays', label: 'ABSENT (LOP)' },
+      { id: 'grossSalary', label: 'GROSS (₹)' },
+      { id: 'pfEmployee', label: 'PF EE (₹)' },
+      { id: 'pfEmployer', label: 'PF ER (₹)' },
+      { id: 'netSalary', label: 'NET (₹)' },
+      { id: 'payslip', label: 'PAYSLIP', required: true },
+      { id: 'status', label: 'STATUS', required: true },
+      { id: 'actions', label: 'ACTIONS', required: true, lockPosition: 'end' },
+    ];
+
+    const exList = [
       { id: 'name', label: 'EMPLOYEE NAME', required: true },
       { id: 'employeeId', label: 'EMPLOYEE ID' },
       { id: 'email', label: 'EMAIL' },
       { id: 'jobTitle', label: 'JOB TITLE' },
       { id: 'department', label: 'DEPARTMENT' },
-      { id: 'company', label: 'COMPANY' },
-      { id: 'location', label: 'LOCATION' },
-      { id: 'emp_code', label: 'EMP CODE' },
-      { id: 'card_no', label: 'CARD NO' },
-    ];
-
-    const exOnly = [
-      { id: 'phone', label: 'PHONE' },
       { id: 'joiningDate', label: 'JOINING DATE' },
       { id: 'exitDate', label: 'EXIT DATE' },
       { id: 'reportingManager', label: 'REPORTING MGR' },
-    ];
-
-    const tail = [
       { id: 'status', label: 'STATUS', required: true },
-      { id: 'hasCredentialAccess', label: 'CREDENTIAL ACCESS' },
-      { id: 'hasSubscriptionAccess', label: 'SUBSCRIPTION ACCESS' },
-      { id: 'tenure', label: 'TENURE' },
       { id: 'actions', label: 'ACTIONS', required: true, lockPosition: 'end' },
     ];
 
-    return rosterTab === 'ex' ? [...base, ...exOnly, ...tail] : [...base, ...tail];
+    return rosterTab === 'ex' ? exList : salaryRegister;
   }, [rosterTab]);
 
   const resolvedCompanyForColumns = useMemo(() => resolveCompanyName(), [companyId, user?.email]);
@@ -1503,6 +1743,237 @@ export default function EmployeesPage() {
         })();
       case 'phone':
         return <div className="text-sm text-slate-600">{employee.phone || '-'}</div>;
+      case 'pan':
+        return (
+          <div className="text-sm text-slate-600 max-w-[120px] truncate" title={employee.pan || ''}>
+            {employee.pan || '-'}
+          </div>
+        );
+      case 'uan':
+        return (
+          <div className="text-sm text-slate-600 max-w-[130px] truncate" title={employee.uan || ''}>
+            {employee.uan || '-'}
+          </div>
+        );
+      case 'bankAccount':
+        return (
+          <div className="text-sm text-slate-600 max-w-[140px] truncate" title={employee.bankAccount || ''}>
+            {employee.bankAccount || '-'}
+          </div>
+        );
+      case 'annualCtc': {
+        const empId = String(employee?.id || employee?._id || '');
+        const saveKey = `payroll:${empId}`;
+        const saving = !!payrollFieldSaving[saveKey];
+        return (
+          <input
+            type="number"
+            min={0}
+            value={employee.annualCtc != null && employee.annualCtc !== '' ? String(employee.annualCtc) : ''}
+            disabled={saving}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => {
+              const raw = e.target.value;
+              if (raw === '') {
+                setEmployeeFieldsLocal(empId, { annualCtc: null });
+                return;
+              }
+              const n = Number(raw);
+              if (Number.isFinite(n)) setEmployeeFieldsLocal(empId, { annualCtc: n });
+            }}
+            onBlur={(e) => {
+              const raw = e.target.value.trim();
+              const nextCtc = raw === '' ? null : Number(raw);
+              const rule = employee.pfRule || 'NEW';
+              const nextSlab =
+                nextCtc != null && Number.isFinite(nextCtc)
+                  ? resolvePfSlabIdFromSettings(nextCtc, rule, pfCompanySettings, null)
+                  : '';
+              const patch = {
+                annualCtc: nextCtc != null && Number.isFinite(nextCtc) ? nextCtc : null,
+              };
+              if (nextSlab) patch.pfSlabId = nextSlab;
+              savePayrollEmployeeFields(employee, patch);
+            }}
+            className="w-32 px-2 py-1 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="CTC"
+          />
+        );
+      }
+      case 'pfRule': {
+        const empId = String(employee?.id || employee?._id || '');
+        const saveKey = `payroll:${empId}`;
+        const saving = !!payrollFieldSaving[saveKey];
+        const r = employee.pfRule || 'NEW';
+        return (
+          <select
+            value={r === 'OLD' ? 'OLD' : 'NEW'}
+            disabled={saving}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => {
+              const nextRule = e.target.value;
+              const nextSlab = resolvePfSlabIdFromSettings(
+                employee.annualCtc,
+                nextRule,
+                pfCompanySettings,
+                null
+              );
+              savePayrollEmployeeFields(employee, {
+                pfRule: nextRule,
+                ...(nextSlab ? { pfSlabId: nextSlab } : {}),
+              });
+            }}
+            className="px-2 py-1 text-sm border border-slate-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="NEW">New</option>
+            <option value="OLD">Old</option>
+          </select>
+        );
+      }
+      case 'pfSlab': {
+        const empId = String(employee?.id || employee?._id || '');
+        const saveKey = `payroll:${empId}`;
+        const saving = !!payrollFieldSaving[saveKey];
+        const rule = employee.pfRule || 'NEW';
+        const slabs = rule === 'OLD' ? pfCompanySettings?.pfSlabsOld : pfCompanySettings?.pfSlabsNew;
+        const list = Array.isArray(slabs) ? slabs : [];
+        const value = employee.pfSlabId || '';
+        return (
+          <select
+            value={value && list.some((s) => String(s.id) === String(value)) ? value : ''}
+            disabled={saving || list.length === 0}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => {
+              const v = e.target.value;
+              savePayrollEmployeeFields(employee, { pfSlabId: v || null });
+            }}
+            className="min-w-[200px] max-w-[260px] px-2 py-1 text-xs border border-slate-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Auto / pick slab</option>
+            {list.map((s) => (
+              <option key={s.id} value={s.id}>
+                {(s.label || '').trim() ||
+                  `₹${s.minCtc}-${
+                    Number.isFinite(Number(s.maxCtc)) ? s.maxCtc : '∞'
+                  } · EE ${
+                    String(s.eeMode || 'percent').toLowerCase() === 'fixed' &&
+                    s.eeFixedRs != null &&
+                    Number.isFinite(Number(s.eeFixedRs))
+                      ? `₹${s.eeFixedRs}/mo`
+                      : `${s.employeePct}%`
+                  } / ER ${
+                    String(s.erMode || 'percent').toLowerCase() === 'fixed' &&
+                    s.erFixedRs != null &&
+                    Number.isFinite(Number(s.erFixedRs))
+                      ? `₹${s.erFixedRs}/mo`
+                      : `${s.employerPct}%`
+                  }`}
+              </option>
+            ))}
+          </select>
+        );
+      }
+      case 'pfSlabDisplay': {
+        if (rosterTab !== 'current') return <span className="text-slate-400">—</span>;
+        if (payrollOverviewLoading) return <span className="text-slate-400 text-sm">…</span>;
+        const ov = getEmployeeOverview(employee);
+        if (!ov?.ok) {
+          return (
+            <span className="text-xs text-amber-700 max-w-[140px] truncate inline-block" title={ov?.error || ''}>
+              {ov?.error === 'NO_CTC' ? 'No CTC' : '—'}
+            </span>
+          );
+        }
+        if (!ov.pfSlab) {
+          return <div className="text-xs text-slate-500">—</div>;
+        }
+        const s = ov.pfSlab;
+        const ee =
+          String(s.eeMode || 'percent').toLowerCase() === 'fixed' && s.eeFixedRs != null
+            ? `EE ₹${s.eeFixedRs}`
+            : `EE ${s.employeePct}%`;
+        const er =
+          String(s.erMode || 'percent').toLowerCase() === 'fixed' && s.erFixedRs != null
+            ? `ER ₹${s.erFixedRs}`
+            : `ER ${s.employerPct}%`;
+        return (
+          <div className="text-xs text-slate-600 max-w-[220px]" title={(s.label || '').trim()}>
+            <div className="font-medium truncate">{(s.label || '').trim() || 'Slab'}</div>
+            <div className="text-slate-500">
+              {ee} · {er}
+            </div>
+          </div>
+        );
+      }
+      case 'paidDays': {
+        if (rosterTab !== 'current') return <span className="text-slate-400">—</span>;
+        if (payrollOverviewLoading) return <span className="text-slate-400 text-sm">…</span>;
+        const ov = getEmployeeOverview(employee);
+        if (!ov) return '—';
+        if (!ov.ok) {
+          return (
+            <span className="text-xs text-amber-700" title={ov.error || ''}>
+              —
+            </span>
+          );
+        }
+        return <div className="text-sm text-slate-700">{ov.paidDays ?? '—'}</div>;
+      }
+      case 'lopDays': {
+        if (rosterTab !== 'current') return <span className="text-slate-400">—</span>;
+        if (payrollOverviewLoading) return <span className="text-slate-400 text-sm">…</span>;
+        const ov = getEmployeeOverview(employee);
+        if (!ov?.ok) return <span className="text-xs text-slate-400">—</span>;
+        return <div className="text-sm text-slate-700">{ov.lopDays ?? '—'}</div>;
+      }
+      case 'grossSalary':
+      case 'pfEmployee':
+      case 'pfEmployer':
+      case 'netSalary': {
+        if (rosterTab !== 'current') return <span className="text-slate-400">—</span>;
+        if (payrollOverviewLoading) return <span className="text-slate-400 text-sm">…</span>;
+        const ov = getEmployeeOverview(employee);
+        if (!ov?.ok) {
+          return <span className="text-xs text-slate-400">—</span>;
+        }
+        const field =
+          colId === 'grossSalary'
+            ? 'grossMonthly'
+            : colId === 'pfEmployee'
+              ? 'pfEmployee'
+              : colId === 'pfEmployer'
+                ? 'pfEmployer'
+                : 'netMonthly';
+        const v = ov[field];
+        const num = Number(v);
+        if (!Number.isFinite(num)) return '—';
+        return (
+          <div className="text-sm text-slate-700 tabular-nums text-right">
+            ₹{num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+        );
+      }
+      case 'payslip': {
+        if (rosterTab !== 'current') return <span className="text-slate-400">—</span>;
+        const rowId = String(employee?.id || employee?._id || '');
+        const loadingRow =
+          payslipLoading &&
+          payslipEmployee &&
+          String(payslipEmployee?.id || payslipEmployee?._id || '') === rowId;
+        return (
+          <Button
+            type="button"
+            className="!py-1 !px-2 text-xs bg-slate-800 text-white hover:bg-slate-900"
+            onClick={(e) => {
+              e.stopPropagation();
+              openPayslipDownload(employee);
+            }}
+            disabled={loadingRow}
+          >
+            {loadingRow ? 'Loading…' : 'Payslip'}
+          </Button>
+        );
+      }
       case 'joiningDate':
         return <div className="text-sm text-slate-600">{formatCellDate(employee.joiningDate)}</div>;
       case 'exitDate':
@@ -1704,7 +2175,8 @@ export default function EmployeesPage() {
       {/* Filters and View Toggle */}
       <Card className="border-2">
         <div className="p-6">
-          <div className="flex flex-col md:flex-row gap-4 items-center">
+          <div className="flex flex-col gap-4 w-full">
+            <div className="flex flex-col md:flex-row gap-4 items-center">
             <div className="flex-1 w-full md:w-auto">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -1880,6 +2352,32 @@ export default function EmployeesPage() {
                 </button>
               </div>
             </div>
+            </div>
+            {rosterTab === 'current' && (
+              <div className="w-full flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100">
+                <label className="text-sm text-slate-600 flex items-center gap-2 shrink-0">
+                  <Calendar className="w-4 h-4 text-slate-500" />
+                  Salary month
+                </label>
+                <input
+                  type="month"
+                  value={salaryMonth}
+                  onChange={(e) => setSalaryMonth(e.target.value)}
+                  className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                {payrollOverviewLoading && (
+                  <span className="text-xs text-slate-500">Calculating payroll…</span>
+                )}
+                <Button
+                  type="button"
+                  onClick={exportSalaryRegisterExcel}
+                  className="bg-emerald-700 text-white hover:bg-emerald-800 text-sm"
+                  icon={<Download className="w-4 h-4" />}
+                >
+                  Salary register (Excel)
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </Card>
@@ -1942,6 +2440,39 @@ export default function EmployeesPage() {
                         <p className="text-sm font-medium group-hover:text-white transition-colors truncate">{employee.email || '-'}</p>
                       </div>
                     </div>
+                    {rosterTab === 'current' && (
+                      <div className="rounded-lg bg-black/10 px-2 py-2 group-hover:bg-white/10">
+                        {payrollOverviewLoading ? (
+                          <p className="text-xs group-hover:text-white/80">Payroll…</p>
+                        ) : (
+                          (() => {
+                            const ov = getEmployeeOverview(employee);
+                            if (!ov?.ok) {
+                              return (
+                                <p className="text-xs text-amber-200 group-hover:text-amber-100">
+                                  {ov?.error === 'NO_CTC' ? 'Set CTC for salary' : '—'}
+                                </p>
+                              );
+                            }
+                            const net = Number(ov.netMonthly);
+                            return (
+                              <p className="text-xs font-semibold group-hover:text-white">
+                                Net ₹
+                                {Number.isFinite(net)
+                                  ? net.toLocaleString('en-IN', {
+                                      minimumFractionDigits: 2,
+                                      maximumFractionDigits: 2,
+                                    })
+                                  : '—'}{' '}
+                                <span className="font-normal opacity-90">
+                                  · Paid {ov.paidDays ?? '—'} · LOP {ov.lopDays ?? '—'}
+                                </span>
+                              </p>
+                            );
+                          })()
+                        )}
+                      </div>
+                    )}
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-xs text-muted-foreground group-hover:text-white/80 transition-colors">Company</p>
@@ -2040,6 +2571,20 @@ export default function EmployeesPage() {
                               <Eye className="w-4 h-4 flex-shrink-0" />
                               View Details
                             </button>
+                            {rosterTab === 'current' && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActionMenuOpen(null);
+                                  openPayslipDownload(employee);
+                                }}
+                                className="w-full text-left px-4 py-2 text-sm text-emerald-700 hover:bg-emerald-50 flex items-center gap-2 cursor-pointer whitespace-nowrap"
+                              >
+                                <Download className="w-4 h-4 flex-shrink-0" />
+                                Payslip
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={(e) => {
@@ -2086,8 +2631,11 @@ export default function EmployeesPage() {
                   {visibleListColumns.map((col) => (
                     <th
                       key={col.id}
-                      className={`px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider ${
-                        col.id === 'actions' ? 'text-right' : ''
+                      className={`px-4 py-3 text-xs font-semibold text-slate-700 uppercase tracking-wider ${
+                        col.id === 'actions' ||
+                        ['grossSalary', 'pfEmployee', 'pfEmployer', 'netSalary', 'payslip'].includes(col.id)
+                          ? 'text-right'
+                          : 'text-left'
                       }`}
                     >
                       {col.label}
@@ -2124,7 +2672,13 @@ export default function EmployeesPage() {
                       <td
                         key={col.id}
                         className={`px-4 py-4 whitespace-nowrap ${
-                          col.id === 'actions' ? 'relative z-10 text-right' : ''
+                          col.id === 'actions'
+                            ? 'relative z-10 text-right'
+                            : ['grossSalary', 'pfEmployee', 'pfEmployer', 'netSalary', 'payslip'].includes(
+                                  col.id
+                                )
+                              ? 'text-right'
+                              : ''
                         }`}
                       >
                         {renderListCell(col.id, employee)}
@@ -2215,6 +2769,69 @@ export default function EmployeesPage() {
         onClose={() => setViewDetailsDialog({ open: false, employee: null })}
         employee={viewDetailsDialog.employee}
       />
+
+      {payslipOpen && (
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `@media print {
+              body * { visibility: hidden !important; }
+              #payslip-print-root, #payslip-print-root * { visibility: visible !important; }
+              #payslip-print-root { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; }
+            }`,
+          }}
+        />
+      )}
+
+      <Modal
+        isOpen={payslipOpen}
+        onClose={() => {
+          setPayslipOpen(false);
+          setPayslipPreview(null);
+          setPayslipEmployee(null);
+        }}
+        title="Payslip"
+        size="xl"
+        footer={
+          <div className="flex gap-3 w-full justify-end flex-wrap">
+            <Button
+              type="button"
+              onClick={() => {
+                setPayslipOpen(false);
+                setPayslipPreview(null);
+                setPayslipEmployee(null);
+              }}
+              className="bg-white border border-neutral-300 text-neutral-700 hover:bg-neutral-50"
+            >
+              Close
+            </Button>
+            <Button
+              type="button"
+              onClick={() => window.print()}
+              className="bg-slate-900 text-white hover:bg-slate-800"
+              disabled={!payslipPreview || payslipLoading}
+            >
+              Print / Save as PDF
+            </Button>
+          </div>
+        }
+      >
+        <div id="payslip-print-root" className="max-h-[70vh] overflow-y-auto">
+          {payslipLoading ? (
+            <p className="text-slate-500 text-center py-8">Loading payslip…</p>
+          ) : payslipPreview && payslipEmployee ? (
+            <SalaryPayslip
+              companyName={payslipCompanyBlock.name}
+              companyAddress={payslipCompanyBlock.address}
+              monthYear={salaryMonth}
+              payDateStr={payDateForPayslip}
+              employee={payslipEmployee}
+              preview={payslipPreview}
+            />
+          ) : (
+            <p className="text-slate-500 text-center py-8">No preview data.</p>
+          )}
+        </div>
+      </Modal>
 
       <Modal
         isOpen={inactiveDialog.open}
