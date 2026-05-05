@@ -98,6 +98,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     // Check for existing session/token
     const checkAuth = async () => {
+      let timeoutId = null;
       try {
         const apiBaseUrl = getConfiguredApiBaseUrl();
         if (!apiBaseUrl) {
@@ -111,7 +112,7 @@ export const AuthProvider = ({ children }) => {
         if (token) {
           // Create AbortController for timeout
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+          timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
 
           // Validate token with backend
           const response = await fetch(`${apiBaseUrl}/auth/verify`, {
@@ -120,8 +121,6 @@ export const AuthProvider = ({ children }) => {
             },
             signal: controller.signal
           });
-
-          clearTimeout(timeoutId);
 
           if (response.ok) {
             const contentType = response.headers.get('content-type');
@@ -145,10 +144,14 @@ export const AuthProvider = ({ children }) => {
           }
         }
       } catch (error) {
+        if (error?.name === 'AbortError') {
+          // Timeout / request cancelled: don't treat as an application error.
+          return;
+        }
         console.error('Auth check failed:', error);
         const apiBaseUrl = getConfiguredApiBaseUrl();
         console.error('API URL:', apiBaseUrl ? `${apiBaseUrl}/auth/verify` : '(not configured)');
-        console.error('Error details:', error.message);
+        console.error('Error details:', error?.message);
         // Don't remove token on network errors, just log them
         if (error.name !== 'AbortError' && error.name !== 'TypeError') {
           localStorage.removeItem('auth_token');
@@ -156,6 +159,7 @@ export const AuthProvider = ({ children }) => {
           console.warn('Backend server may not be running. Please check:', apiBaseUrl);
         }
       } finally {
+        if (timeoutId) clearTimeout(timeoutId);
         setLoading(false);
       }
     };
