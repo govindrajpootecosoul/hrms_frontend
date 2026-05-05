@@ -161,6 +161,10 @@ export default function ViewEmployeeDetailsDialog({
               <p className="text-sm text-slate-900 mt-1">{employee.company || 'Not provided'}</p>
             </div>
             <div>
+              <label className="text-sm font-medium text-slate-600">Payroll company</label>
+              <p className="text-sm text-slate-900 mt-1">{employee.payrollCompany || 'Not provided'}</p>
+            </div>
+            <div>
               <label className="text-sm font-medium text-slate-600">Location</label>
               <p className="text-sm text-slate-900 mt-1">{employee.location || 'Not provided'}</p>
             </div>

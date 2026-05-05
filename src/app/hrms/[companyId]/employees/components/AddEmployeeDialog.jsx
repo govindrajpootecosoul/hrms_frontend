@@ -25,7 +25,25 @@ const PHASES = [
       'emergencyPhone',
     ],
   },
-  { id: 3, name: 'Work Details', fields: ['employeeId', 'emp_code', 'card_no', 'jobTitle', 'department', 'company', 'location', 'reportingManager', 'joiningDate', 'role', 'hasCredentialAccess', 'hasSubscriptionAccess'] },
+  {
+    id: 3,
+    name: 'Work Details',
+    fields: [
+      'employeeId',
+      'emp_code',
+      'card_no',
+      'jobTitle',
+      'department',
+      'company',
+      'payrollCompany',
+      'location',
+      'reportingManager',
+      'joiningDate',
+      'role',
+      'hasCredentialAccess',
+      'hasSubscriptionAccess',
+    ],
+  },
   { id: 4, name: 'Bank & Insurance', fields: ['bankAccount', 'ifsc', 'pan', 'aadhaar', 'uan', 'esiNo', 'pfNo'] },
 ];
 
@@ -100,6 +118,7 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
         jobTitle: getFieldValue(employee.jobTitle),
         department: getFieldValue(employee.department),
         company: getFieldValue(employee.company) || defaultCompany,
+        payrollCompany: getFieldValue(employee.payrollCompany),
         location: getFieldValue(employee.location),
         reportingManager: getFieldValue(employee.reportingManager),
         joiningDate: getDateValue(employee.joiningDate || employee.createdAt),
@@ -173,6 +192,7 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
       jobTitle: '',
       department: '',
       company: defaultCompany, // Auto-populate from logged-in user
+      payrollCompany: '',
       location: '',
       reportingManager: '',
       joiningDate: '',
@@ -501,6 +521,7 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
       role: finalFormData.role || 'user',
       employeeId: finalFormData.employeeId || '',
       company: company || '', // Optional
+      payrollCompany: finalFormData.payrollCompany || '',
       
       // Include ALL fields for both new and existing employees
       // Basic Details
@@ -942,6 +963,29 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
               </p>
             </div>
             <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Payroll company</label>
+              {String(formData.company || '')
+                .toLowerCase()
+                .includes('thrive') ? (
+                <select
+                  value={formData.payrollCompany}
+                  onChange={(e) => handleInputChange('payrollCompany', e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border transition-all duration-200 border-neutral-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                >
+                  <option value="">Select payroll company</option>
+                  <option value="Genova Enterprises LLP">Genova Enterprises LLP</option>
+                  <option value="BeaconIQ">BeaconIQ</option>
+                </select>
+              ) : (
+                <Input
+                  value={formData.payrollCompany}
+                  onChange={(e) => handleInputChange('payrollCompany', e.target.value)}
+                  placeholder="Enter payroll company"
+                />
+              )}
+              <p className="text-xs text-slate-500 mt-1">This is used for payroll grouping/reporting.</p>
+            </div>
+            <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Role</label>
               <select
                 value={formData.role}
@@ -1147,6 +1191,12 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
               className="bg-white border border-neutral-300 text-neutral-700 hover:bg-neutral-50"
             >
               Cancel
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              className="bg-emerald-600 text-white hover:bg-emerald-700"
+            >
+              Save
             </Button>
             {currentPhase < PHASES.length ? (
               <Button 

@@ -48,8 +48,6 @@ import {
   Headset,
   Upload,
   Download,
-  Minus,
-  Plus,
 } from 'lucide-react';
 
 const toMonthYear = (d) => {
@@ -58,10 +56,199 @@ const toMonthYear = (d) => {
   return `${yyyy}-${mm}`;
 };
 
+/** Match admin user row `u` to an employees-month-overview row. */
+function overviewRowMatchesUser(u, row) {
+  const id = String(u?.employeeId || '').trim().toUpperCase();
+  const rid = String(row?.employeeId || '').trim().toUpperCase();
+  if (id && rid === id) return true;
+  const mid = String(u?._id || u?.id || '');
+  if (mid && String(row?.mongoId) === mid) return true;
+  return false;
+}
+
+/** Merge one GET /payroll/preview response into a single overview table row (salary + attendance). */
+function mergePayrollPreviewIntoOverviewRow(existing, previewData) {
+  if (!existing || !previewData) return existing;
+  const earn = (c) => Number(previewData.earnings?.find((e) => e.code === c)?.amount || 0);
+  const pf = previewData.statutory?.pf || {};
+  const esi = previewData.statutory?.esi || {};
+  const att = previewData.attendance || {};
+  return {
+    ...existing,
+    ok: true,
+    paidDays: att.paidDays,
+    paidDaysFromMachine: att.paidDaysFromMachine,
+    paidDaysAdjustment: att.paidDaysAdjustment,
+    lopDays: att.lopDays,
+    workingDaysInMonth: att.workingDaysInMonth,
+    weekendDaysInMonth: att.weekendDaysInMonth,
+    daysInMonth: att.daysInMonth,
+    grossMonthly: previewData.totals?.gross ?? 0,
+    totalEarning: previewData.totals?.gross ?? 0,
+    totalDeduction: previewData.totals?.deductionsTotal ?? 0,
+    netMonthly: previewData.totals?.netPay ?? 0,
+    basicMonthly: earn('BASIC'),
+    hraMonthly: earn('HRA'),
+    foodMonthly: earn('FOOD'),
+    specialMonthly: earn('SPECIAL'),
+    esiEmployee: esi.employee ?? 0,
+    pfEmployee: pf.employee ?? 0,
+    pfEmployer: pf.employer ?? 0,
+    pfSlab: previewData.pfSlab ?? existing.pfSlab,
+  };
+}
+
 const money = (n) => {
   const x = Number(n || 0);
   return x.toLocaleString('en-IN', { maximumFractionDigits: 0 });
 };
+
+/** Hide native browser number spinners on `<input type="number">`. */
+const INPUT_NO_SPINNER =
+  '[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none';
+
+const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** X-axis: "Apr 2026" — avoids "Apr 26" being read as the 26th day. */
+const formatMonthYearTick = (yyyyMm) => {
+  const m = String(yyyyMm || '').match(/^(\d{4})-(\d{2})$/);
+  if (!m) return String(yyyyMm || '');
+  const mi = Number(m[2]) - 1;
+  if (mi < 0 || mi > 11) return String(yyyyMm || '');
+  return `${MONTH_SHORT[mi]} ${m[1]}`;
+};
+
+/** Tooltip title for a payroll month key. */
+const formatMonthYearLong = (yyyyMm) => {
+  const m = String(yyyyMm || '').match(/^(\d{4})-(\d{2})$/);
+  if (!m) return String(yyyyMm || '');
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, 1);
+  return d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+};
+
+function PayrollDashboardCharts({ loading, trend, deptBars, deptMonthLabel }) {
+  const hasTrend = Array.isArray(trend) && trend.length > 0;
+  const hasDept = Array.isArray(deptBars) && deptBars.length > 0;
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <Card className="lg:col-span-8 border-2 p-6 rounded-2xl">
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+              <Coins className="w-4 h-4 text-indigo-600" />
+              Salary Disbursement Trend
+            </h2>
+            <p className="text-xs text-slate-600">
+              One point per calendar month (last 6). Each point is the sum across all employees who had a
+              successful payroll row that month.
+            </p>
+            <p className="text-xs text-slate-500 mt-1">
+              <span className="font-medium text-slate-600">Gross</span> = total salary before deductions;{' '}
+              <span className="font-medium text-slate-600">Net</span> = take-home after PF, ESIC, etc. (TDS off for now). A
+              month at ₹0 usually means nobody had CTC + employee ID + machine attendance so the engine could not pay yet.
+            </p>
+          </div>
+        </div>
+        <div className="relative h-[320px]">
+          {loading ? (
+            <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-white/75 text-sm font-medium text-slate-600">
+              Loading chart…
+            </div>
+          ) : null}
+          {!loading && !hasTrend ? (
+            <div className="flex h-full items-center justify-center text-sm text-slate-500">
+              Select a company to load payroll data.
+            </div>
+          ) : null}
+          {hasTrend ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={trend} margin={{ top: 10, right: 12, bottom: 8, left: 0 }}>
+                <CartesianGrid strokeDasharray="5 5" stroke="#E5E7EB" />
+                <XAxis
+                  dataKey="month"
+                  tick={{ fontSize: 11, fill: '#64748b' }}
+                  tickLine={false}
+                  tickFormatter={formatMonthYearTick}
+                />
+                <YAxis tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} />
+                <ReTooltip
+                  labelFormatter={(label) => formatMonthYearLong(label)}
+                  formatter={(value, name) => {
+                    // Recharts passes Line `name` here ("Gross" / "Net"), not dataKey ("gross" / "net").
+                    const s = String(name || '').toLowerCase();
+                    const label = s.includes('gross') ? 'Gross (sum)' : 'Net (sum)';
+                    return [`₹${money(value)}`, label];
+                  }}
+                />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="gross"
+                  name="Gross"
+                  stroke="#6366F1"
+                  strokeWidth={2.2}
+                  dot={{ r: 3, strokeWidth: 0 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="net"
+                  name="Net"
+                  stroke="#10B981"
+                  strokeWidth={2.2}
+                  dot={{ r: 3, strokeWidth: 0 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : null}
+        </div>
+      </Card>
+
+      <Card className="lg:col-span-4 border-2 p-6 rounded-2xl">
+        <h2 className="text-base font-semibold text-slate-900 mb-1">Dept-wise Budgeting</h2>
+        <p className="text-xs text-slate-600 mb-4">
+          Total net pay by department
+          {deptMonthLabel ? (
+            <>
+              {' '}
+              <span className="font-medium text-slate-700">({deptMonthLabel})</span>
+            </>
+          ) : null}
+        </p>
+        <div className="relative h-[320px]">
+          {loading ? (
+            <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-white/75 text-sm font-medium text-slate-600">
+              Loading chart…
+            </div>
+          ) : null}
+          {!loading && !hasDept ? (
+            <div className="flex h-full items-center justify-center px-2 text-center text-sm text-slate-500">
+              No computed payroll rows for this month (check CTC and employee IDs on Employee Setup).
+            </div>
+          ) : null}
+          {hasDept ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={deptBars} margin={{ top: 10, right: 12, bottom: 48, left: 0 }}>
+                <CartesianGrid vertical={false} strokeDasharray="5 5" stroke="#E5E7EB" />
+                <XAxis
+                  dataKey="department"
+                  tick={{ fontSize: 10, fill: '#64748b' }}
+                  tickLine={false}
+                  interval={0}
+                  angle={-28}
+                  textAnchor="end"
+                  height={52}
+                />
+                <YAxis tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} />
+                <ReTooltip formatter={(v) => [`₹${money(v)}`, 'Net total']} />
+                <Bar dataKey="budget" name="Net total" fill="#4F46E5" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : null}
+        </div>
+      </Card>
+    </div>
+  );
+}
 
 const panSchema = z
   .string()
@@ -149,9 +336,12 @@ export default function PayrollPage() {
   const [payslipEmployee, setPayslipEmployee] = useState(null);
   const [payslipLoading, setPayslipLoading] = useState(false);
   const [payrollOverviewTick, setPayrollOverviewTick] = useState(0);
-  const [adjustmentSavingKey, setAdjustmentSavingKey] = useState(null);
-  /** When true, next overview refetch (after +/-) runs without global loading = no "…" flash on whole table */
+  /** When true, next overview refetch runs without global loading = no "…" flash on whole table */
   const silentPayrollOverviewRefreshRef = useRef(false);
+  const [ctcEditorOpen, setCtcEditorOpen] = useState(false);
+  /** { employee, rule, draftCtc } — draft edited in popup until Save */
+  const [ctcEditor, setCtcEditor] = useState(null);
+  const [ctcEditorSaving, setCtcEditorSaving] = useState(false);
 
   // Monthly Activity (initialization workflow)
   const [initStatus, setInitStatus] = useState('Not Initialized'); // Not Initialized | Initialized | Published
@@ -289,31 +479,43 @@ export default function PayrollPage() {
     }));
   }, [preview]);
 
+  /** Last 6 calendar months of `employees-month-overview` rows (for charts). */
+  const [dashboardMultiMonth, setDashboardMultiMonth] = useState([]);
+  const [dashboardChartsLoading, setDashboardChartsLoading] = useState(false);
+
   const disbursementTrend = useMemo(() => {
-    // Placeholder trend until payroll run history is wired
-    const base = preview?.totals?.netPay || 0;
-    const points = [];
-    for (let i = 5; i >= 0; i--) {
-      const dt = new Date();
-      dt.setMonth(dt.getMonth() - i);
-      points.push({
-        month: toMonthYear(dt),
-        net: Math.max(0, Math.round(base * (0.92 + i * 0.01))),
-        gross: Math.max(0, Math.round((preview?.totals?.gross || base) * (0.94 + i * 0.008))),
-      });
-    }
-    return points;
-  }, [preview]);
+    if (!Array.isArray(dashboardMultiMonth) || dashboardMultiMonth.length === 0) return [];
+    return dashboardMultiMonth.map(({ monthYear, employees }) => {
+      let gross = 0;
+      let net = 0;
+      for (const e of employees || []) {
+        if (!e?.ok) continue;
+        gross += Number(e.grossMonthly || 0);
+        net += Number(e.netMonthly || 0);
+      }
+      return { month: monthYear, gross: Math.round(gross), net: Math.round(net) };
+    });
+  }, [dashboardMultiMonth]);
+
+  const deptBudgetMonthLabel = useMemo(() => {
+    const last = dashboardMultiMonth[dashboardMultiMonth.length - 1];
+    return last?.monthYear || '';
+  }, [dashboardMultiMonth]);
 
   const deptBudget = useMemo(() => {
-    // Placeholder until dept-wise payroll run aggregation exists
-    return [
-      { department: 'IT', budget: 420000 },
-      { department: 'Finance', budget: 210000 },
-      { department: 'Operations', budget: 320000 },
-      { department: 'HR', budget: 140000 },
-    ];
-  }, []);
+    if (!Array.isArray(dashboardMultiMonth) || dashboardMultiMonth.length === 0) return [];
+    const last = dashboardMultiMonth[dashboardMultiMonth.length - 1];
+    const rows = last?.employees || [];
+    const map = new Map();
+    for (const e of rows) {
+      if (!e?.ok) continue;
+      const dept = String(e.department || 'Unassigned').trim() || 'Unassigned';
+      map.set(dept, (map.get(dept) || 0) + Number(e.netMonthly || 0));
+    }
+    return Array.from(map.entries())
+      .map(([department, budget]) => ({ department, budget: Math.round(budget) }))
+      .sort((a, b) => b.budget - a.budget);
+  }, [dashboardMultiMonth]);
 
   const selectedEmployee = useMemo(() => {
     if (!employeeId) return null;
@@ -570,36 +772,77 @@ export default function PayrollPage() {
     };
   }, [monthYear, activeTab, effectiveCompany, payrollOverviewTick]);
 
-  const applyPaidDayDelta = async (u, direction) => {
+  useEffect(() => {
     const company = normalizeCompanyName(effectiveCompany);
-    const empId = String(u?.employeeId || '').trim();
-    if (!company || !empId) {
-      toast.error('Company or employee ID is missing.');
-      return;
+    const chartsTab = activeTab === 'dashboard' || activeTab === 'payroll-dashboard';
+    if (!company || !chartsTab) return;
+    let cancelled = false;
+    setDashboardChartsLoading(true);
+
+    const months = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      months.push(toMonthYear(d));
     }
-    const ov = getEmployeeOverview(u);
-    const cur = Number(ov?.paidDaysAdjustment ?? 0);
-    const next = cur + direction;
-    const rowKey = String(u._id || u.id || empId);
-    setAdjustmentSavingKey(rowKey);
-    try {
-      const res = await fetch('/api/hrms-portal/payroll/attendance-adjustment', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(company ? { 'x-company': company } : {}),
-        },
-        body: JSON.stringify({ employeeId: empId, monthYear, deltaPaidDays: next }),
-      });
-      const j = await res.json().catch(() => null);
-      if (!res.ok || !j?.success) throw new Error(j?.error || 'Save failed');
-      silentPayrollOverviewRefreshRef.current = true;
-      setPayrollOverviewTick((t) => t + 1);
-    } catch (e) {
-      toast.error(e?.message || 'Failed to save adjustment');
-    } finally {
-      setAdjustmentSavingKey(null);
-    }
+
+    (async () => {
+      try {
+        const settled = await Promise.all(
+          months.map(async (my) => {
+            try {
+              const res = await fetch(
+                `/api/hrms-portal/payroll/employees-month-overview?monthYear=${encodeURIComponent(
+                  my
+                )}&company=${encodeURIComponent(company)}`,
+                { headers: { 'x-company': company }, cache: 'no-store' }
+              );
+              const j = await res.json().catch(() => null);
+              if (j?.success && Array.isArray(j?.data?.employees)) {
+                return { monthYear: my, employees: j.data.employees };
+              }
+              return { monthYear: my, employees: [] };
+            } catch {
+              return { monthYear: my, employees: [] };
+            }
+          })
+        );
+        if (!cancelled) setDashboardMultiMonth(settled);
+      } finally {
+        if (!cancelled) setDashboardChartsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveCompany, activeTab]);
+
+  const refreshSingleEmployeePayrollRow = async (empRow, company) => {
+    const empId = String(empRow?.employeeId || '').trim();
+    const ctc = empRow?.annualCtc;
+    if (!company || !empId || !Number.isFinite(Number(ctc)) || Number(ctc) <= 0) return;
+    const q = new URLSearchParams();
+    q.append('employeeId', empId);
+    q.append('monthYear', monthYear);
+    q.append('company', company);
+    if (companyId) q.append('companyId', String(companyId));
+    q.append('annualCtc', String(ctc));
+    const res = await fetch(`/api/hrms-portal/payroll/preview?${q.toString()}`, {
+      cache: 'no-store',
+      headers: { 'x-company': company },
+    });
+    const j = await res.json().catch(() => null);
+    if (!res.ok || !j?.success || !j.data) throw new Error(j?.error || 'Preview failed');
+    setPayrollOverview((prev) => {
+      if (!prev?.employees) return prev;
+      return {
+        ...prev,
+        employees: prev.employees.map((er) =>
+          overviewRowMatchesUser(empRow, er) ? mergePayrollPreviewIntoOverviewRow(er, j.data) : er
+        ),
+      };
+    });
   };
 
   const exportSalaryRegisterExcel = () => {
@@ -624,20 +867,34 @@ export default function PayrollPage() {
         slabText = `${(slab.label || '').trim() || 'Slab'} (${ee}, ${er})`;
       }
       return {
+        Employee: e.employeeId,
         Name: e.name,
-        Email: e.email,
-        'Employee ID': e.employeeId,
+        'Contact No': e.phone ?? '',
+        'Email id': e.email,
+        Aadhaar: e.aadhaar ?? '',
+        PAN: e.pan ?? '',
+        'UAN No.': e.uan ?? '',
         Department: e.department,
         'Job title': e.jobTitle,
-        'Annual CTC': e.annualCtc ?? '',
         'PF slab': slabText,
         'Present days': ov?.ok ? ov.paidDays : '',
         'HR paid-day adj': ov?.ok ? ov.paidDaysAdjustment ?? 0 : '',
+        'Calendar days in month': ov?.ok ? ov.daysInMonth : '',
+        'Sat–Sun days': ov?.ok ? ov.weekendDaysInMonth : '',
+        'Mon–Fri days': ov?.ok ? ov.workingDaysInMonth : '',
         'LOP days': ov?.ok ? ov.lopDays : '',
-        'Gross salary': ov?.ok ? ov.grossMonthly : ov?.error || '',
-        'PF employee': ov?.ok ? ov.pfEmployee : '',
-        'PF employer': ov?.ok ? ov.pfEmployer : '',
-        'Net salary': ov?.ok ? ov.netMonthly : '',
+        CTC: e.annualCtc ?? '',
+        'Gross Salary/Monthly': ov?.ok ? ov.grossMonthly : ov?.error || '',
+        Basic: ov?.ok ? ov.basicMonthly : '',
+        HRA: ov?.ok ? ov.hraMonthly : '',
+        'Food Allowance': ov?.ok ? ov.foodMonthly : '',
+        'Special Allowance': ov?.ok ? ov.specialMonthly : '',
+        'PF EE': ov?.ok ? ov.pfEmployee : '',
+        'PF ER': ov?.ok ? ov.pfEmployer : '',
+        ESIC: ov?.ok ? ov.esiEmployee : '',
+        'Total Earning': ov?.ok ? ov.totalEarning ?? ov.grossMonthly : '',
+        'Total deduction': ov?.ok ? ov.totalDeduction : '',
+        'Net Salary': ov?.ok ? ov.netMonthly : '',
       };
     });
     const ws = XLSX.utils.json_to_sheet(rows);
@@ -695,9 +952,10 @@ export default function PayrollPage() {
     );
   };
 
+  /** @returns {Promise<boolean>} */
   const savePayrollEmployeeFields = async (employeeRow, partial) => {
     const empId = employeeRow?._id || employeeRow?.id;
-    if (!empId) return;
+    if (!empId) return false;
     const key = String(empId);
     setPayrollEmployeeSaving((s) => ({ ...s, [key]: true }));
     try {
@@ -714,8 +972,29 @@ export default function PayrollPage() {
         throw new Error(data?.error || `Update failed (${res.status})`);
       }
       patchPayrollEmployeeLocal(empId, partial);
+      const updatedRow = { ...employeeRow, ...partial };
+
+      if ('annualCtc' in partial && company) {
+        const ctcNum = Number(updatedRow.annualCtc);
+        if (Number.isFinite(ctcNum) && ctcNum > 0) {
+          try {
+            await refreshSingleEmployeePayrollRow(updatedRow, company);
+            toast.success(
+              'CTC updated in the database. Salary preview (gross, basic, PF, net, etc.) is refreshed for the new amount.'
+            );
+          } catch {
+            toast.success(
+              'CTC updated in the database. Salary row could not be refreshed — reload the page or try again.'
+            );
+          }
+        } else {
+          toast.success('CTC updated in the database.');
+        }
+      }
+      return true;
     } catch (e) {
       toast.error(e?.message || 'Failed to save');
+      return false;
     } finally {
       setPayrollEmployeeSaving((s) => ({ ...s, [key]: false }));
     }
@@ -802,104 +1081,71 @@ export default function PayrollPage() {
       </Card>
 
       <div className="space-y-6">
-          {/* Dashboard tab (kept) */}
+          {/* Dashboard tab — live aggregates from payroll month overview */}
           {activeTab === 'dashboard' ? (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              <Card className="lg:col-span-8 border-2 p-6 rounded-2xl">
-                <div className="flex items-start justify-between gap-4 mb-4">
-                  <div>
-                    <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
-                      <Coins className="w-4 h-4 text-indigo-600" />
-                      Salary Disbursement Trend
-                    </h2>
-                    <p className="text-xs text-slate-600">Gross vs Net (last 6 months)</p>
-                  </div>
-                </div>
-                <div className="h-[320px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={disbursementTrend} margin={{ top: 10, right: 12, bottom: 0, left: 0 }}>
-                      <CartesianGrid strokeDasharray="5 5" stroke="#E5E7EB" />
-                      <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} />
-                      <YAxis tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} />
-                      <ReTooltip
-                        formatter={(value, name) => [`₹${money(value)}`, name === 'gross' ? 'Gross' : 'Net']}
-                      />
-                      <Legend />
-                      <Line
-                        type="monotone"
-                        dataKey="gross"
-                        name="Gross"
-                        stroke="#6366F1"
-                        strokeWidth={2.2}
-                        dot={false}
-                      />
-                      <Line type="monotone" dataKey="net" name="Net" stroke="#10B981" strokeWidth={2.2} dot={false} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-
-              <Card className="lg:col-span-4 border-2 p-6 rounded-2xl">
-                <h2 className="text-base font-semibold text-slate-900 mb-1">Dept-wise Budgeting</h2>
-                <p className="text-xs text-slate-600 mb-4">Placeholder until run history is finalized</p>
-                <div className="h-[320px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={deptBudget} margin={{ top: 10, right: 12, bottom: 0, left: 0 }}>
-                      <CartesianGrid vertical={false} strokeDasharray="5 5" stroke="#E5E7EB" />
-                      <XAxis dataKey="department" tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} />
-                      <YAxis tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} />
-                      <ReTooltip formatter={(v) => `₹${money(v)}`} />
-                      <Bar dataKey="budget" name="Budget" fill="#4F46E5" radius={[8, 8, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-            </div>
+            <PayrollDashboardCharts
+              loading={dashboardChartsLoading}
+              trend={disbursementTrend}
+              deptBars={deptBudget}
+              deptMonthLabel={deptBudgetMonthLabel}
+            />
           ) : null}
 
           {/* Payroll Dashboard tab (DigiSME naming) */}
           {activeTab === 'payroll-dashboard' ? (
-            <Card className="border-2 p-6 rounded-2xl">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="text-lg font-bold text-slate-900">Payroll Dashboard</div>
-                  <div className="text-sm text-slate-600 mt-1">
-                    Quick actions + processing status for {monthYear}
+            <div className="space-y-6">
+              <Card className="border-2 p-6 rounded-2xl">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-lg font-bold text-slate-900">Payroll Dashboard</div>
+                    <div className="text-sm text-slate-600 mt-1">
+                      Quick actions + processing status for {monthYear}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${
+                        initStatus === 'Published'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : initStatus === 'Initialized'
+                            ? 'bg-sky-50 text-sky-700 border-sky-200'
+                            : 'bg-slate-50 text-slate-700 border-slate-200'
+                      }`}
+                    >
+                      {initStatus}
+                    </span>
+                    <Button
+                      className="bg-indigo-600 text-white hover:bg-indigo-700"
+                      onClick={() => setActiveTab('monthly-activity')}
+                    >
+                      Go to Monthly Activity
+                    </Button>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${
-                      initStatus === 'Published'
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        : initStatus === 'Initialized'
-                          ? 'bg-sky-50 text-sky-700 border-sky-200'
-                          : 'bg-slate-50 text-slate-700 border-slate-200'
-                    }`}
-                  >
-                    {initStatus}
-                  </span>
-                  <Button className="bg-indigo-600 text-white hover:bg-indigo-700" onClick={() => setActiveTab('monthly-activity')}>
-                    Go to Monthly Activity
-                  </Button>
-                </div>
-              </div>
 
-              <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card className="border p-4 rounded-2xl">
-                  <div className="text-xs text-slate-600">Employees</div>
-                  <div className="text-2xl font-bold text-slate-900">{employees.length}</div>
-                </Card>
-                <Card className="border p-4 rounded-2xl">
-                  <div className="text-xs text-slate-600">Preview Ready</div>
-                  <div className="text-2xl font-bold text-slate-900">{preview ? 'Yes' : 'No'}</div>
-                </Card>
-                <Card className="border p-4 rounded-2xl">
-                  <div className="text-xs text-slate-600">Net (Selected)</div>
-                  <div className="text-2xl font-bold text-slate-900">₹{money(preview?.totals?.netPay || 0)}</div>
-                </Card>
-              </div>
-            </Card>
+                <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Card className="border p-4 rounded-2xl">
+                    <div className="text-xs text-slate-600">Employees</div>
+                    <div className="text-2xl font-bold text-slate-900">{employees.length}</div>
+                  </Card>
+                  <Card className="border p-4 rounded-2xl">
+                    <div className="text-xs text-slate-600">Preview Ready</div>
+                    <div className="text-2xl font-bold text-slate-900">{preview ? 'Yes' : 'No'}</div>
+                  </Card>
+                  <Card className="border p-4 rounded-2xl">
+                    <div className="text-xs text-slate-600">Net (Selected)</div>
+                    <div className="text-2xl font-bold text-slate-900">₹{money(preview?.totals?.netPay || 0)}</div>
+                  </Card>
+                </div>
+              </Card>
+
+              <PayrollDashboardCharts
+                loading={dashboardChartsLoading}
+                trend={disbursementTrend}
+                deptBars={deptBudget}
+                deptMonthLabel={deptBudgetMonthLabel}
+              />
+            </div>
           ) : null}
 
           {/* General Setup tab — PF slabs only (Old vs New); autosaved */}
@@ -948,7 +1194,7 @@ export default function PayrollPage() {
                           pfWageCeilingMonthly: clamp(Number(e.target.value || 0), 0, 999999),
                         }))
                       }
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200"
+                      className={`w-full px-3 py-2 rounded-xl border border-slate-200 ${INPUT_NO_SPINNER}`}
                     />
                     <div className="text-xs text-slate-500 mt-1">Applied when PF wage ceiling is enabled on the employee.</div>
                   </div>
@@ -1029,7 +1275,7 @@ export default function PayrollPage() {
                                   ),
                                 }));
                               }}
-                              className="w-32 px-2 py-1.5 rounded-lg border border-slate-200"
+                              className={`w-32 px-2 py-1.5 rounded-lg border border-slate-200 ${INPUT_NO_SPINNER}`}
                             />
                           </td>
                           <td className="py-2 pr-2">
@@ -1051,7 +1297,7 @@ export default function PayrollPage() {
                                   ),
                                 }));
                               }}
-                              className="w-32 px-2 py-1.5 rounded-lg border border-slate-200"
+                              className={`w-32 px-2 py-1.5 rounded-lg border border-slate-200 ${INPUT_NO_SPINNER}`}
                               placeholder="∞ empty"
                             />
                           </td>
@@ -1095,7 +1341,7 @@ export default function PayrollPage() {
                                       ),
                                     }));
                                   }}
-                                  className="w-full px-2 py-1.5 rounded-lg border border-slate-200"
+                                  className={`w-full px-2 py-1.5 rounded-lg border border-slate-200 ${INPUT_NO_SPINNER}`}
                                   placeholder="₹ / month"
                                 />
                               ) : (
@@ -1113,7 +1359,7 @@ export default function PayrollPage() {
                                       ),
                                     }));
                                   }}
-                                  className="w-full px-2 py-1.5 rounded-lg border border-slate-200"
+                                  className={`w-full px-2 py-1.5 rounded-lg border border-slate-200 ${INPUT_NO_SPINNER}`}
                                   placeholder="%"
                                 />
                               )}
@@ -1159,7 +1405,7 @@ export default function PayrollPage() {
                                       ),
                                     }));
                                   }}
-                                  className="w-full px-2 py-1.5 rounded-lg border border-slate-200"
+                                  className={`w-full px-2 py-1.5 rounded-lg border border-slate-200 ${INPUT_NO_SPINNER}`}
                                   placeholder="₹ / month"
                                 />
                               ) : (
@@ -1177,7 +1423,7 @@ export default function PayrollPage() {
                                       ),
                                     }));
                                   }}
-                                  className="w-full px-2 py-1.5 rounded-lg border border-slate-200"
+                                  className={`w-full px-2 py-1.5 rounded-lg border border-slate-200 ${INPUT_NO_SPINNER}`}
                                   placeholder="%"
                                 />
                               )}
@@ -1237,9 +1483,9 @@ export default function PayrollPage() {
                 <div>
                   <div className="text-lg font-bold text-slate-900">Employee Setup</div>
                   <div className="text-sm text-slate-600 mt-1">
-                    All employees in one list. Edit annual CTC, PF rule, or PF slab — changes save automatically.
-                    Use the payroll month below for <span className="font-semibold text-slate-800">present/LOP</span>{' '}
-                    and salary amounts (from machine attendance).
+                    Register-style columns: CTC ÷ 12 = monthly gross; Basic ½ gross; HRA 20%; Food 10%; Special 20%;
+                    PF (EE/ER) from slab; ESIC when applicable. LOP prorates earnings from machine attendance. Edit CTC / PF
+                    — saves automatically.
                   </div>
                 </div>
                 <input
@@ -1272,7 +1518,8 @@ export default function PayrollPage() {
                 </Button>
                 <div className="text-xs text-slate-600 flex flex-wrap items-center gap-x-3 gap-y-1 w-full md:w-auto md:ml-auto">
                   <span>
-                    Weekends (Sat–Sun) are <span className="font-medium">not</span> counted as working or LOP days.
+                    Month length is <span className="font-medium">calendar</span> (28/29/30/31). Table shows Sat–Sun count;
+                    salary/LOP still uses <span className="font-medium">Mon–Fri</span> only.
                   </span>
                   <Link
                     href={`/hrms/${companyId}/leaves/manage`}
@@ -1302,39 +1549,69 @@ export default function PayrollPage() {
                       : 'No employees match your search.'}
                   </div>
                 ) : (
-                  <table className="min-w-[2100px] w-full text-sm">
+                  <table className="min-w-[4400px] w-full text-sm">
                     <thead className="bg-slate-50 border-b border-slate-200">
                       <tr className="text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                        <th className="px-3 py-3 whitespace-nowrap">Employee</th>
                         <th className="px-3 py-3 whitespace-nowrap">Name</th>
-                        <th className="px-3 py-3 whitespace-nowrap">Email</th>
-                        <th className="px-3 py-3 whitespace-nowrap">Employee ID</th>
+                        <th className="px-3 py-3 whitespace-nowrap">Contact No</th>
+                        <th className="px-3 py-3 whitespace-nowrap">Email id</th>
+                        <th className="px-3 py-3 whitespace-nowrap">Aadhaar</th>
+                        <th className="px-3 py-3 whitespace-nowrap">PAN</th>
+                        <th className="px-3 py-3 whitespace-nowrap">UAN No.</th>
                         <th className="px-3 py-3 whitespace-nowrap">Department</th>
                         <th className="px-3 py-3 whitespace-nowrap">Job title</th>
                         <th className="px-3 py-3 whitespace-nowrap">Location</th>
                         <th className="px-3 py-3 whitespace-nowrap">Emp code</th>
-                        <th className="px-3 py-3 whitespace-nowrap">Phone</th>
-                        <th className="px-3 py-3 whitespace-nowrap">PAN</th>
-                        <th className="px-3 py-3 whitespace-nowrap">UAN</th>
                         <th className="px-3 py-3 whitespace-nowrap">Bank A/C</th>
-                        <th className="px-3 py-3 whitespace-nowrap">Annual CTC (₹)</th>
                         <th className="px-3 py-3 whitespace-nowrap">PF rule</th>
                         <th className="px-3 py-3 whitespace-nowrap min-w-[220px]">PF slab</th>
                         <th
-                          className="px-3 py-3 whitespace-nowrap text-right min-w-[128px]"
-                          title="Increase/decrease paid days (machine + HR correction)."
+                          className="px-3 py-3 whitespace-nowrap text-right min-w-[100px]"
+                          title="Calendar month; Sat–Sun; Mon–Fri (LOP base)"
                         >
-                          Present (−/+)
+                          Month / Sat–Sun
                         </th>
                         <th
-                          className="px-3 py-3 whitespace-nowrap text-right min-w-[128px]"
-                          title="Increase LOP = fewer paid days; decrease LOP = more paid days."
+                          className="px-3 py-3 whitespace-nowrap text-right min-w-[88px]"
+                          title="Paid weekdays (machine + HR adjustment, if any)"
                         >
-                          LOP (−/+)
+                          Present
                         </th>
-                        <th className="px-3 py-3 whitespace-nowrap text-right">Gross (₹)</th>
-                        <th className="px-3 py-3 whitespace-nowrap text-right">PF EE</th>
-                        <th className="px-3 py-3 whitespace-nowrap text-right">PF ER</th>
-                        <th className="px-3 py-3 whitespace-nowrap text-right">Net (₹)</th>
+                        <th
+                          className="px-3 py-3 whitespace-nowrap text-right min-w-[72px]"
+                          title="LOP weekdays"
+                        >
+                          LOP
+                        </th>
+                        <th
+                          className="px-3 py-3 whitespace-nowrap text-right"
+                          title="Double-click a cell to edit annual CTC"
+                        >
+                          CTC (annual ₹)
+                        </th>
+                        <th className="px-3 py-3 whitespace-nowrap text-right" title="Gross after LOP proration (CTC÷12×paid/working)">
+                          Gross / mo (₹)
+                        </th>
+                        <th className="px-3 py-3 whitespace-nowrap text-right">Basic (₹)</th>
+                        <th className="px-3 py-3 whitespace-nowrap text-right">HRA (₹)</th>
+                        <th className="px-3 py-3 whitespace-nowrap text-right">Food (₹)</th>
+                        <th className="px-3 py-3 whitespace-nowrap text-right">Special (₹)</th>
+                        <th className="px-3 py-3 whitespace-nowrap text-right" title="Slab on gross (capped)">
+                          PF EE (₹)
+                        </th>
+                        <th className="px-3 py-3 whitespace-nowrap text-right" title="Slab on gross (capped); deducted from gross">
+                          PF ER (₹)
+                        </th>
+                        <th className="px-3 py-3 whitespace-nowrap text-right">ESIC (₹)</th>
+                        <th className="px-3 py-3 whitespace-nowrap text-right">Total earning (₹)</th>
+                        <th
+                          className="px-3 py-3 whitespace-nowrap text-right"
+                          title="PF EE + PF ER + ESIC (TDS not withheld for now)"
+                        >
+                          Total deduction (₹)
+                        </th>
+                        <th className="px-3 py-3 whitespace-nowrap text-right">Net salary (₹)</th>
                         <th className="px-3 py-3 whitespace-nowrap text-right">Payslip</th>
                         <th className="px-3 py-3 whitespace-nowrap">Status</th>
                       </tr>
@@ -1359,51 +1636,22 @@ export default function PayrollPage() {
 
                         return (
                           <tr key={rowId} className="hover:bg-slate-50/80">
+                            <td className="px-3 py-2.5 text-slate-700 whitespace-nowrap">{u?.employeeId || '—'}</td>
                             <td className="px-3 py-2.5 font-medium text-slate-900 whitespace-nowrap">{u?.name || '—'}</td>
+                            <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{u?.phone || '—'}</td>
                             <td className="px-3 py-2.5 text-slate-600 max-w-[200px] truncate" title={u?.email || ''}>
                               {u?.email || '—'}
                             </td>
-                            <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{u?.employeeId || '—'}</td>
+                            <td className="px-3 py-2.5 text-slate-600 max-w-[120px] truncate" title={u?.aadhaar || ''}>
+                              {u?.aadhaar || '—'}
+                            </td>
+                            <td className="px-3 py-2.5 text-slate-600 max-w-[100px] truncate">{u?.pan || '—'}</td>
+                            <td className="px-3 py-2.5 text-slate-600 max-w-[120px] truncate">{u?.uan || '—'}</td>
                             <td className="px-3 py-2.5 text-slate-600 max-w-[140px] truncate">{u?.department || '—'}</td>
                             <td className="px-3 py-2.5 text-slate-600 max-w-[140px] truncate">{u?.jobTitle || '—'}</td>
                             <td className="px-3 py-2.5 text-slate-600 max-w-[120px] truncate">{u?.location || '—'}</td>
                             <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{u?.emp_code || '—'}</td>
-                            <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{u?.phone || '—'}</td>
-                            <td className="px-3 py-2.5 text-slate-600 max-w-[100px] truncate">{u?.pan || '—'}</td>
-                            <td className="px-3 py-2.5 text-slate-600 max-w-[120px] truncate">{u?.uan || '—'}</td>
                             <td className="px-3 py-2.5 text-slate-600 max-w-[120px] truncate">{u?.bankAccount || '—'}</td>
-                            <td className="px-3 py-2.5 whitespace-nowrap">
-                              <input
-                                type="number"
-                                min={0}
-                                disabled={saving}
-                                value={u.annualCtc != null && u.annualCtc !== '' ? String(u.annualCtc) : ''}
-                                onChange={(e) => {
-                                  const raw = e.target.value;
-                                  if (raw === '') {
-                                    patchPayrollEmployeeLocal(rowId, { annualCtc: null });
-                                    return;
-                                  }
-                                  const n = Number(raw);
-                                  if (Number.isFinite(n)) patchPayrollEmployeeLocal(rowId, { annualCtc: n });
-                                }}
-                                onBlur={(e) => {
-                                  const raw = e.target.value.trim();
-                                  const nextCtc = raw === '' ? null : Number(raw);
-                                  const nextSlab =
-                                    nextCtc != null && Number.isFinite(nextCtc)
-                                      ? resolvePfSlabIdFromSettings(nextCtc, rule, pfSettings, null)
-                                      : '';
-                                  const patch = {
-                                    annualCtc:
-                                      nextCtc != null && Number.isFinite(nextCtc) ? nextCtc : null,
-                                  };
-                                  if (nextSlab) patch.pfSlabId = nextSlab;
-                                  savePayrollEmployeeFields(u, patch);
-                                }}
-                                className="w-28 px-2 py-1 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                              />
-                            </td>
                             <td className="px-3 py-2.5 whitespace-nowrap">
                               <select
                                 value={rule === 'OLD' ? 'OLD' : 'NEW'}
@@ -1460,49 +1708,17 @@ export default function PayrollPage() {
                                 ))}
                               </select>
                             </td>
-                            <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                            <td className="px-3 py-2.5 text-right whitespace-nowrap align-top">
                               {payrollOverviewLoading ? (
                                 '…'
                               ) : !ov?.ok ? (
                                 '—'
                               ) : (
-                                (() => {
-                                  const pd = Number(ov.paidDays);
-                                  const wdm = Number(ov.workingDaysInMonth);
-                                  const savingRow = adjustmentSavingKey === rowId;
-                                  const canInc =
-                                    Number.isFinite(pd) &&
-                                    Number.isFinite(wdm) &&
-                                    pd < wdm &&
-                                    !savingRow;
-                                  const canDec =
-                                    Number.isFinite(pd) && pd > 0 && !savingRow;
-                                  return (
-                                    <div className="inline-flex items-center justify-end gap-0.5">
-                                      <button
-                                        type="button"
-                                        title="Decrease present / increase LOP"
-                                        disabled={!canDec}
-                                        onClick={() => applyPaidDayDelta(u, -1)}
-                                        className="p-1 rounded border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 disabled:opacity-40"
-                                      >
-                                        <Minus className="w-3.5 h-3.5" />
-                                      </button>
-                                      <span className="min-w-[1.75rem] text-slate-800 font-medium tabular-nums text-center">
-                                        {ov.paidDays ?? '—'}
-                                      </span>
-                                      <button
-                                        type="button"
-                                        title="Increase present (e.g. forgot punch)"
-                                        disabled={!canInc}
-                                        onClick={() => applyPaidDayDelta(u, 1)}
-                                        className="p-1 rounded border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 disabled:opacity-40"
-                                      >
-                                        <Plus className="w-3.5 h-3.5" />
-                                      </button>
-                                    </div>
-                                  );
-                                })()
+                                <div className="inline-block text-right text-xs leading-snug tabular-nums">
+                                  <div className="font-semibold text-slate-800">{ov.daysInMonth ?? '—'}</div>
+                                  <div className="text-slate-500">Sat–Sun {ov.weekendDaysInMonth ?? '—'}</div>
+                                  <div className="text-slate-500">Mon–Fri {ov.workingDaysInMonth ?? '—'}</div>
+                                </div>
                               )}
                             </td>
                             <td className="px-3 py-2.5 text-right whitespace-nowrap">
@@ -1511,53 +1727,93 @@ export default function PayrollPage() {
                               ) : !ov?.ok ? (
                                 '—'
                               ) : (
-                                (() => {
-                                  const pd = Number(ov.paidDays);
-                                  const wdm = Number(ov.workingDaysInMonth);
-                                  const savingRow = adjustmentSavingKey === rowId;
-                                  const canIncLop =
-                                    Number.isFinite(pd) && pd > 0 && !savingRow;
-                                  const canDecLop =
-                                    Number.isFinite(pd) &&
-                                    Number.isFinite(wdm) &&
-                                    pd < wdm &&
-                                    !savingRow;
-                                  return (
-                                    <div className="inline-flex items-center justify-end gap-0.5">
-                                      <button
-                                        type="button"
-                                        title="Decrease LOP / increase present"
-                                        disabled={!canDecLop}
-                                        onClick={() => applyPaidDayDelta(u, 1)}
-                                        className="p-1 rounded border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 disabled:opacity-40"
-                                      >
-                                        <Minus className="w-3.5 h-3.5" />
-                                      </button>
-                                      <span className="min-w-[1.75rem] text-slate-800 font-medium tabular-nums text-center">
-                                        {ov.lopDays ?? '—'}
-                                      </span>
-                                      <button
-                                        type="button"
-                                        title="Increase LOP / decrease present"
-                                        disabled={!canIncLop}
-                                        onClick={() => applyPaidDayDelta(u, -1)}
-                                        className="p-1 rounded border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 disabled:opacity-40"
-                                      >
-                                        <Plus className="w-3.5 h-3.5" />
-                                      </button>
-                                    </div>
-                                  );
-                                })()
+                                <span
+                                  className="text-slate-800 font-medium tabular-nums"
+                                  title="Paid weekdays (machine + HR adjustment, if any)"
+                                >
+                                  {(() => {
+                                    const pd = Number(ov.paidDays);
+                                    const wdm = Number(ov.workingDaysInMonth);
+                                    return (
+                                      <>
+                                        {ov.paidDays ?? '—'}
+                                        {Number.isFinite(pd) && Number.isFinite(wdm) ? (
+                                          <span className="text-slate-500 font-normal">/{wdm}</span>
+                                        ) : null}
+                                      </>
+                                    );
+                                  })()}
+                                </span>
                               )}
+                            </td>
+                            <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                              {payrollOverviewLoading ? (
+                                '…'
+                              ) : !ov?.ok ? (
+                                '—'
+                              ) : (
+                                <span className="text-slate-800 font-medium tabular-nums" title="LOP weekdays">
+                                  {ov.lopDays ?? '—'}
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                              <button
+                                type="button"
+                                disabled={saving}
+                                title="Double-click to edit annual CTC"
+                                onDoubleClick={() => {
+                                  if (saving) return;
+                                  setCtcEditor({
+                                    employee: u,
+                                    rule,
+                                    draftCtc:
+                                      u.annualCtc != null && u.annualCtc !== ''
+                                        ? String(u.annualCtc)
+                                        : '',
+                                  });
+                                  setCtcEditorOpen(true);
+                                }}
+                                className={`max-w-[9rem] ml-auto block w-full text-right rounded-md border border-transparent px-2 py-1 tabular-nums transition-colors hover:border-slate-200 hover:bg-slate-50 ${
+                                  saving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer text-slate-900 font-medium'
+                                }`}
+                              >
+                                {u.annualCtc != null && u.annualCtc !== '' ? (
+                                  <span>₹{money(u.annualCtc)}</span>
+                                ) : (
+                                  <span className="text-slate-400 font-normal">—</span>
+                                )}
+                              </button>
                             </td>
                             <td className="px-3 py-2.5 text-right text-slate-700 tabular-nums whitespace-nowrap">
                               {payrollOverviewLoading ? '…' : ov?.ok ? fmtOv(ov.grossMonthly) : '—'}
+                            </td>
+                            <td className="px-3 py-2.5 text-right text-slate-700 tabular-nums whitespace-nowrap">
+                              {payrollOverviewLoading ? '…' : ov?.ok ? fmtOv(ov.basicMonthly) : '—'}
+                            </td>
+                            <td className="px-3 py-2.5 text-right text-slate-700 tabular-nums whitespace-nowrap">
+                              {payrollOverviewLoading ? '…' : ov?.ok ? fmtOv(ov.hraMonthly) : '—'}
+                            </td>
+                            <td className="px-3 py-2.5 text-right text-slate-700 tabular-nums whitespace-nowrap">
+                              {payrollOverviewLoading ? '…' : ov?.ok ? fmtOv(ov.foodMonthly) : '—'}
+                            </td>
+                            <td className="px-3 py-2.5 text-right text-slate-700 tabular-nums whitespace-nowrap">
+                              {payrollOverviewLoading ? '…' : ov?.ok ? fmtOv(ov.specialMonthly) : '—'}
                             </td>
                             <td className="px-3 py-2.5 text-right text-slate-700 tabular-nums whitespace-nowrap">
                               {payrollOverviewLoading ? '…' : ov?.ok ? fmtOv(ov.pfEmployee) : '—'}
                             </td>
                             <td className="px-3 py-2.5 text-right text-slate-700 tabular-nums whitespace-nowrap">
                               {payrollOverviewLoading ? '…' : ov?.ok ? fmtOv(ov.pfEmployer) : '—'}
+                            </td>
+                            <td className="px-3 py-2.5 text-right text-slate-700 tabular-nums whitespace-nowrap">
+                              {payrollOverviewLoading ? '…' : ov?.ok ? fmtOv(ov.esiEmployee) : '—'}
+                            </td>
+                            <td className="px-3 py-2.5 text-right text-slate-700 tabular-nums whitespace-nowrap">
+                              {payrollOverviewLoading ? '…' : ov?.ok ? fmtOv(ov.totalEarning ?? ov.grossMonthly) : '—'}
+                            </td>
+                            <td className="px-3 py-2.5 text-right text-slate-700 tabular-nums whitespace-nowrap">
+                              {payrollOverviewLoading ? '…' : ov?.ok ? fmtOv(ov.totalDeduction) : '—'}
                             </td>
                             <td className="px-3 py-2.5 text-right font-medium text-slate-900 tabular-nums whitespace-nowrap">
                               {payrollOverviewLoading ? '…' : ov?.ok ? fmtOv(ov.netMonthly) : '—'}
@@ -1706,7 +1962,7 @@ export default function PayrollPage() {
                                     const v = Number(e.target.value || 0);
                                     setAdjustments((rows) => rows.map((x) => (x.id === r.id ? { ...x, lopDays: v } : x)));
                                   }}
-                                  className="w-24 px-2 py-1.5 rounded-lg border border-slate-200"
+                                  className={`w-24 px-2 py-1.5 rounded-lg border border-slate-200 ${INPUT_NO_SPINNER}`}
                                 />
                               </td>
                               <td className="py-2 pr-2">
@@ -1717,7 +1973,7 @@ export default function PayrollPage() {
                                     const v = Number(e.target.value || 0);
                                     setAdjustments((rows) => rows.map((x) => (x.id === r.id ? { ...x, overtimeHours: v } : x)));
                                   }}
-                                  className="w-28 px-2 py-1.5 rounded-lg border border-slate-200"
+                                  className={`w-28 px-2 py-1.5 rounded-lg border border-slate-200 ${INPUT_NO_SPINNER}`}
                                 />
                               </td>
                               <td className="py-2 pr-2">
@@ -1728,7 +1984,7 @@ export default function PayrollPage() {
                                     const v = Number(e.target.value || 0);
                                     setAdjustments((rows) => rows.map((x) => (x.id === r.id ? { ...x, arrears: v } : x)));
                                   }}
-                                  className="w-28 px-2 py-1.5 rounded-lg border border-slate-200"
+                                  className={`w-28 px-2 py-1.5 rounded-lg border border-slate-200 ${INPUT_NO_SPINNER}`}
                                 />
                               </td>
                               <td className="py-2 pr-2">
@@ -1739,7 +1995,7 @@ export default function PayrollPage() {
                                     const v = Number(e.target.value || 0);
                                     setAdjustments((rows) => rows.map((x) => (x.id === r.id ? { ...x, bonus: v } : x)));
                                   }}
-                                  className="w-24 px-2 py-1.5 rounded-lg border border-slate-200"
+                                  className={`w-24 px-2 py-1.5 rounded-lg border border-slate-200 ${INPUT_NO_SPINNER}`}
                                 />
                               </td>
                               <td className="py-2 pr-2">
@@ -1857,8 +2113,10 @@ export default function PayrollPage() {
                           <div>{selectedEmployee?.name || '—'}</div>
                           {payslipOptions.showAttendanceDetails ? (
                             <div className="mt-2 text-xs text-slate-600">
-                              Paid Days : {preview?.attendance?.paidDays ?? '—'} | LOP Days :{' '}
-                              {preview?.attendance?.lopDays ?? '—'} (from machine attendance)
+                              Month {preview?.attendance?.daysInMonth ?? '—'} d · Sat–Sun{' '}
+                              {preview?.attendance?.weekendDaysInMonth ?? '—'} · Mon–Fri{' '}
+                              {preview?.attendance?.workingDaysInMonth ?? '—'} | Paid{' '}
+                              {preview?.attendance?.paidDays ?? '—'} | LOP {preview?.attendance?.lopDays ?? '—'} (machine)
                             </div>
                           ) : null}
                           {payslipOptions.showYtd ? (
@@ -2270,6 +2528,98 @@ export default function PayrollPage() {
           ) : (
             <p className="text-slate-500 text-center py-8">No preview data.</p>
           )}
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={ctcEditorOpen}
+        onClose={() => {
+          if (ctcEditorSaving) return;
+          setCtcEditorOpen(false);
+          setCtcEditor(null);
+        }}
+        title="Annual CTC"
+        size="sm"
+        className="!max-w-sm"
+        footer={
+          <div className="flex gap-2 w-full justify-end flex-wrap">
+            <Button
+              type="button"
+              disabled={ctcEditorSaving}
+              onClick={() => {
+                setCtcEditorOpen(false);
+                setCtcEditor(null);
+              }}
+              className="bg-white border border-neutral-300 text-neutral-700 hover:bg-neutral-50"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={ctcEditorSaving || !ctcEditor?.employee}
+              onClick={async () => {
+                if (!ctcEditor?.employee) return;
+                const raw = String(ctcEditor.draftCtc ?? '').trim();
+                const nextCtcNorm = raw === '' ? null : Number(raw);
+                if (nextCtcNorm !== null && (!Number.isFinite(nextCtcNorm) || nextCtcNorm < 0)) {
+                  toast.error('Please enter a valid annual CTC (₹).');
+                  return;
+                }
+                const patch = { annualCtc: nextCtcNorm };
+                if (nextCtcNorm != null && Number.isFinite(nextCtcNorm) && nextCtcNorm > 0) {
+                  const nextSlab = resolvePfSlabIdFromSettings(
+                    nextCtcNorm,
+                    ctcEditor.rule,
+                    pfSettings,
+                    null
+                  );
+                  if (nextSlab) patch.pfSlabId = nextSlab;
+                }
+                setCtcEditorSaving(true);
+                const ok = await savePayrollEmployeeFields(ctcEditor.employee, patch);
+                setCtcEditorSaving(false);
+                if (ok) {
+                  setCtcEditorOpen(false);
+                  setCtcEditor(null);
+                }
+              }}
+              className="bg-slate-900 text-white hover:bg-slate-800"
+            >
+              {ctcEditorSaving ? 'Saving…' : 'Save'}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          <p className="text-xs text-slate-600">
+            Double-click the CTC cell to open this window. Edit the amount, then Save to update the database.
+          </p>
+          {ctcEditor?.employee ? (
+            <div className="text-sm font-medium text-slate-900 truncate" title={ctcEditor.employee.name || ''}>
+              {ctcEditor.employee.name || 'Employee'}{' '}
+              <span className="font-normal text-slate-500">
+                ({ctcEditor.employee.employeeId || '—'})
+              </span>
+            </div>
+          ) : null}
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">CTC (annual ₹)</label>
+            <div className="inline-flex w-full items-center rounded-lg border border-slate-200 bg-white px-2 focus-within:ring-2 focus-within:ring-indigo-400">
+              <span className="text-slate-500 text-sm pr-1 select-none">₹</span>
+              <input
+                type="number"
+                min={0}
+                disabled={ctcEditorSaving}
+                value={ctcEditor?.draftCtc ?? ''}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setCtcEditor((prev) => (prev ? { ...prev, draftCtc: v } : prev));
+                }}
+                className={`min-w-0 flex-1 py-2 text-sm text-right tabular-nums border-0 bg-transparent focus:outline-none focus:ring-0 ${INPUT_NO_SPINNER}`}
+                placeholder="Amount"
+              />
+            </div>
+          </div>
         </div>
       </Modal>
 
