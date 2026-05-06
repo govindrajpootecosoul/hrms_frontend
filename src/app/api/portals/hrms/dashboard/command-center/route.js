@@ -19,10 +19,12 @@ export async function GET(request) {
     const company = searchParams.get('company');
     const department = searchParams.get('department'); // optional (filters EVERYTHING when set)
     const dateParam = searchParams.get('date'); // optional (anchor date for trends)
+    const payrollCompany = searchParams.get('payrollCompany');
 
     const commonParams = new URLSearchParams();
     if (companyId) commonParams.append('companyId', companyId);
     if (company) commonParams.append('company', company);
+    if (payrollCompany && payrollCompany !== 'all') commonParams.append('payrollCompany', payrollCompany);
 
     const fetchJson = async (url) => {
       const res = await fetch(url, { cache: 'no-store' }).catch(() => null);

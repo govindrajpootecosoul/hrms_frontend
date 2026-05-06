@@ -48,6 +48,8 @@ import {
   Headset,
   Upload,
   Download,
+  Plus,
+  Minus,
 } from 'lucide-react';
 
 const toMonthYear = (d) => {
@@ -329,6 +331,7 @@ export default function PayrollPage() {
   const [payrollEmployeesError, setPayrollEmployeesError] = useState(null);
   const [employeeSearch, setEmployeeSearch] = useState('');
   const [payrollEmployeeSaving, setPayrollEmployeeSaving] = useState({});
+  const [attendanceAdjSaving, setAttendanceAdjSaving] = useState({});
   const [payrollOverview, setPayrollOverview] = useState(null);
   const [payrollOverviewLoading, setPayrollOverviewLoading] = useState(false);
   const [payslipOpen, setPayslipOpen] = useState(false);
@@ -526,15 +529,9 @@ export default function PayrollPage() {
   // Tabs per DigiSME prompt (9)
   const tabs = useMemo(
     () => [
-      { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { key: 'payroll-dashboard', label: 'Payroll Dashboard', icon: CalendarCog },
       { key: 'general-setup', label: 'General Setup', icon: Building2 },
       { key: 'employee-setup', label: 'Employee Setup', icon: Users },
-      { key: 'monthly-activity', label: 'Monthly Activity', icon: CalendarClock },
-      { key: 'income-tax', label: 'Income Tax', icon: ReceiptIndianRupee },
-      { key: 'reports', label: 'Reports', icon: FileBarChart2 },
-      { key: 'help', label: 'Help', icon: HelpCircle },
-      { key: 'support', label: 'InfoTech Support', icon: Headset },
-      { key: 'payroll-dashboard', label: 'Payroll Dashboard', icon: CalendarCog },
     ],
     []
   );
@@ -991,12 +988,60 @@ export default function PayrollPage() {
           toast.success('CTC updated in the database.');
         }
       }
+
+      // When PF rule/slab changes, refresh preview row (PF EE / PF ER / net etc.)
+      if (company && ('pfRule' in partial || 'pfSlabId' in partial)) {
+        const ctcNum = Number(updatedRow.annualCtc);
+        if (Number.isFinite(ctcNum) && ctcNum > 0) {
+          try {
+            await refreshSingleEmployeePayrollRow(updatedRow, company);
+            toast.success('PF settings updated. PF EE/PF ER recalculated for this employee.');
+          } catch {
+            toast.success('PF settings updated. Salary row could not be refreshed — reload the page or try again.');
+          }
+        } else {
+          toast.success('PF settings updated (set CTC to calculate PF).');
+        }
+      }
       return true;
     } catch (e) {
       toast.error(e?.message || 'Failed to save');
       return false;
     } finally {
       setPayrollEmployeeSaving((s) => ({ ...s, [key]: false }));
+    }
+  };
+
+  /** Persist month-specific paid-day delta (Present/LOP adjustment). */
+  const saveAttendanceDeltaPaidDays = async (employeeRow, nextDelta) => {
+    const company = normalizeCompanyName(effectiveCompany);
+    const employeeId = String(employeeRow?.employeeId || '').trim();
+    if (!company || !employeeId) return false;
+    const key = String(employeeRow?._id || employeeRow?.id || employeeId);
+    setAttendanceAdjSaving((s) => ({ ...s, [key]: true }));
+    try {
+      const res = await fetch('/api/hrms-portal/payroll/attendance-adjustment', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'x-company': company },
+        cache: 'no-store',
+        body: JSON.stringify({
+          company,
+          employeeId,
+          monthYear,
+          deltaPaidDays: nextDelta,
+        }),
+      });
+      const j = await res.json().catch(() => null);
+      if (!res.ok || !j?.success) {
+        throw new Error(j?.error || `Failed to update attendance adjustment (${res.status})`);
+      }
+      await refreshSingleEmployeePayrollRow(employeeRow, company);
+      return true;
+    } catch (e) {
+      toast.error(e?.message || 'Failed to update attendance adjustment');
+      return false;
+    } finally {
+      setAttendanceAdjSaving((s) => ({ ...s, [key]: false }));
     }
   };
 
@@ -1267,15 +1312,16 @@ export default function PayrollPage() {
                               value={r.minCtc ?? ''}
                               onChange={(e) => {
                                 const key = pfSetupTab === 'OLD' ? 'pfSlabsOld' : 'pfSlabsNew';
-                                const v = Number(e.target.value || 0);
+                                const raw = e.target.value;
                                 setPfSettings((prev) => ({
                                   ...prev,
                                   [key]: prev[key].map((s) =>
-                                    s.id === r.id ? { ...s, minCtc: v } : s
+                                    s.id === r.id ? { ...s, minCtc: raw === '' ? null : Number(raw) } : s
                                   ),
                                 }));
                               }}
                               className={`w-32 px-2 py-1.5 rounded-lg border border-slate-200 ${INPUT_NO_SPINNER}`}
+                              placeholder="0"
                             />
                           </td>
                           <td className="py-2 pr-2">
@@ -1727,23 +1773,59 @@ export default function PayrollPage() {
                               ) : !ov?.ok ? (
                                 '—'
                               ) : (
-                                <span
-                                  className="text-slate-800 font-medium tabular-nums"
-                                  title="Paid weekdays (machine + HR adjustment, if any)"
-                                >
-                                  {(() => {
-                                    const pd = Number(ov.paidDays);
-                                    const wdm = Number(ov.workingDaysInMonth);
-                                    return (
-                                      <>
-                                        {ov.paidDays ?? '—'}
-                                        {Number.isFinite(pd) && Number.isFinite(wdm) ? (
-                                          <span className="text-slate-500 font-normal">/{wdm}</span>
-                                        ) : null}
-                                      </>
-                                    );
-                                  })()}
-                                </span>
+                                (() => {
+                                  const key = String(u?._id || u?.id || u?.employeeId || '');
+                                  const savingAdj = !!attendanceAdjSaving[key];
+                                  const deltaNow = Number(ov?.paidDaysAdjustment ?? 0);
+                                  const wdm = Number(ov?.workingDaysInMonth);
+                                  const maxAbs = Number.isFinite(wdm) ? Math.max(0, Math.ceil(wdm)) : 31;
+                                  const clamp = (x) => Math.max(-maxAbs, Math.min(maxAbs, x));
+
+                                  return (
+                                    <div className="inline-flex items-center justify-end gap-1">
+                                      <button
+                                        type="button"
+                                        disabled={savingAdj}
+                                        title={`Decrease Present (HR adj -1). Current adj: ${deltaNow}`}
+                                        onClick={() => saveAttendanceDeltaPaidDays(u, clamp(deltaNow - 1))}
+                                        className={`inline-flex items-center justify-center rounded-md border px-1 py-0.5 text-slate-700 hover:bg-slate-50 ${
+                                          savingAdj ? 'opacity-50 cursor-not-allowed' : 'border-slate-200'
+                                        }`}
+                                      >
+                                        <Minus className="w-3.5 h-3.5" />
+                                      </button>
+
+                                      <span
+                                        className="text-slate-800 font-medium tabular-nums"
+                                        title="Paid weekdays (machine + HR adjustment, if any)"
+                                      >
+                                        {(() => {
+                                          const pd = Number(ov.paidDays);
+                                          return (
+                                            <>
+                                              {ov.paidDays ?? '—'}
+                                              {Number.isFinite(pd) && Number.isFinite(wdm) ? (
+                                                <span className="text-slate-500 font-normal">/{wdm}</span>
+                                              ) : null}
+                                            </>
+                                          );
+                                        })()}
+                                      </span>
+
+                                      <button
+                                        type="button"
+                                        disabled={savingAdj}
+                                        title={`Increase Present (HR adj +1). Current adj: ${deltaNow}`}
+                                        onClick={() => saveAttendanceDeltaPaidDays(u, clamp(deltaNow + 1))}
+                                        className={`inline-flex items-center justify-center rounded-md border px-1 py-0.5 text-slate-700 hover:bg-slate-50 ${
+                                          savingAdj ? 'opacity-50 cursor-not-allowed' : 'border-slate-200'
+                                        }`}
+                                      >
+                                        <Plus className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  );
+                                })()
                               )}
                             </td>
                             <td className="px-3 py-2.5 text-right whitespace-nowrap">
@@ -1752,9 +1834,46 @@ export default function PayrollPage() {
                               ) : !ov?.ok ? (
                                 '—'
                               ) : (
-                                <span className="text-slate-800 font-medium tabular-nums" title="LOP weekdays">
-                                  {ov.lopDays ?? '—'}
-                                </span>
+                                (() => {
+                                  const key = String(u?._id || u?.id || u?.employeeId || '');
+                                  const savingAdj = !!attendanceAdjSaving[key];
+                                  const deltaNow = Number(ov?.paidDaysAdjustment ?? 0);
+                                  const wdm = Number(ov?.workingDaysInMonth);
+                                  const maxAbs = Number.isFinite(wdm) ? Math.max(0, Math.ceil(wdm)) : 31;
+                                  const clamp = (x) => Math.max(-maxAbs, Math.min(maxAbs, x));
+
+                                  return (
+                                    <div className="inline-flex items-center justify-end gap-1">
+                                      <button
+                                        type="button"
+                                        disabled={savingAdj}
+                                        title={`Increase LOP (HR adj -1). Current adj: ${deltaNow}`}
+                                        onClick={() => saveAttendanceDeltaPaidDays(u, clamp(deltaNow - 1))}
+                                        className={`inline-flex items-center justify-center rounded-md border px-1 py-0.5 text-slate-700 hover:bg-slate-50 ${
+                                          savingAdj ? 'opacity-50 cursor-not-allowed' : 'border-slate-200'
+                                        }`}
+                                      >
+                                        <Plus className="w-3.5 h-3.5" />
+                                      </button>
+
+                                      <span className="text-slate-800 font-medium tabular-nums" title="LOP weekdays">
+                                        {ov.lopDays ?? '—'}
+                                      </span>
+
+                                      <button
+                                        type="button"
+                                        disabled={savingAdj}
+                                        title={`Decrease LOP (HR adj +1). Current adj: ${deltaNow}`}
+                                        onClick={() => saveAttendanceDeltaPaidDays(u, clamp(deltaNow + 1))}
+                                        className={`inline-flex items-center justify-center rounded-md border px-1 py-0.5 text-slate-700 hover:bg-slate-50 ${
+                                          savingAdj ? 'opacity-50 cursor-not-allowed' : 'border-slate-200'
+                                        }`}
+                                      >
+                                        <Minus className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  );
+                                })()
                               )}
                             </td>
                             <td className="px-3 py-2.5 text-right whitespace-nowrap">

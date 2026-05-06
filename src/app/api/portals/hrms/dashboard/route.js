@@ -9,11 +9,13 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const companyId = searchParams.get('companyId');
     const company = searchParams.get('company');
+    const payrollCompany = searchParams.get('payrollCompany');
 
     // Build query params
     const params = new URLSearchParams();
     if (companyId) params.append('companyId', companyId);
     if (company) params.append('company', company);
+    if (payrollCompany && payrollCompany !== 'all') params.append('payrollCompany', payrollCompany);
 
     const queryString = params.toString();
     const baseUrl = `${API_BASE_URL}/hrms/dashboard`;

@@ -9,6 +9,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const company = searchParams.get('company') || request.headers.get('x-company');
     const monthYear = searchParams.get('monthYear');
+    const payrollCompany = searchParams.get('payrollCompany');
     if (!company) {
       return NextResponse.json({ success: false, error: 'company is required' }, { status: 400 });
     }
@@ -19,6 +20,7 @@ export async function GET(request) {
     const params = new URLSearchParams();
     params.append('company', company);
     params.append('monthYear', monthYear);
+    if (payrollCompany && payrollCompany !== 'all') params.append('payrollCompany', payrollCompany);
 
     const backendUrl = `${API_BASE_URL}/hrms/payroll/employees-month-overview?${params.toString()}`;
     const response = await fetch(backendUrl, {

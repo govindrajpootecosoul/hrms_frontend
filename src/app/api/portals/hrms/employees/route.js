@@ -9,6 +9,7 @@ export async function GET(request) {
     const search = searchParams.get('search');
     const department = searchParams.get('department');
     const status = searchParams.get('status');
+    const payrollCompany = searchParams.get('payrollCompany');
 
     // Forward request to backend
     const params = new URLSearchParams();
@@ -23,6 +24,9 @@ export async function GET(request) {
     }
     if (status) {
       params.append('status', status);
+    }
+    if (payrollCompany && payrollCompany !== 'all') {
+      params.append('payrollCompany', payrollCompany);
     }
 
     const backendUrl = `${API_BASE_URL}/hrms/employees${params.toString() ? `?${params.toString()}` : ''}`;

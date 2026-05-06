@@ -209,11 +209,38 @@ export default function EmployeesPage() {
         setError(null);
         
         const company = resolveCompanyName();
+
+        const readCookie = (name) => {
+          if (typeof document === 'undefined') return null;
+          const cookieStr = String(document.cookie || '');
+          const parts = cookieStr.split(';').map((p) => p.trim());
+          const prefix = `${name}=`;
+          for (const p of parts) {
+            if (p.startsWith(prefix)) return decodeURIComponent(p.slice(prefix.length));
+          }
+          return null;
+        };
+
+        const getPayrollCompanyFilter = () => {
+          if (typeof window === 'undefined') return null;
+          const fromSession = sessionStorage.getItem('hrms_payroll_company');
+          const fromCookie = readCookie('hrms_payroll_company');
+          const v = String(fromSession || fromCookie || '').trim();
+          return v && v !== 'all' ? v : null;
+        };
         
         // Build API URL with company filter if available
         let apiUrl = `${API_BASE_URL}/admin-users`;
         if (company) {
           apiUrl += `?company=${encodeURIComponent(company)}`;
+        }
+
+        // Thrive-only: apply payroll company filter
+        if (company && String(company).toLowerCase() === 'thrive') {
+          const payrollCompany = getPayrollCompanyFilter();
+          if (payrollCompany) {
+            apiUrl += `${apiUrl.includes('?') ? '&' : '?'}payrollCompany=${encodeURIComponent(payrollCompany)}`;
+          }
         }
         
         console.log('[EmployeesPage] Fetching employees from:', apiUrl);
@@ -309,6 +336,7 @@ export default function EmployeesPage() {
                 
                 // Work details
                 reportingManager: user.reportingManager || '',
+                payrollCompany: user.payrollCompany || '',
                 
                 // Bank & Insurance
                 bankAccount: user.bankAccount || '',
@@ -371,6 +399,24 @@ export default function EmployeesPage() {
     fetchEmployees();
   }, [companyId, user?.email]);
 
+  // Re-fetch when payroll filter changes (navbar dropdown)
+  useEffect(() => {
+    const handler = () => {
+      // Trigger the fetchEmployees effect by reloading the route data
+      // (this component's fetch is client-side; easiest is full reload of list logic)
+      try {
+        // Re-run the same effect logic by forcing a state change: just call location reload-free via reloading page section
+        // Since fetchEmployees is inside the other effect, we can simply reload the window to ensure fresh data.
+        // But keep it lightweight: re-dispatch a popstate-like update by updating state via setting companyId? not possible.
+        window.location.reload();
+      } catch (e) {
+        window.location.reload();
+      }
+    };
+    window.addEventListener('hrms:payrollCompanyChange', handler);
+    return () => window.removeEventListener('hrms:payrollCompanyChange', handler);
+  }, []);
+
   // Handle adding/updating employee
   const handleSaveEmployee = async (employeeData) => {
     try {
@@ -413,6 +459,7 @@ export default function EmployeesPage() {
           
           // Work details
           jobTitle: employeeData.jobTitle !== undefined ? employeeData.jobTitle : '',
+          payrollCompany: employeeData.payrollCompany !== undefined ? employeeData.payrollCompany : '',
           location: employeeData.location !== undefined ? employeeData.location : '',
           reportingManager: employeeData.reportingManager !== undefined ? employeeData.reportingManager : '',
           joiningDate: employeeData.joiningDate !== undefined ? employeeData.joiningDate : '',
@@ -515,6 +562,7 @@ export default function EmployeesPage() {
           // Work Details
           jobTitle: employeeData.jobTitle || '',
           department: employeeData.department || '',
+          payrollCompany: employeeData.payrollCompany || '',
           location: employeeData.location || '',
           reportingManager: employeeData.reportingManager || '',
           joiningDate: employeeData.joiningDate || '',

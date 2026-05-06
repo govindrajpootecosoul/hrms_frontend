@@ -10,6 +10,10 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
 
+const PAYROLL_COMPANY_FILTER_COOKIE = 'hrms_payroll_company';
+const PAYROLL_COMPANY_FILTER_SESSION_KEY = 'hrms_payroll_company';
+const PAYROLL_COMPANY_FILTER_OPTIONS = ['all', 'Genova Enterprises LLP', 'Beacon IQ'];
+
 const Navbar = ({ onMenuToggle, isMenuOpen, menuItems = [] }) => {
   const { user, logout } = useAuth();
   const { currentCompany } = useCompany();
@@ -19,6 +23,7 @@ const Navbar = ({ onMenuToggle, isMenuOpen, menuItems = [] }) => {
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [profileMenuPosition, setProfileMenuPosition] = useState({ top: 0, left: 0 });
+  const [payrollCompanyFilter, setPayrollCompanyFilter] = useState('all');
   const buttonRefs = useRef({});
   const profileButtonRef = useRef(null);
   const pathname = usePathname();
@@ -87,6 +92,33 @@ const Navbar = ({ onMenuToggle, isMenuOpen, menuItems = [] }) => {
       };
     }
   }, [pathname]); // Re-check when pathname changes
+
+  const readCookie = (name) => {
+    if (typeof document === 'undefined') return null;
+    const cookieStr = String(document.cookie || '');
+    const parts = cookieStr.split(';').map((p) => p.trim());
+    const prefix = `${name}=`;
+    for (const p of parts) {
+      if (p.startsWith(prefix)) return decodeURIComponent(p.slice(prefix.length));
+    }
+    return null;
+  };
+
+  const writeCookie = (name, value, { maxAgeSeconds = 60 * 60 * 24 * 30 } = {}) => {
+    if (typeof document === 'undefined') return;
+    const encoded = encodeURIComponent(String(value));
+    document.cookie = `${name}=${encoded}; Path=/; Max-Age=${maxAgeSeconds}; SameSite=Lax`;
+  };
+
+  // Initialize payroll company filter (Thrive only, HRMS only)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const fromSession = sessionStorage.getItem(PAYROLL_COMPANY_FILTER_SESSION_KEY);
+    const fromCookie = readCookie(PAYROLL_COMPANY_FILTER_COOKIE);
+    const resolved = (fromSession || fromCookie || 'all').trim();
+    setPayrollCompanyFilter(PAYROLL_COMPANY_FILTER_OPTIONS.includes(resolved) ? resolved : 'all');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   // Update dropdown position on scroll/resize
   useEffect(() => {
@@ -180,6 +212,9 @@ const Navbar = ({ onMenuToggle, isMenuOpen, menuItems = [] }) => {
   const getCompanyName = () => {
     return formatCompanyName(selectedCompany);
   };
+
+  const shouldShowPayrollCompanyFilter =
+    Boolean(pathname?.includes('/hrms')) && String(getCompanyName() || '').toLowerCase() === 'thrive';
 
   // Determine portal name based on pathname
   // Use a consistent default for SSR, then update on client
@@ -297,6 +332,41 @@ const Navbar = ({ onMenuToggle, isMenuOpen, menuItems = [] }) => {
 
           {/* Right side - user actions */}
           <div className="flex flex-wrap items-center gap-3">
+            {/* Thrive-only: Payroll company filter */}
+            {shouldShowPayrollCompanyFilter && (
+              <div className="flex items-center gap-2 rounded-full bg-white/10 border border-white/10 px-3 h-10 backdrop-blur-sm">
+                <span className="text-xs text-white/80 whitespace-nowrap">Payroll</span>
+                <select
+                  value={payrollCompanyFilter}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setPayrollCompanyFilter(next);
+                    if (typeof window !== 'undefined') {
+                      sessionStorage.setItem(PAYROLL_COMPANY_FILTER_SESSION_KEY, next);
+                      writeCookie(PAYROLL_COMPANY_FILTER_COOKIE, next);
+                      window.dispatchEvent(
+                        new CustomEvent('hrms:payrollCompanyChange', { detail: { payrollCompany: next } })
+                      );
+                    }
+                    router.refresh?.();
+                  }}
+                  className="bg-transparent text-white text-sm font-medium outline-none border-none focus:ring-0 cursor-pointer"
+                  style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
+                  title="Filter by payroll company"
+                >
+                  <option value="all" className="text-slate-900">
+                    All
+                  </option>
+                  <option value="Genova Enterprises LLP" className="text-slate-900">
+                    Genova Enterprises LLP
+                  </option>
+                  <option value="Beacon IQ" className="text-slate-900">
+                    Beacon IQ
+                  </option>
+                </select>
+              </div>
+            )}
+
             {/* Home button - Back to Select Portal */}
             <button 
               onClick={() => router.push('/select-portal')}

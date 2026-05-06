@@ -52,6 +52,8 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
   const [departments, setDepartments] = useState([]);
   const [loadingDepartments, setLoadingDepartments] = useState(false);
   const [departmentsFromDB, setDepartmentsFromDB] = useState(false);
+
+  const PAYROLL_COMPANY_OPTIONS = ['Genova Enterprises LLP', 'Beacon IQ'];
   
   // Initialize form data - if editing, populate with employee data
   // This function should be called fresh each time to get the latest employeeToEdit
@@ -118,7 +120,12 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
         jobTitle: getFieldValue(employee.jobTitle),
         department: getFieldValue(employee.department),
         company: getFieldValue(employee.company) || defaultCompany,
-        payrollCompany: getFieldValue(employee.payrollCompany),
+        payrollCompany: (() => {
+          const v = getFieldValue(employee.payrollCompany);
+          // Back-compat: previously stored without space.
+          if (v === 'BeaconIQ') return 'Beacon IQ';
+          return v;
+        })(),
         location: getFieldValue(employee.location),
         reportingManager: getFieldValue(employee.reportingManager),
         joiningDate: getDateValue(employee.joiningDate || employee.createdAt),
@@ -467,6 +474,9 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
     
     // Auto-generate Employee ID if not provided
     const finalFormData = { ...formData };
+    if (finalFormData.payrollCompany === 'BeaconIQ') {
+      finalFormData.payrollCompany = 'Beacon IQ';
+    }
     if (!finalFormData.employeeId) {
       const employeeNumbers = existingEmployees
         .map((emp) => {
@@ -964,25 +974,23 @@ export default function AddEmployeeDialog({ open, onOpenChange, onSave, existing
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Payroll company</label>
-              {String(formData.company || '')
-                .toLowerCase()
-                .includes('thrive') ? (
-                <select
-                  value={formData.payrollCompany}
-                  onChange={(e) => handleInputChange('payrollCompany', e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border transition-all duration-200 border-neutral-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                >
-                  <option value="">Select payroll company</option>
-                  <option value="Genova Enterprises LLP">Genova Enterprises LLP</option>
-                  <option value="BeaconIQ">BeaconIQ</option>
-                </select>
-              ) : (
-                <Input
-                  value={formData.payrollCompany}
-                  onChange={(e) => handleInputChange('payrollCompany', e.target.value)}
-                  placeholder="Enter payroll company"
-                />
-              )}
+              <select
+                value={formData.payrollCompany}
+                onChange={(e) => handleInputChange('payrollCompany', e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border transition-all duration-200 border-neutral-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              >
+                <option value="">Select payroll company</option>
+                {PAYROLL_COMPANY_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+                {/* Keep any existing value visible while editing */}
+                {formData.payrollCompany &&
+                  !PAYROLL_COMPANY_OPTIONS.includes(formData.payrollCompany) && (
+                    <option value={formData.payrollCompany}>{formData.payrollCompany}</option>
+                  )}
+              </select>
               <p className="text-xs text-slate-500 mt-1">This is used for payroll grouping/reporting.</p>
             </div>
             <div>

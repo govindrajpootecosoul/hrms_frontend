@@ -9,6 +9,7 @@ export async function GET(request) {
     const company = searchParams.get('company');
     const department = searchParams.get('department'); // optional
     const date = searchParams.get('date') || new Date().toISOString().split('T')[0]; // Default to today
+    const payrollCompany = searchParams.get('payrollCompany');
 
     const normalizeCompany = (v) => {
       if (!v) return null;
@@ -35,6 +36,7 @@ export async function GET(request) {
     if (company) params.append('company', company);
     params.append('date', date);
     if (department && department !== 'all') params.append('department', department);
+    if (payrollCompany && payrollCompany !== 'all') params.append('payrollCompany', payrollCompany);
 
     const queryString = params.toString();
 
