@@ -169,6 +169,45 @@ const Dashboard = () => {
   const { currentCompany } = useCompany();
   const toast = useToast();
 
+  const readCookie = (name) => {
+    if (typeof document === 'undefined') return null;
+    const cookieStr = String(document.cookie || '');
+    const parts = cookieStr.split(';').map((p) => p.trim());
+    const prefix = `${name}=`;
+    for (const p of parts) {
+      if (p.startsWith(prefix)) return decodeURIComponent(p.slice(prefix.length));
+    }
+    return null;
+  };
+
+  const getPayrollCompanyFilter = (companyName) => {
+    const co = String(companyName || '').trim().toLowerCase();
+    if (co !== 'thrive') return null;
+    if (typeof window === 'undefined') return null;
+    const fromSession = sessionStorage.getItem('hrms_payroll_company');
+    const fromCookie = readCookie('hrms_payroll_company');
+    const v = String(fromSession || fromCookie || '').trim();
+    return v && v !== 'all' ? v : null;
+  };
+
+  const [payrollFilterRefreshToken, setPayrollFilterRefreshToken] = useState(0);
+
+  // Re-fetch dashboard when payroll filter changes (navbar dropdown)
+  useEffect(() => {
+    const handler = () => {
+      // Clear dashboard caches so the new filter is reflected immediately.
+      try {
+        sessionStorage.removeItem(DASHBOARD_CACHE_KEY);
+        sessionStorage.removeItem(CALENDAR_CACHE_KEY);
+      } catch {
+        // ignore
+      }
+      setPayrollFilterRefreshToken(Date.now());
+    };
+    window.addEventListener('hrms:payrollCompanyChange', handler);
+    return () => window.removeEventListener('hrms:payrollCompanyChange', handler);
+  }, []);
+
   const [selectedDepartment, setSelectedDepartment] = useState('all');
   const [selectedDate, setSelectedDate] = useState(() => {
     const d = new Date();
@@ -295,6 +334,8 @@ const Dashboard = () => {
             if (company) p.append('company', company);
             if (companyId) p.append('companyId', companyId);
             if (selectedDepartment && selectedDepartment !== 'all') p.append('department', selectedDepartment);
+            const payrollCompany = getPayrollCompanyFilter(company);
+            if (payrollCompany) p.append('payrollCompany', payrollCompany);
 
             const res = await fetch(`/api/hrms-portal/attendance/stats?${p.toString()}`, {
               cache: 'no-store',
@@ -362,11 +403,13 @@ const Dashboard = () => {
         }
 
         // Prevent duplicate loads (Next dev strict-mode runs effects twice)
+        const payrollCompanyKey = getPayrollCompanyFilter(company) || 'all';
         const dashKey = JSON.stringify({
           companyId: companyId || null,
           company: company || null,
           department: selectedDepartment || 'all',
           date: selectedDate || null,
+          payrollCompany: payrollCompanyKey,
         });
         if (dashboardLoadInFlightRef.current) return;
         if (dashboardLastKeyRef.current === dashKey) return;
@@ -424,6 +467,8 @@ const Dashboard = () => {
         if (company) params.append('company', company);
         if (selectedDepartment && selectedDepartment !== 'all') params.append('department', selectedDepartment);
         if (selectedDate) params.append('date', selectedDate);
+        const payrollCompany = getPayrollCompanyFilter(company);
+        if (payrollCompany) params.append('payrollCompany', payrollCompany);
         const queryString = params.toString();
 
         // Fetch attendance stats directly (same as Attendance Overview)
@@ -432,6 +477,8 @@ const Dashboard = () => {
         attendanceStatsParams.append('date', today);
         if (company) attendanceStatsParams.append('company', company);
         if (companyId) attendanceStatsParams.append('companyId', companyId);
+        const payrollCompanyForStats = getPayrollCompanyFilter(company);
+        if (payrollCompanyForStats) attendanceStatsParams.append('payrollCompany', payrollCompanyForStats);
         
         if (selectedDepartment && selectedDepartment !== 'all') {
           attendanceStatsParams.append('department', selectedDepartment);
@@ -575,6 +622,8 @@ const Dashboard = () => {
           if (company) ccParams.append('company', company);
           if (selectedDepartment && selectedDepartment !== 'all') ccParams.append('department', selectedDepartment);
           if (selectedDate) ccParams.append('date', selectedDate);
+          const payrollCompanyForCc = getPayrollCompanyFilter(company);
+          if (payrollCompanyForCc) ccParams.append('payrollCompany', payrollCompanyForCc);
           const ccRes = await fetch(`/api/hrms/dashboard/command-center${ccParams.toString() ? `?${ccParams.toString()}` : ''}`, {
             cache: 'no-store',
           });
@@ -630,7 +679,7 @@ const Dashboard = () => {
     
     // Initial load
     loadData();
-  }, [companyId, currentCompany, selectedDepartment, selectedDate]);
+  }, [companyId, currentCompany, selectedDepartment, selectedDate, payrollFilterRefreshToken]);
 
   // Calendar data (birthdays + work anniversaries): fetch only when calendar month or filters change.
   useEffect(() => {
@@ -658,12 +707,14 @@ const Dashboard = () => {
         }
         calendarCompanyRetryCountRef.current = 0;
 
+        const payrollCompanyKey = getPayrollCompanyFilter(company) || 'all';
         const calKey = JSON.stringify({
           companyId: companyId || null,
           company: company || null,
           department: selectedDepartment || 'all',
           cal: selectedCalendarMonth ? selectedCalendarMonth.toISOString().slice(0, 7) : null,
           refresh: calendarRefreshToken || 0,
+          payrollCompany: payrollCompanyKey,
         });
         if (calendarLoadInFlightRef.current) return;
         if (calendarLastKeyRef.current === calKey) return;
@@ -697,6 +748,8 @@ const Dashboard = () => {
         if (company) calendarParams.append('company', company);
         if (selectedDepartment && selectedDepartment !== 'all') calendarParams.append('department', selectedDepartment);
         calendarParams.append('date', calAnchor);
+        const payrollCompanyForCal = getPayrollCompanyFilter(company);
+        if (payrollCompanyForCal) calendarParams.append('payrollCompany', payrollCompanyForCal);
         // Avoid any intermediary caching and allow forced refreshes.
         if (calendarRefreshToken) calendarParams.append('_t', String(calendarRefreshToken));
         const calendarQueryString = calendarParams.toString();
@@ -766,7 +819,7 @@ const Dashboard = () => {
     };
 
     loadCalendar();
-  }, [companyId, currentCompany, selectedDepartment, selectedCalendarMonth, calendarRefreshToken]);
+  }, [companyId, currentCompany, selectedDepartment, selectedCalendarMonth, calendarRefreshToken, payrollFilterRefreshToken]);
 
   // Fetch employees list
   useEffect(() => {
@@ -779,6 +832,8 @@ const Dashboard = () => {
         if (company) {
           params.append('company', company);
         }
+        const payrollCompany = getPayrollCompanyFilter(company);
+        if (payrollCompany) params.append('payrollCompany', payrollCompany);
         // Keep modal roster aligned with global filters
         if (selectedDepartment && selectedDepartment !== 'all') {
           params.append('department', selectedDepartment);
@@ -835,6 +890,8 @@ const Dashboard = () => {
         if (company) {
           params.append('company', company);
         }
+        const payrollCompany = getPayrollCompanyFilter(company);
+        if (payrollCompany) params.append('payrollCompany', payrollCompany);
         if (selectedDepartment && selectedDepartment !== 'all') {
           params.append('department', selectedDepartment);
         }
