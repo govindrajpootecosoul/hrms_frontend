@@ -608,59 +608,59 @@ export default function WarehouseEmployeesPage() {
 
   const handleDownloadTemplate = () => {
     const headers = [
-      'First Name',
-      'Last Name',
-      'Email',
-      'Phone',
-      'Date of Birth',
+      'Name',
+      'Father/Husband Name',
+      'DOB',
+      'DOJ',
+      'Age',
       'Gender',
-      'Address',
-      'City',
-      'State',
-      'Zip Code',
-      'Emergency Contact',
-      'Emergency Phone',
-      'Employee ID',
-      'Job Title',
-      'Department',
-      'Location',
-      'Reporting Manager',
-      'Joining Date',
-      'Bank Account Number',
+      'Mobile Number',
+      'Adhaar Number',
+      'Ration Number',
+      'PAN Card',
+      'Current Address',
+      'Permanent Address',
+      'Job title',
+      'Deparment',
+      'Bank Name',
+      'A/C No.',
       'IFSC Code',
-      'PAN Number',
-      'Aadhaar Number',
+      'Branch Name',
+      'Emergency Contact Name',
+      'Relation',
+      'Mobile Number',
       'UAN Number',
-      'ESI Number',
-      'PF Number',
+      'ESIC',
+      'Family Details',
+      'Location',
     ];
 
     const sampleRow = [
-      'John',
-      'Doe',
-      'john.doe@example.com',
-      '1234567890',
-      '1990-01-15',
-      'Male',
-      '123 Main Street',
-      'Bangalore',
-      'Karnataka',
-      '560001',
-      'Jane Doe',
-      '9876543210',
+      'Ajay Pulp',
       '',
-      'Warehouse Associate',
-      'Warehouse',
-      'Bangalore',
-      'Manager Name',
-      '2024-01-15',
       '',
+      '17.09.2023',
+      '',
+      'M',
+      '8929914475',
+      '580694720150',
+      '',
+      'GBSPK1925D',
+      '',
+      '',
+      'Pulping',
+      '',
+      'ICICI',
+      '071901534536',
+      'ICIC0000719',
       '',
       '',
       '',
+      '8929914475',
+      '100544895305',
+      '6717318106',
       '',
-      '',
-      '',
+      'Muzaffarnagar',
     ];
 
     const wb = XLSX.utils.book_new();
@@ -705,9 +705,12 @@ export default function WarehouseEmployeesPage() {
         });
         setTimeout(() => window.location.reload(), 2000);
       } else {
+        // Client console (browser) - server terminal has the detailed logs
+        console.error('[WarehouseEmployeesPage] Bulk upload failed:', result);
         setErrorDialog({ open: true, message: result.error || 'Failed to upload employees' });
       }
-    } catch (_error) {
+    } catch (error) {
+      console.error('[WarehouseEmployeesPage] Bulk upload request crashed:', error);
       setErrorDialog({ open: true, message: 'Failed to upload file. Please try again.' });
     } finally {
       setIsUploading(false);
