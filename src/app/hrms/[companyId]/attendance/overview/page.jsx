@@ -907,10 +907,10 @@ const AttendanceOverviewPage = () => {
     <div className="space-y-8">
       {/* Page Header */}
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold text-slate-900">
+        <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight text-slate-900">
           Attendance Overview
         </h1>
-        <p className="text-lg text-slate-600">
+        <p className="text-sm text-slate-600">
           Track and manage employee attendance
         </p>
       </div>
@@ -918,53 +918,61 @@ const AttendanceOverviewPage = () => {
       {/* KPI Cards - 2 rows */}
       <div className="space-y-4">
         {/* First row - 4 cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            { title: 'Total Employees', value: stats.totalEmployees, icon: Users, gradient: 'from-blue-600 via-indigo-600 to-blue-700', filterType: 'total' },
-            { title: 'Present Today', value: stats.presentToday, icon: UserCheck, gradient: 'from-green-600 via-emerald-600 to-green-700', filterType: 'present' },
-            { title: 'Absent Today', value: stats.absentToday, icon: UserX, gradient: 'from-red-600 via-rose-600 to-red-700', filterType: 'absent' },
-            { title: 'On Leave', value: stats.onLeaveToday, icon: CalendarDays, gradient: 'from-purple-600 via-violet-600 to-purple-700', filterType: 'on-leave' },
+            { title: 'Total employees', value: stats.totalEmployees, icon: Users, iconBg: 'bg-slate-50', iconColor: 'text-slate-700', filterType: 'total' },
+            { title: 'Present', value: stats.presentToday, icon: UserCheck, iconBg: 'bg-emerald-50', iconColor: 'text-emerald-700', filterType: 'present' },
+            { title: 'Absent', value: stats.absentToday, icon: UserX, iconBg: 'bg-rose-50', iconColor: 'text-rose-700', filterType: 'absent' },
+            { title: 'On leave', value: stats.onLeaveToday, icon: CalendarDays, iconBg: 'bg-amber-50', iconColor: 'text-amber-700', filterType: 'on-leave' },
           ].map((kpi, index) => {
             const Icon = kpi.icon;
             return (
               <div
                 key={index}
                 onClick={() => handleCardClick(kpi.filterType, kpi.title)}
-                className={`bg-gradient-to-r ${kpi.gradient} rounded-xl p-5 text-white shadow-lg cursor-pointer hover:scale-105 transition-transform duration-200`}
+                className="group bg-white rounded-2xl border border-slate-200/70 shadow-[0_4px_12px_rgba(0,0,0,0.03)] px-4 py-3 cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md"
               >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-                    <Icon className="w-6 h-6 text-white" />
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 ${kpi.iconBg} rounded-xl border border-slate-200/60 flex items-center justify-center`}>
+                    <Icon className={`w-5 h-5 ${kpi.iconColor}`} />
                   </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[11px] font-medium tracking-wide text-slate-500 uppercase truncate">{kpi.title}</div>
+                    <div className="text-xl font-semibold tracking-tight text-slate-900">{kpi.value}</div>
+                  </div>
+                  <div className="text-xs text-slate-500">Today</div>
                 </div>
-                <div className="text-3xl font-bold mb-1">{kpi.value}</div>
-                <div className="text-xs text-white/90 uppercase tracking-wide">{kpi.title}</div>
               </div>
             );
           })}
         </div>
 
         {/* Second row - 3 cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {[
-            { title: 'On WFH', value: stats.onWFHToday, icon: Home, gradient: 'from-pink-600 via-rose-600 to-pink-700', filterType: 'wfh' },
-            { title: 'Late Check-ins', value: stats.lateCheckIns, icon: Clock3, gradient: 'from-orange-600 via-amber-600 to-orange-700', filterType: 'late' },
-            { title: 'Leave Approvals', value: stats.leaveApprovals, icon: CheckCircle2, gradient: 'from-emerald-600 via-teal-600 to-emerald-700', filterType: null },
+            { title: 'WFH', value: stats.onWFHToday, icon: Home, iconBg: 'bg-sky-50', iconColor: 'text-sky-700', filterType: 'wfh' },
+            { title: 'Late check-ins', value: stats.lateCheckIns, icon: Clock3, iconBg: 'bg-amber-50', iconColor: 'text-amber-700', filterType: 'late' },
+            { title: 'Leave approvals', value: stats.leaveApprovals, icon: CheckCircle2, iconBg: 'bg-indigo-50', iconColor: 'text-indigo-700', filterType: null },
           ].map((kpi, index) => {
             const Icon = kpi.icon;
             return (
               <div
                 key={index}
                 onClick={() => kpi.filterType && handleCardClick(kpi.filterType, kpi.title)}
-                className={`bg-gradient-to-r ${kpi.gradient} rounded-xl p-5 text-white shadow-lg ${kpi.filterType ? 'cursor-pointer hover:scale-105 transition-transform duration-200' : ''}`}
+                className={`group bg-white rounded-2xl border border-slate-200/70 shadow-[0_4px_12px_rgba(0,0,0,0.03)] px-4 py-3 transition-all hover:-translate-y-0.5 hover:shadow-md ${
+                  kpi.filterType ? 'cursor-pointer' : 'cursor-default'
+                }`}
               >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-                    <Icon className="w-6 h-6 text-white" />
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 ${kpi.iconBg} rounded-xl border border-slate-200/60 flex items-center justify-center`}>
+                    <Icon className={`w-5 h-5 ${kpi.iconColor}`} />
                   </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[11px] font-medium tracking-wide text-slate-500 uppercase truncate">{kpi.title}</div>
+                    <div className="text-xl font-semibold tracking-tight text-slate-900">{kpi.value}</div>
+                  </div>
+                  <div className="text-xs text-slate-500">Today</div>
                 </div>
-                <div className="text-3xl font-bold mb-1">{kpi.value}</div>
-                <div className="text-xs text-white/90 uppercase tracking-wide">{kpi.title}</div>
               </div>
             );
           })}
@@ -974,7 +982,7 @@ const AttendanceOverviewPage = () => {
       {/* Attendance Distribution Chart and Trends Table */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Chart */}
-        <Card className="border-2 p-6">
+        <Card className="border border-slate-200/70 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.03)] p-6">
           <BarGraph
             title="Attendance Distribution"
             subtitle="Click on a bar to filter trends below"
@@ -999,7 +1007,7 @@ const AttendanceOverviewPage = () => {
         <Card
           title="Last 7 Days Trends"
           subtitle="Employee attendance trends for last 7 days"
-          className="border-2"
+          className="border border-slate-200/70 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.03)]"
         >
           <Table
             columns={[
@@ -1047,7 +1055,7 @@ const AttendanceOverviewPage = () => {
       <Card
         title="Sales Person Attendance"
         subtitle="Today's attendance for Sales team"
-        className="border-2"
+        className="border border-slate-200/70 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.03)]"
       >
         <Table
           columns={[
@@ -1091,7 +1099,7 @@ const AttendanceOverviewPage = () => {
       <Card
         title="Attendance Log - Daily Basis"
         subtitle="View and manage employee attendance records for today"
-        className="border-2"
+        className="border border-slate-200/70 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.03)]"
       >
         {/* Filters and Actions */}
         <div className="mb-6 space-y-4">
@@ -1104,14 +1112,14 @@ const AttendanceOverviewPage = () => {
                   placeholder="Search by name, code, or department"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full h-10 pl-10 pr-4 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300"
                 />
               </div>
             </div>
             <select
               value={filterPeriod}
               onChange={(e) => setFilterPeriod(e.target.value)}
-              className="px-4 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 flex-none"
+              className="h-10 px-3 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300 flex-none"
             >
               <option value="daily">Daily (Default)</option>
               <option value="weekly">Weekly</option>
@@ -1123,13 +1131,13 @@ const AttendanceOverviewPage = () => {
                 type="date"
                 value={baseDate}
                 onChange={(e) => setBaseDate(e.target.value)}
-                className="px-3 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="h-10 px-3 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300"
               />
             </div>
             <select
               value={filterDepartment}
               onChange={(e) => setFilterDepartment(e.target.value)}
-              className="px-4 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 flex-none"
+              className="h-10 px-3 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300 flex-none"
             >
               <option value="all">All Departments</option>
               {Array.from(new Set(employees.map(emp => emp.department).filter(Boolean))).sort().map(dept => (
@@ -1139,7 +1147,7 @@ const AttendanceOverviewPage = () => {
             <select
               value={filterLocation}
               onChange={(e) => setFilterLocation(e.target.value)}
-              className="px-4 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 flex-none"
+              className="h-10 px-3 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300 flex-none"
             >
               <option value="all">All Locations</option>
               <option value="office">Office</option>
@@ -1147,7 +1155,7 @@ const AttendanceOverviewPage = () => {
             </select>
             <div className="flex items-center gap-2 flex-none ml-auto">
               <Button
-                className="bg-transparent border border-neutral-300 text-neutral-700 hover:bg-neutral-50 p-2"
+                className="bg-white border border-slate-200 text-indigo-700 hover:bg-slate-50 p-2 rounded-xl"
                 icon={<Download className="w-4 h-4" />}
                 onClick={handleDownloadCurrentList}
                 aria-label="Download List"
@@ -1156,7 +1164,7 @@ const AttendanceOverviewPage = () => {
                 <span className="sr-only">Download List</span>
               </Button>
               <Button
-                className="bg-transparent border border-neutral-300 text-neutral-700 hover:bg-neutral-50"
+                className="bg-white border border-slate-200 text-indigo-700 hover:bg-slate-50 rounded-xl"
                 onClick={() => setShowBiometricExport(true)}
               >
                 Import Biometric Attendance
@@ -1183,7 +1191,7 @@ const AttendanceOverviewPage = () => {
               <select
                 value={pageSize}
                 onChange={(e) => setPageSize(Number(e.target.value) || 10)}
-                className="px-2 py-1 border border-neutral-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-2 py-1 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300"
               >
                 {[10, 20, 50, 100].map((n) => (
                   <option key={n} value={n}>{n}</option>
@@ -1196,7 +1204,7 @@ const AttendanceOverviewPage = () => {
               <select
                 value={Math.min(page, pageCount - 1)}
                 onChange={(e) => setPage(Math.min(pageCount - 1, Math.max(0, Number(e.target.value) || 0)))}
-                className="px-2 py-1 border border-neutral-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-2 py-1 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300"
                 disabled={filteredAttendance.length === 0}
               >
                 {Array.from({ length: pageCount }, (_, i) => (
@@ -1209,7 +1217,7 @@ const AttendanceOverviewPage = () => {
 
             <Button
               size="sm"
-              className="bg-transparent border border-neutral-300 text-neutral-700 hover:bg-neutral-50"
+              className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl"
               disabled={page === 0}
               onClick={() => setPage(p => Math.max(0, p - 1))}
             >
@@ -1217,7 +1225,7 @@ const AttendanceOverviewPage = () => {
             </Button>
             <Button
               size="sm"
-              className="bg-transparent border border-neutral-300 text-neutral-700 hover:bg-neutral-50"
+              className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl"
               disabled={page >= pageCount - 1}
               onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}
             >

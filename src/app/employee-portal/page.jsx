@@ -36,7 +36,8 @@ const loadInitialState = (employeeId = null) => {
     earliestPunchInTime: null,
     totalMinutes: 0, 
     history: [],
-    employeeId: employeeId // Track which employee this state belongs to
+    employeeId: employeeId, // Track which employee this state belongs to
+    source: 'manual', // manual | machine
   };
 };
 
@@ -336,6 +337,7 @@ const EmployeePortalHome = () => {
           const json = await res.json();
           if (json?.success && json?.data) {
             const { status, checkInTime, totalMinutes, earliestPunchInTime } = json.data;
+            const source = json.data?.source || 'manual';
             const baseMinutes = baseMinutesFromCheckinStatus({
               status,
               checkInTime,
@@ -350,6 +352,7 @@ const EmployeePortalHome = () => {
               totalMinutes: baseMinutes, // Base minutes for checked-in, full totalMinutes for checked-out
               date: getTodayKey(),
               employeeId: user.employeeId, // Ensure employeeId is set
+              source,
             }));
           }
         }
@@ -541,6 +544,7 @@ const EmployeePortalHome = () => {
             const json = await res.json();
             if (json?.success && json?.data) {
               const { status, checkInTime, totalMinutes, earliestPunchInTime } = json.data;
+              const source = json.data?.source || 'manual';
               const baseMinutes = baseMinutesFromCheckinStatus({
                 status,
                 checkInTime,
@@ -554,6 +558,7 @@ const EmployeePortalHome = () => {
                 totalMinutes: baseMinutes,
                 history: [],
                 employeeId: user.employeeId,
+                source,
               });
             }
           }
@@ -567,6 +572,12 @@ const EmployeePortalHome = () => {
 
     const token = localStorage.getItem('auth_token');
     const isCheckingIn = timeState.status === 'checked-out';
+
+    // Only allow manual checkout (biometric/machine sessions are not stored in portal checkins collection).
+    if (!isCheckingIn && timeState.source !== 'manual') {
+      alert('You are checked in via biometric. Manual check-out is not available.');
+      return;
+    }
     
     // Get company from state or sessionStorage
     const company = selectedCompany || (typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null);
@@ -629,6 +640,7 @@ const EmployeePortalHome = () => {
               totalMinutes: accumulatedMinutes, // Resume from accumulated time, not 0
               history: [{ action: 'Checked in', time: timestamp }],
               employeeId: user.employeeId,
+              source: 'manual',
             };
             
             console.log('🔵 CHECKING IN - Setting state:', newState);
@@ -665,6 +677,7 @@ const EmployeePortalHome = () => {
                   const statusJson = await statusRes.json();
                   if (statusJson?.success && statusJson?.data) {
                     const { status, checkInTime, totalMinutes, earliestPunchInTime } = statusJson.data;
+                    const source = statusJson.data?.source || 'manual';
                     // Only update if we got a valid checkInTime from backend
                     if (checkInTime) {
                       const baseMinutes = baseMinutesFromCheckinStatus({
@@ -679,6 +692,7 @@ const EmployeePortalHome = () => {
                         earliestPunchInTime: earliestPunchInTime || null,
                         totalMinutes: baseMinutes, // Store base minutes (accumulated from previous sessions only)
                         employeeId: user.employeeId,
+                        source,
                       }));
                     }
                   }
@@ -717,6 +731,7 @@ const EmployeePortalHome = () => {
                         { action: 'Checked out', time: timestamp, meta: `${sessionHours.toFixed(1)} hrs logged` },
                       ],
                       employeeId: user.employeeId,
+                      source: 'manual',
                     });
                   }
                 }
@@ -917,31 +932,33 @@ const EmployeePortalHome = () => {
             </div>
 
             <div className="mt-5 space-y-2">
-              <Button
-                onClick={handleToggleCheck}
-                className={[
-                  'w-full rounded-2xl shadow-sm',
-                  timeState.status === 'checked-in'
-                    ? 'border border-rose-200 bg-white text-rose-700 hover:bg-rose-50'
-                    : '',
-                ].join(' ')}
-              >
-                {timeState.status === 'checked-in' ? (
-                  <>
-                    <Square className="mr-2 h-4 w-4" />
-                    Check out
-                  </>
-                ) : (
-                  <>
-                    <Play className="mr-2 h-4 w-4" />
-                    Check in
-                  </>
-                )}
-              </Button>
-              <Button variant="outline" className="w-full rounded-2xl border-slate-200 bg-white text-slate-900 hover:bg-slate-50">
-                <Clock className="mr-2 h-4 w-4" />
-                Log manual entry
-              </Button>
+              {timeState.status === 'checked-in' && timeState.source !== 'manual' ? (
+                <div className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700">
+                  Checked in via biometric
+                </div>
+              ) : (
+                <Button
+                  onClick={handleToggleCheck}
+                  className={[
+                    'w-full rounded-2xl shadow-sm',
+                    timeState.status === 'checked-in'
+                      ? 'border border-rose-200 bg-white text-rose-700 hover:bg-rose-50'
+                      : '',
+                  ].join(' ')}
+                >
+                  {timeState.status === 'checked-in' ? (
+                    <>
+                      <Square className="mr-2 h-4 w-4" />
+                      Check out
+                    </>
+                  ) : (
+                    <>
+                      <Play className="mr-2 h-4 w-4" />
+                      Check in
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
 
             <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">

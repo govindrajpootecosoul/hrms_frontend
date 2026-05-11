@@ -735,31 +735,35 @@ const AttendanceLeaveOverviewPage = () => {
   return (
     <div className="space-y-8">
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           {
-            title: 'Total On Leave',
+            title: 'Total on leave',
             value: leaveStats.totalOnLeave,
             icon: Users,
-            gradient: 'from-blue-600 via-indigo-600 to-blue-700',
+            iconBg: 'bg-slate-50',
+            iconColor: 'text-slate-700',
           },
           {
-            title: 'Leave For Approval',
+            title: 'Leave for approval',
             value: leaveStats.leaveForApproval,
             icon: AlertCircle,
-            gradient: 'from-orange-600 via-amber-600 to-orange-700',
+            iconBg: 'bg-amber-50',
+            iconColor: 'text-amber-700',
           },
           {
-            title: 'Approved This Month',
+            title: 'Approved this month',
             value: leaveStats.approvedThisMonth,
             icon: CheckCircle2,
-            gradient: 'from-green-600 via-emerald-600 to-green-700',
+            iconBg: 'bg-emerald-50',
+            iconColor: 'text-emerald-700',
           },
           {
-            title: 'Rejected This Month',
+            title: 'Rejected this month',
             value: leaveStats.rejectedThisMonth,
             icon: XCircle,
-            gradient: 'from-red-600 via-rose-600 to-red-700',
+            iconBg: 'bg-rose-50',
+            iconColor: 'text-rose-700',
           },
         ].map((kpi, index) => {
           const Icon = kpi.icon;
@@ -795,16 +799,19 @@ const AttendanceLeaveOverviewPage = () => {
                   }
                 }
               }}
-              className={`relative overflow-hidden rounded-xl bg-gradient-to-r ${kpi.gradient} shadow-lg ${filterType ? 'cursor-pointer hover:scale-105 transition-transform duration-200 active:scale-95' : ''}`}
+              className={`group bg-white rounded-2xl border border-slate-200/70 shadow-[0_4px_12px_rgba(0,0,0,0.03)] px-4 py-3 transition-all hover:-translate-y-0.5 hover:shadow-md ${
+                filterType ? 'cursor-pointer' : 'cursor-default'
+              }`}
             >
-              <div className="p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-                    <Icon className="w-6 h-6 text-white" />
-                  </div>
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 ${kpi.iconBg} rounded-xl border border-slate-200/60 flex items-center justify-center`}>
+                  <Icon className={`w-5 h-5 ${kpi.iconColor}`} />
                 </div>
-                <div className="text-3xl font-bold mb-1 text-white">{kpi.value}</div>
-                <div className="text-xs text-white/90 uppercase tracking-wide">{kpi.title}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] font-medium tracking-wide text-slate-500 uppercase truncate">{kpi.title}</div>
+                  <div className="text-xl font-semibold tracking-tight text-slate-900">{kpi.value}</div>
+                </div>
+                <div className="text-xs text-slate-500">Today</div>
               </div>
             </div>
           );
@@ -815,7 +822,7 @@ const AttendanceLeaveOverviewPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         {/* Leave Policy List - Left */}
         <div className="lg:col-span-1 space-y-4">
-          <Card className="border-2 p-6">
+          <Card className="border border-slate-200/70 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.03)] p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-lg font-semibold text-slate-900">Leave Policy</h2>
@@ -823,7 +830,7 @@ const AttendanceLeaveOverviewPage = () => {
               </div>
               <Button
                 size="sm"
-                className="bg-transparent border border-neutral-300 text-neutral-700 hover:bg-neutral-50"
+                className="bg-white border border-slate-200 text-indigo-700 hover:bg-slate-50 rounded-xl"
                 icon={<FileText className="w-4 h-4" />}
               >
                 Edit Policy
@@ -835,9 +842,9 @@ const AttendanceLeaveOverviewPage = () => {
                 return (
                   <div
                     key={item.id}
-                    className="flex items-start gap-3 p-3 rounded-lg border border-neutral-200 hover:bg-slate-50 transition-colors"
+                    className="flex items-start gap-3 p-3 rounded-xl border border-slate-200/70 bg-white hover:bg-slate-50 transition-colors"
                   >
-                    <div className={`p-2 rounded-lg bg-neutral-100 ${item.color}`}>
+                    <div className={`p-2 rounded-xl bg-white border border-slate-200/60 ${item.color}`}>
                       <Icon className="w-4 h-4" />
                     </div>
                     <div className="flex-1">
@@ -857,7 +864,7 @@ const AttendanceLeaveOverviewPage = () => {
 
         {/* Bar Chart - Right */}
         <div className="lg:col-span-2">
-          <Card className="border-2 p-6">
+          <Card className="border border-slate-200/70 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.03)] p-6">
             {loading ? (
               <div className="flex items-center justify-center h-[460px]">
                 <div className="text-slate-600">Loading leave utilization data...</div>
@@ -912,7 +919,7 @@ const AttendanceLeaveOverviewPage = () => {
                     </div>
                     <Button
                       onClick={handleExportToExcel}
-                      className="bg-green-600 text-white hover:bg-green-700"
+                  className="bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl"
                       icon={<Download className="w-4 h-4" />}
                     >
                       Export to Excel
@@ -972,7 +979,7 @@ const AttendanceLeaveOverviewPage = () => {
                         setModalFilterType(null);
                         setModalTitle('');
                       }}
-                      className="bg-blue-600 text-white hover:bg-blue-700"
+                      className="bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl"
                     >
                       Close
                     </Button>

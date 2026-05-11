@@ -2,7 +2,7 @@
 
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { LayoutDashboard, FileText } from 'lucide-react';
+import { LayoutDashboard, FileText, Wallet } from 'lucide-react';
 
 export default function AttendanceLeaveLayout({ children }) {
   const params = useParams();
@@ -55,12 +55,18 @@ export default function AttendanceLeaveLayout({ children }) {
       id: 'manage', 
       label: 'Leave Manage', 
       icon: <FileText className="w-4 h-4" />
+    },
+    {
+      id: 'balance',
+      label: 'Leave Balance',
+      icon: <Wallet className="w-4 h-4" />
     }
   ];
 
   // Determine active tab based on pathname
   const getActiveTab = () => {
     if (pathname && pathname.includes('/attendance/leave/manage')) return 'manage';
+    if (pathname && pathname.includes('/attendance/leave/balance')) return 'balance';
     return 'overview';
   };
 
@@ -83,30 +89,30 @@ export default function AttendanceLeaveLayout({ children }) {
     <div className="min-h-screen space-y-8">
       {/* Page Header */}
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold text-slate-900">
+        <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight text-slate-900">
           Leave Management
         </h1>
-        <p className="text-lg text-slate-600">
+        <p className="text-sm text-slate-600">
           Manage employee leave requests and approvals
         </p>
       </div>
 
       {/* Tabs (pill-style, Reports-like) */}
-      <div className="rounded-xl border-2 border-neutral-200 bg-white p-2">
-        <div className="flex flex-wrap gap-2">
+      <div className="inline-flex items-center gap-1 rounded-2xl bg-slate-100 p-1 border border-slate-200/70">
+        <div className="flex flex-wrap gap-1">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
                 onClick={() => handleTabChange(tab.id)}
-                className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all duration-200 ${
+                className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
                   isActive
-                    ? 'bg-gradient-to-br from-blue-600 via-indigo-600 to-blue-700 text-white shadow-md'
-                    : 'bg-neutral-50 text-neutral-700 hover:bg-neutral-100'
+                    ? 'bg-white text-slate-900 shadow-sm border border-slate-200/70'
+                    : 'text-slate-700 hover:text-slate-900 hover:bg-white/60'
                 }`}
               >
-                {tab.icon ? <span className={isActive ? 'text-white' : 'text-neutral-500'}>{tab.icon}</span> : null}
+                {tab.icon ? <span className={isActive ? 'text-slate-900' : 'text-slate-500'}>{tab.icon}</span> : null}
                 <span>{tab.label}</span>
               </button>
             );
@@ -115,7 +121,9 @@ export default function AttendanceLeaveLayout({ children }) {
       </div>
 
       {/* Tab content */}
-      {children}
+      <div className="rounded-2xl bg-slate-50 border border-slate-200/60 p-4 sm:p-5">
+        {children}
+      </div>
     </div>
   );
 }

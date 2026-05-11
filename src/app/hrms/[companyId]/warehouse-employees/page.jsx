@@ -501,7 +501,7 @@ export default function WarehouseEmployeesPage() {
 
   const renderNameCell = (employee) => (
     <div className="flex items-center gap-2">
-      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-semibold">
+      <div className="w-8 h-8 bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-700 text-xs font-semibold">
         {(employee?.name || 'U').charAt(0).toUpperCase()}
       </div>
       <div className="text-sm font-medium text-slate-900">{employee?.name || '-'}</div>
@@ -1278,37 +1278,12 @@ export default function WarehouseEmployeesPage() {
     }
   };
 
-  const gradients = [
-    'from-blue-600 via-indigo-600 to-blue-700',
-    'from-green-600 via-emerald-600 to-green-700',
-    'from-purple-600 via-violet-600 to-purple-700',
-    'from-pink-600 via-rose-600 to-pink-700',
-    'from-cyan-600 via-blue-600 to-cyan-700',
-    'from-orange-600 via-amber-600 to-orange-700',
-    'from-yellow-600 via-amber-600 to-yellow-700',
-    'from-teal-600 via-cyan-600 to-teal-700',
-    'from-indigo-600 via-purple-600 to-indigo-700',
-    'from-red-600 via-rose-600 to-red-700',
-  ];
-
-  const shadows = [
-    'shadow-blue-500/30',
-    'shadow-green-500/30',
-    'shadow-purple-500/30',
-    'shadow-pink-500/30',
-    'shadow-cyan-500/30',
-    'shadow-orange-500/30',
-    'shadow-yellow-500/30',
-    'shadow-teal-500/30',
-    'shadow-indigo-500/30',
-    'shadow-red-500/30',
-  ];
+  // Note: gradients/shadows removed in premium UI refresh.
 
   return (
     <div className="space-y-6 relative">
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {/* Overall */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         <div
           role="button"
           tabIndex={0}
@@ -1316,47 +1291,37 @@ export default function WarehouseEmployeesPage() {
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') setLocationFilter('All Locations');
           }}
-          className="relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-600 via-indigo-600 to-blue-700 shadow-blue-500/30 shadow-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl cursor-pointer"
+          className="group bg-white rounded-2xl border border-slate-200/70 shadow-[0_4px_12px_rgba(0,0,0,0.03)] px-4 py-3 cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md"
         >
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-indigo-600 to-blue-700 opacity-100" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
-          <div className="relative z-10 p-4 lg:p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div className="bg-white/20 p-2.5 rounded-lg backdrop-blur-sm flex-shrink-0 shadow-lg">
-                <Users className="h-5 w-5 text-white" />
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-indigo-50 rounded-xl border border-slate-200/60 flex items-center justify-center">
+              <Users className="w-5 h-5 text-indigo-700" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[11px] font-medium tracking-wide text-slate-500 uppercase truncate">
+                Total warehouse employees
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-semibold text-white/90 mb-2 uppercase tracking-wide truncate">
-                  Total Warehouse Employees
-                </p>
-                <h3 className="text-2xl lg:text-3xl font-bold text-white leading-tight drop-shadow-sm">
-                  {totalEmployees}
-                </h3>
-                <div className="mt-3 grid grid-cols-3 gap-2 text-[11px] text-white/90">
-                  <div className="bg-white/10 rounded-lg px-2 py-1">
-                    <div className="opacity-80">Active</div>
-                    <div className="font-semibold">{activeEmployees}</div>
-                  </div>
-                  <div className="bg-white/10 rounded-lg px-2 py-1">
-                    <div className="opacity-80">Inactive</div>
-                    <div className="font-semibold">{exEmployeesCount}</div>
-                  </div>
-                  <div className="bg-white/10 rounded-lg px-2 py-1">
-                    <div className="opacity-80">New</div>
-                    <div className="font-semibold">{newThisMonth}</div>
-                  </div>
-                </div>
-              </div>
+              <div className="text-xl font-semibold tracking-tight text-slate-900">{totalEmployees}</div>
+            </div>
+            <div className="text-xs text-slate-500">Today</div>
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-2 text-[11px] text-slate-600">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/50 px-2 py-1">
+              <div className="text-slate-500">Active</div>
+              <div className="font-semibold text-slate-900">{activeEmployees}</div>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50/50 px-2 py-1">
+              <div className="text-slate-500">Inactive</div>
+              <div className="font-semibold text-slate-900">{exEmployeesCount}</div>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50/50 px-2 py-1">
+              <div className="text-slate-500">New</div>
+              <div className="font-semibold text-slate-900">{newThisMonth}</div>
             </div>
           </div>
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-          <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
         </div>
 
-        {/* Location-wise cards */}
-        {locationStats.map((s, idx) => {
-          const gradient = gradients[idx % gradients.length];
-          const shadow = shadows[idx % shadows.length];
+        {locationStats.map((s) => {
           const isSelected = locationFilter === s.location;
           return (
             <div
@@ -1367,43 +1332,35 @@ export default function WarehouseEmployeesPage() {
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') setLocationFilter(s.location);
               }}
-              className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${gradient} ${shadow} shadow-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl cursor-pointer ${
-                isSelected ? 'ring-2 ring-white/90 ring-offset-2 ring-offset-slate-50' : ''
+              className={`group bg-white rounded-2xl border border-slate-200/70 shadow-[0_4px_12px_rgba(0,0,0,0.03)] px-4 py-3 cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md ${
+                isSelected ? 'ring-2 ring-indigo-200' : ''
               }`}
             >
-              <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-100`} />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
-              <div className="relative z-10 p-4 lg:p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="bg-white/20 p-2.5 rounded-lg backdrop-blur-sm flex-shrink-0 shadow-lg">
-                    <Building2 className="h-5 w-5 text-white" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-semibold text-white/90 mb-2 uppercase tracking-wide truncate">
-                      {s.location}
-                    </p>
-                    <h3 className="text-2xl lg:text-3xl font-bold text-white leading-tight drop-shadow-sm">
-                      {s.total}
-                    </h3>
-                    <div className="mt-3 grid grid-cols-3 gap-2 text-[11px] text-white/90">
-                      <div className="bg-white/10 rounded-lg px-2 py-1">
-                        <div className="opacity-80">Active</div>
-                        <div className="font-semibold">{s.active}</div>
-                      </div>
-                      <div className="bg-white/10 rounded-lg px-2 py-1">
-                        <div className="opacity-80">Inactive</div>
-                        <div className="font-semibold">{s.inactive}</div>
-                      </div>
-                      <div className="bg-white/10 rounded-lg px-2 py-1">
-                        <div className="opacity-80">New</div>
-                        <div className="font-semibold">{s.newThisMonth}</div>
-                      </div>
-                    </div>
-                  </div>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-slate-50 rounded-xl border border-slate-200/60 flex items-center justify-center">
+                  <Building2 className="w-5 h-5 text-slate-700" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] font-medium tracking-wide text-slate-500 uppercase truncate">{s.location}</div>
+                  <div className="text-xl font-semibold tracking-tight text-slate-900">{s.total}</div>
+                </div>
+                <div className="text-xs text-slate-500">Today</div>
+              </div>
+
+              <div className="mt-3 grid grid-cols-3 gap-2 text-[11px] text-slate-600">
+                <div className="rounded-xl border border-slate-200 bg-slate-50/50 px-2 py-1">
+                  <div className="text-slate-500">Active</div>
+                  <div className="font-semibold text-slate-900">{s.active}</div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50/50 px-2 py-1">
+                  <div className="text-slate-500">Inactive</div>
+                  <div className="font-semibold text-slate-900">{s.inactive}</div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50/50 px-2 py-1">
+                  <div className="text-slate-500">New</div>
+                  <div className="font-semibold text-slate-900">{s.newThisMonth}</div>
                 </div>
               </div>
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-              <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
             </div>
           );
         })}
@@ -1412,7 +1369,7 @@ export default function WarehouseEmployeesPage() {
       {/* Page Header */}
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Warehouse Employees</h1>
+          <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight text-slate-900">Warehouse Employees</h1>
           <p className="text-sm text-slate-600 mt-1">
             {rosterTab === 'ex'
               ? `Former employees (${exEmployeesCount}) — exit date and full records`
@@ -1422,10 +1379,10 @@ export default function WarehouseEmployeesPage() {
             <button
               type="button"
               onClick={() => setRosterTab('current')}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
                 rosterTab === 'current'
-                  ? 'bg-slate-900 text-white border-slate-900'
-                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                  ? 'bg-white text-slate-900 border-slate-200 shadow-sm'
+                  : 'bg-transparent text-slate-700 border-slate-200 hover:bg-white/60'
               }`}
             >
               <UserCheck className="w-4 h-4" />
@@ -1435,10 +1392,10 @@ export default function WarehouseEmployeesPage() {
             <button
               type="button"
               onClick={() => setRosterTab('ex')}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
                 rosterTab === 'ex'
-                  ? 'bg-slate-900 text-white border-slate-900'
-                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                  ? 'bg-white text-slate-900 border-slate-200 shadow-sm'
+                  : 'bg-transparent text-slate-700 border-slate-200 hover:bg-white/60'
               }`}
             >
               <UserX className="w-4 h-4" />
@@ -1450,14 +1407,14 @@ export default function WarehouseEmployeesPage() {
         <div className="flex gap-2">
           <Button
             onClick={exportEmployeesCsv}
-            className="bg-slate-900 text-white hover:bg-slate-800"
+            className="bg-slate-900 text-white hover:bg-slate-800 rounded-xl"
             icon={<Download className="w-4 h-4" />}
           >
             Export CSV
           </Button>
           <Button
             onClick={handleDownloadTemplate}
-            className="bg-green-600 text-white hover:bg-green-700"
+            className="bg-white text-indigo-700 border border-slate-200 hover:bg-slate-50 rounded-xl"
             icon={<Download className="w-4 h-4" />}
           >
             Download Template
@@ -1472,7 +1429,7 @@ export default function WarehouseEmployeesPage() {
           />
           <Button
             onClick={() => fileInputRef.current?.click()}
-            className="bg-purple-600 text-white hover:bg-purple-700"
+            className="bg-white text-indigo-700 border border-slate-200 hover:bg-slate-50 rounded-xl"
             icon={<Upload className="w-4 h-4" />}
             disabled={isUploading}
           >
@@ -1480,7 +1437,7 @@ export default function WarehouseEmployeesPage() {
           </Button>
           <Button
             onClick={handleAddNewEmployee}
-            className="bg-blue-600 text-white hover:bg-blue-700"
+            className="bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl"
             icon={<Plus className="w-4 h-4" />}
           >
             Add New Employee
@@ -1489,9 +1446,9 @@ export default function WarehouseEmployeesPage() {
       </div>
 
       {/* Filters and View Toggle */}
-      <Card className="border-2">
+      <Card className="border border-slate-200/70 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.03)]">
         <div className="p-6">
-          <div className="flex flex-col md:flex-row gap-4 items-center">
+          <div className="flex flex-col lg:flex-row gap-3 lg:items-center">
             <div className="flex-1 w-full md:w-auto">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -1500,7 +1457,7 @@ export default function WarehouseEmployeesPage() {
                   placeholder="Search by name, email, employee ID, department, or company..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                  className="w-full h-10 pl-10 pr-4 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300 transition-all duration-200"
                 />
               </div>
             </div>
@@ -1511,7 +1468,7 @@ export default function WarehouseEmployeesPage() {
                   const v = e.target.value;
                   setEmpCodeQuery(v === 'All EMP CODE' ? '' : v);
                 }}
-                className="px-4 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                className="h-10 px-3 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300 transition-all duration-200"
               >
                 <option>All EMP CODE</option>
                 {empCodes.map((code) => (
@@ -1523,7 +1480,7 @@ export default function WarehouseEmployeesPage() {
               <select
                 value={departmentFilter}
                 onChange={(e) => setDepartmentFilter(e.target.value)}
-                className="px-4 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                className="h-10 px-3 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300 transition-all duration-200"
               >
                 <option>All Departments</option>
                 {departments.map((dept) => (
@@ -1535,7 +1492,7 @@ export default function WarehouseEmployeesPage() {
               <select
                 value={locationFilter}
                 onChange={(e) => setLocationFilter(e.target.value)}
-                className="px-4 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                className="h-10 px-3 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300 transition-all duration-200"
               >
                 <option>All Locations</option>
                 {locations.map((loc) => (
@@ -1548,7 +1505,7 @@ export default function WarehouseEmployeesPage() {
                 <Button
                   ref={columnsButtonRef}
                   onClick={() => setColumnsPanelOpen((v) => !v)}
-                  className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50"
+                  className="bg-white border border-slate-200 text-indigo-700 hover:bg-slate-50 rounded-xl"
                   icon={<Columns3 className="w-4 h-4" />}
                 >
                   Other Columns
@@ -1637,11 +1594,13 @@ export default function WarehouseEmployeesPage() {
                   </div>
                 )}
               </div>
-              <div className="flex items-center gap-2 border border-slate-300 rounded-lg p-1 bg-slate-50">
+              <div className="flex items-center gap-1 border border-slate-200 rounded-xl p-1 bg-slate-50">
                 <button
                   onClick={() => setViewMode('list')}
                   className={`p-2 rounded transition-all duration-200 ${
-                    viewMode === 'list' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-200'
+                    viewMode === 'list'
+                      ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                      : 'text-slate-600 hover:bg-white/70'
                   }`}
                   aria-label="List view"
                 >
@@ -1650,7 +1609,9 @@ export default function WarehouseEmployeesPage() {
                 <button
                   onClick={() => setViewMode('grid')}
                   className={`p-2 rounded transition-all duration-200 ${
-                    viewMode === 'grid' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-200'
+                    viewMode === 'grid'
+                      ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                      : 'text-slate-600 hover:bg-white/70'
                   }`}
                   aria-label="Grid view"
                 >

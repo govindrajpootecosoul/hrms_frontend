@@ -5,7 +5,6 @@ import { useParams } from 'next/navigation';
 import { Clock, Filter, Search, CheckCircle, XCircle } from 'lucide-react';
 import { useCompany } from '@/lib/context/CompanyContext';
 import { useToast } from '@/components/common/Toast';
-import StatisticsCards from '@/components/hrms/StatisticsCards';
 import Table from '@/components/common/Table';
 import Input from '@/components/common/Input';
 import Select from '@/components/common/Select';
@@ -240,35 +239,35 @@ const AttendanceApprovalsPage = () => {
   const statCards = [
     {
       key: 'pending-approvals',
-      title: 'Pending Approvals',
+      title: 'Pending approvals',
       value: stats.pending,
-      icon: <Clock className="w-6 h-4" />,
-      color: '',
-      backgroundColor: 'linear-gradient(135deg, #f59e0b, #fbbf24)', // amber gradient
+      icon: Clock,
+      iconBg: 'bg-amber-50',
+      iconColor: 'text-amber-700',
     },
     {
       key: 'approved-today',
-      title: 'Approved Today',
+      title: 'Approved today',
       value: stats.approvedToday,
-      icon: <CheckCircle className="w-6 h-4" />,
-      color: '',
-      backgroundColor: 'linear-gradient(135deg, #059669, #10b981)', // green gradient
+      icon: CheckCircle,
+      iconBg: 'bg-emerald-50',
+      iconColor: 'text-emerald-700',
     },
     {
       key: 'rejected-today',
-      title: 'Rejected Today',
+      title: 'Rejected today',
       value: stats.rejectedToday,
-      icon: <XCircle className="w-6 h-4" />,
-      color: '',
-      backgroundColor: 'linear-gradient(135deg, #b91c1c, #f97316)', // deep red to amber
+      icon: XCircle,
+      iconBg: 'bg-rose-50',
+      iconColor: 'text-rose-700',
     },
     {
       key: 'total-this-month',
-      title: 'Total Requests',
+      title: 'Total requests',
       value: stats.total,
-      icon: <Clock className="w-6 h-4" />,
-      color: '',
-      backgroundColor: 'linear-gradient(135deg, #1d4ed8, #3b82f6)', // professional blue
+      icon: Clock,
+      iconBg: 'bg-indigo-50',
+      iconColor: 'text-indigo-700',
     }
   ];
 
@@ -387,19 +386,41 @@ const AttendanceApprovalsPage = () => {
     <div className="min-h-screen space-y-8">
       {/* Page Header */}
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold text-neutral-900">
+        <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight text-neutral-900">
           Attendance Request Approvals
         </h1>
-        <p className="text-lg text-neutral-600">
+        <p className="text-sm text-neutral-600">
           Review and approve attendance regularization, on-duty, and time-off requests
         </p>
       </div>
 
       {/* Statistics Cards */}
-      <StatisticsCards cards={statCards} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {statCards.map((c) => {
+          const Icon = c.icon;
+          return (
+            <div
+              key={c.key}
+              className="group bg-white rounded-2xl border border-slate-200/70 shadow-[0_4px_12px_rgba(0,0,0,0.03)] px-4 py-3 transition-all hover:-translate-y-0.5 hover:shadow-md"
+            >
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 ${c.iconBg} rounded-xl border border-slate-200/60 flex items-center justify-center`}>
+                  <Icon className={`w-5 h-5 ${c.iconColor}`} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] font-medium tracking-wide text-slate-500 uppercase truncate">{c.title}</div>
+                  <div className="text-xl font-semibold tracking-tight text-slate-900">{c.value}</div>
+                </div>
+                <div className="text-xs text-slate-500">Today</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
       {/* Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="bg-white rounded-2xl border border-slate-200/70 shadow-[0_4px_12px_rgba(0,0,0,0.03)] p-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <Input
           placeholder="Search by Employee ID..."
           value={searchTerm}
@@ -420,6 +441,7 @@ const AttendanceApprovalsPage = () => {
           onChange={setStatusFilter}
           icon={<Filter className="w-4 h-4" />}
         />
+        </div>
       </div>
 
       {/* Requests Table */}

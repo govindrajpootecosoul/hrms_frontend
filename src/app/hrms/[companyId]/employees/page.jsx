@@ -737,7 +737,7 @@ export default function EmployeesPage() {
 
   const renderNameCell = (employee) => (
     <div className="flex items-center gap-2">
-      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-semibold">
+      <div className="w-8 h-8 bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-700 text-xs font-semibold">
         {(employee?.name || 'U').charAt(0).toUpperCase()}
       </div>
       <div className="text-sm font-medium text-slate-900">{employee?.name || '-'}</div>
@@ -1626,95 +1626,60 @@ export default function EmployeesPage() {
     }
   };
 
-  // Gradient colors for employee cards
-  const gradients = [
-    'from-blue-600 via-indigo-600 to-blue-700',
-    'from-green-600 via-emerald-600 to-green-700',
-    'from-purple-600 via-violet-600 to-purple-700',
-    'from-pink-600 via-rose-600 to-pink-700',
-    'from-cyan-600 via-blue-600 to-cyan-700',
-    'from-orange-600 via-amber-600 to-orange-700',
-    'from-yellow-600 via-amber-600 to-yellow-700',
-    'from-teal-600 via-cyan-600 to-teal-700',
-    'from-indigo-600 via-purple-600 to-indigo-700',
-    'from-red-600 via-rose-600 to-red-700',
-  ];
-
-  const shadows = [
-    'shadow-blue-500/30',
-    'shadow-green-500/30',
-    'shadow-purple-500/30',
-    'shadow-pink-500/30',
-    'shadow-cyan-500/30',
-    'shadow-orange-500/30',
-    'shadow-yellow-500/30',
-    'shadow-teal-500/30',
-    'shadow-indigo-500/30',
-    'shadow-red-500/30',
-  ];
-
   return (
     <div className="space-y-6 relative">
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           {
-            title: 'Total Employees',
+            title: 'Total employees',
             value: totalEmployees,
             icon: Users,
-            gradient: 'from-blue-600 via-indigo-600 to-blue-700',
-            shadow: 'shadow-blue-500/30',
+            iconBg: 'bg-slate-50',
+            iconColor: 'text-slate-700',
           },
           {
-            title: 'Active Employees',
+            title: 'Active employees',
             value: activeEmployees,
             icon: UserCheck,
-            gradient: 'from-green-600 via-emerald-600 to-green-700',
-            shadow: 'shadow-green-500/30',
+            iconBg: 'bg-emerald-50',
+            iconColor: 'text-emerald-700',
           },
           {
-            title: 'Total Departments',
+            title: 'Departments',
             value: departmentsCount,
             icon: Building2,
-            gradient: 'from-purple-600 via-violet-600 to-purple-700',
-            shadow: 'shadow-purple-500/30',
+            iconBg: 'bg-indigo-50',
+            iconColor: 'text-indigo-700',
           },
           {
-            title: 'New This Month',
+            title: 'New this month',
             value: newThisMonth,
             icon: TrendingUp,
-            gradient: 'from-orange-600 via-amber-600 to-orange-700',
-            shadow: 'shadow-orange-500/30',
+            iconBg: 'bg-amber-50',
+            iconColor: 'text-amber-700',
           },
         ].map((kpi, index) => {
           const Icon = kpi.icon;
           return (
             <div
               key={index}
-              className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${kpi.gradient} ${kpi.shadow} shadow-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl`}
+              className="group bg-white rounded-2xl border border-slate-200/70 shadow-[0_4px_12px_rgba(0,0,0,0.03)] px-4 py-3 transition-all hover:-translate-y-0.5 hover:shadow-md"
             >
-              <div className={`absolute inset-0 bg-gradient-to-br ${kpi.gradient} opacity-100`} />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
-              
-              <div className="relative z-10 p-4 lg:p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="bg-white/20 p-2.5 rounded-lg backdrop-blur-sm flex-shrink-0 shadow-lg">
-                    <Icon className="h-5 w-5 text-white" />
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-semibold text-white/90 mb-2 uppercase tracking-wide truncate">
-                      {kpi.title}
-                    </p>
-                    <h3 className="text-2xl lg:text-3xl font-bold text-white leading-tight drop-shadow-sm">
-                      {kpi.value}
-                    </h3>
-                  </div>
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 ${kpi.iconBg} rounded-xl border border-slate-200/60 flex items-center justify-center`}>
+                  <Icon className={`w-5 h-5 ${kpi.iconColor}`} />
                 </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] font-medium tracking-wide text-slate-500 uppercase truncate">
+                    {kpi.title}
+                  </div>
+                  <div className="text-xl font-semibold tracking-tight text-slate-900">{kpi.value}</div>
+                </div>
+
+                <div className="text-xs text-slate-500">Today</div>
               </div>
-              
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-              <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
             </div>
           );
         })}
@@ -1723,7 +1688,7 @@ export default function EmployeesPage() {
       {/* Page Header */}
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Employees</h1>
+          <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight text-slate-900">Employees</h1>
           <p className="text-sm text-slate-600 mt-1">
             {rosterTab === 'ex'
               ? `Former employees (${exEmployeesCount}) — exit date and full records`
@@ -1733,10 +1698,10 @@ export default function EmployeesPage() {
             <button
               type="button"
               onClick={() => setRosterTab('current')}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
                 rosterTab === 'current'
-                  ? 'bg-slate-900 text-white border-slate-900'
-                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                  ? 'bg-white text-slate-900 border-slate-200 shadow-sm'
+                  : 'bg-transparent text-slate-700 border-slate-200 hover:bg-white/60'
               }`}
             >
               <UserCheck className="w-4 h-4" />
@@ -1746,10 +1711,10 @@ export default function EmployeesPage() {
             <button
               type="button"
               onClick={() => setRosterTab('ex')}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
                 rosterTab === 'ex'
-                  ? 'bg-slate-900 text-white border-slate-900'
-                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                  ? 'bg-white text-slate-900 border-slate-200 shadow-sm'
+                  : 'bg-transparent text-slate-700 border-slate-200 hover:bg-white/60'
               }`}
             >
               <UserX className="w-4 h-4" />
@@ -1761,14 +1726,14 @@ export default function EmployeesPage() {
         <div className="flex gap-2">
           <Button
             onClick={exportEmployeesCsv}
-            className="bg-slate-900 text-white hover:bg-slate-800"
+            className="bg-slate-900 text-white hover:bg-slate-800 rounded-xl"
             icon={<Download className="w-4 h-4" />}
           >
             Export CSV
           </Button>
           <Button
             onClick={handleDownloadTemplate}
-            className="bg-green-600 text-white hover:bg-green-700"
+            className="bg-white text-indigo-700 border border-slate-200 hover:bg-slate-50 rounded-xl"
             icon={<Download className="w-4 h-4" />}
           >
             Download Template
@@ -1783,7 +1748,7 @@ export default function EmployeesPage() {
           />
           <Button
             onClick={() => fileInputRef.current?.click()}
-            className="bg-purple-600 text-white hover:bg-purple-700"
+            className="bg-white text-indigo-700 border border-slate-200 hover:bg-slate-50 rounded-xl"
             icon={<Upload className="w-4 h-4" />}
             disabled={isUploading}
           >
@@ -1791,7 +1756,7 @@ export default function EmployeesPage() {
           </Button>
           <Button
             onClick={handleAddNewEmployee}
-            className="bg-blue-600 text-white hover:bg-blue-700"
+            className="bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl"
             icon={<Plus className="w-4 h-4" />}
           >
             Add New Employee
@@ -1800,10 +1765,10 @@ export default function EmployeesPage() {
       </div>
 
       {/* Filters and View Toggle */}
-      <Card className="border-2">
+      <Card className="border border-slate-200/70 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.03)]">
         <div className="p-6">
           <div className="flex flex-col gap-4 w-full">
-            <div className="flex flex-col md:flex-row gap-4 items-center">
+            <div className="flex flex-col lg:flex-row gap-3 lg:items-center">
             <div className="flex-1 w-full md:w-auto">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -1812,7 +1777,7 @@ export default function EmployeesPage() {
                   placeholder="Search by name, email, employee ID, department, or company..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                  className="w-full h-10 pl-10 pr-4 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300 transition-all duration-200"
                 />
               </div>
             </div>
@@ -1823,7 +1788,7 @@ export default function EmployeesPage() {
                   const v = e.target.value;
                   setEmpCodeQuery(v === 'All EMP CODE' ? '' : v);
                 }}
-                className="px-4 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                className="h-10 px-3 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300 transition-all duration-200"
               >
                 <option>All EMP CODE</option>
                 {empCodes.map((code) => (
@@ -1835,7 +1800,7 @@ export default function EmployeesPage() {
               <select
                 value={departmentFilter}
                 onChange={(e) => setDepartmentFilter(e.target.value)}
-                className="px-4 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                className="h-10 px-3 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300 transition-all duration-200"
               >
                 <option>All Departments</option>
                 {departments.map((dept) => (
@@ -1845,7 +1810,7 @@ export default function EmployeesPage() {
               <select
                 value={locationFilter}
                 onChange={(e) => setLocationFilter(e.target.value)}
-                className="px-4 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                className="h-10 px-3 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300 transition-all duration-200"
               >
                 <option>All Locations</option>
                 <option>Bangalore</option>
@@ -1860,7 +1825,7 @@ export default function EmployeesPage() {
                 <Button
                   ref={columnsButtonRef}
                   onClick={() => setColumnsPanelOpen((v) => !v)}
-                  className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50"
+                  className="bg-white border border-slate-200 text-indigo-700 hover:bg-slate-50 rounded-xl"
                   icon={<Columns3 className="w-4 h-4" />}
                 >
                   Other Columns
@@ -1954,13 +1919,13 @@ export default function EmployeesPage() {
                 )}
               </div>
               {/* View Toggle Buttons */}
-              <div className="flex items-center gap-2 border border-slate-300 rounded-lg p-1 bg-slate-50">
+              <div className="flex items-center gap-1 border border-slate-200 rounded-xl p-1 bg-slate-50">
                 <button
                   onClick={() => setViewMode('list')}
                   className={`p-2 rounded transition-all duration-200 ${
                     viewMode === 'list'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-slate-600 hover:bg-slate-200'
+                      ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                      : 'text-slate-600 hover:bg-white/70'
                   }`}
                   aria-label="List view"
                 >
@@ -1970,8 +1935,8 @@ export default function EmployeesPage() {
                   onClick={() => setViewMode('grid')}
                   className={`p-2 rounded transition-all duration-200 ${
                     viewMode === 'grid'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-slate-600 hover:bg-slate-200'
+                      ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                      : 'text-slate-600 hover:bg-white/70'
                   }`}
                   aria-label="Grid view"
                 >
@@ -2012,25 +1977,23 @@ export default function EmployeesPage() {
               </div>
             </Card>
           ) : (
-            filteredEmployees.map((employee, index) => {
-            const gradient = gradients[index % gradients.length];
-            const shadow = shadows[index % shadows.length];
+            filteredEmployees.map((employee) => {
             return (
               <Card
                 key={employee.id}
-                className="hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer border-2 hover:border-opacity-50 p-0 overflow-hidden"
+                className="group cursor-pointer border border-slate-200/70 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.03)] hover:-translate-y-0.5 hover:shadow-md transition-all duration-300 p-0 overflow-hidden bg-white"
               >
-                <div className={`p-6 transition-all duration-300 rounded-lg group-hover:bg-gradient-to-br ${gradient} group-hover:bg-opacity-90`}>
+                <div className="p-6">
                   <div className="flex items-start gap-4 mb-4">
-                    <div className={`p-3 rounded-lg bg-gradient-to-br ${gradient} ${shadow} shadow-lg group-hover:bg-white/20 group-hover:backdrop-blur-sm`}>
-                      <Users className="h-6 w-6 text-white" />
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/60">
+                      <Users className="h-6 w-6 text-slate-700" />
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-semibold text-lg mb-1 group-hover:text-white transition-colors">{employee.name}</h3>
-                      <p className="text-sm text-muted-foreground group-hover:text-white/90 transition-colors">{employee.jobTitle || 'No title'}</p>
-                      <p className="text-xs text-muted-foreground group-hover:text-white/80 transition-colors mt-1">{employee.department}</p>
+                      <h3 className="font-semibold text-lg mb-1 text-slate-900">{employee.name}</h3>
+                      <p className="text-sm text-slate-600">{employee.jobTitle || 'No title'}</p>
+                      <p className="text-xs text-slate-500 mt-1">{employee.department}</p>
                       {employee.employeeId && (
-                        <p className="text-xs text-muted-foreground group-hover:text-white/70 transition-colors mt-0.5">ID: {employee.employeeId}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">ID: {employee.employeeId}</p>
                       )}
                     </div>
                   </div>
@@ -2038,25 +2001,25 @@ export default function EmployeesPage() {
                   <div className="space-y-2 mb-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-xs text-muted-foreground group-hover:text-white/80 transition-colors">Email</p>
-                        <p className="text-sm font-medium group-hover:text-white transition-colors truncate">{employee.email || '-'}</p>
+                        <p className="text-xs text-slate-500">Email</p>
+                        <p className="text-sm font-medium text-slate-800 truncate">{employee.email || '-'}</p>
                       </div>
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-xs text-muted-foreground group-hover:text-white/80 transition-colors">Company</p>
-                        <p className="text-sm font-medium group-hover:text-white transition-colors">{employee.company || '-'}</p>
+                        <p className="text-xs text-slate-500">Company</p>
+                        <p className="text-sm font-medium text-slate-800">{employee.company || '-'}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground group-hover:text-white/80 transition-colors">Location</p>
-                        <p className="text-sm font-medium group-hover:text-white transition-colors">{employee.location || '-'}</p>
+                        <p className="text-xs text-slate-500">Location</p>
+                        <p className="text-sm font-medium text-slate-800">{employee.location || '-'}</p>
                       </div>
                     </div>
                     {rosterTab === 'ex' && (
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-xs text-muted-foreground group-hover:text-white/80 transition-colors">Exit date</p>
-                          <p className="text-sm font-medium group-hover:text-white transition-colors">
+                          <p className="text-xs text-slate-500">Exit date</p>
+                          <p className="text-sm font-medium text-slate-800">
                             {formatCellDate(employee.exitDate)}
                           </p>
                         </div>
@@ -2064,7 +2027,7 @@ export default function EmployeesPage() {
                     )}
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-xs text-muted-foreground group-hover:text-white/80 transition-colors">Status</p>
+                        <p className="text-xs text-slate-500">Status</p>
                         <select
                           value={employee.status === 'Inactive' ? 'Inactive' : 'Active'}
                           disabled={statusSavingByEmployeeId[employee.id || employee._id]}
@@ -2075,8 +2038,8 @@ export default function EmployeesPage() {
                           onClick={(e) => e.stopPropagation()}
                           className={`mt-1 px-2 py-1 rounded-full text-xs font-medium transition-colors border border-transparent outline-none ${
                             employee.status === 'Active'
-                              ? 'bg-green-100 text-green-700 group-hover:bg-white/20 group-hover:text-white'
-                              : 'bg-gray-100 text-gray-700 group-hover:bg-white/20 group-hover:text-white'
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : 'bg-slate-100 text-slate-700'
                           } ${
                             statusSavingByEmployeeId[employee.id || employee._id]
                               ? 'opacity-60 cursor-not-allowed'
@@ -2088,11 +2051,11 @@ export default function EmployeesPage() {
                         </select>
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground group-hover:text-white/80 transition-colors">Credential Access</p>
+                        <p className="text-xs text-slate-500">Credential access</p>
                         <span className={`px-2 py-1 rounded-full text-xs font-medium transition-colors ${
                           employee.hasCredentialAccess
-                            ? 'bg-green-100 text-green-700 group-hover:bg-white/20 group-hover:text-white'
-                            : 'bg-red-100 text-red-700 group-hover:bg-white/20 group-hover:text-white'
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : 'bg-rose-100 text-rose-700'
                         }`}>
                           {employee.hasCredentialAccess ? 'Yes' : 'No'}
                         </span>
@@ -2100,10 +2063,10 @@ export default function EmployeesPage() {
                     </div>
                   </div>
                   
-                  <div className="flex items-center justify-between pt-4 border-t border-neutral-200 group-hover:border-white/30">
+                  <div className="flex items-center justify-between pt-4 border-t border-slate-200">
                     <div>
-                      <p className="text-xs text-muted-foreground group-hover:text-white/80 transition-colors">Tenure</p>
-                      <p className="text-sm font-medium group-hover:text-white transition-colors">{employee.tenure || '-'}</p>
+                      <p className="text-xs text-slate-500">Tenure</p>
+                      <p className="text-sm font-medium text-slate-800">{employee.tenure || '-'}</p>
                     </div>
                     <div className="relative z-10">
                       <button 
@@ -2113,7 +2076,7 @@ export default function EmployeesPage() {
                           const empId = employee.id || employee._id;
                           setActionMenuOpen(actionMenuOpen === empId ? null : empId);
                         }}
-                        className="p-1.5 text-slate-400 hover:text-slate-600 group-hover:text-white transition-colors"
+                        className="p-1.5 text-slate-400 hover:text-slate-700 transition-colors"
                       >
                         <MoreVertical className="w-4 h-4" />
                       </button>
@@ -2178,7 +2141,7 @@ export default function EmployeesPage() {
           )}
         </div>
       ) : (
-        <Card className="border-2 overflow-visible">
+        <Card className="border border-slate-200/70 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.03)] overflow-visible">
           <div className="overflow-x-auto overflow-y-visible">
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
@@ -2186,7 +2149,7 @@ export default function EmployeesPage() {
                   {visibleListColumns.map((col) => (
                     <th
                       key={col.id}
-                      className={`px-4 py-3 text-xs font-semibold text-slate-700 uppercase tracking-wider ${
+                      className={`px-4 py-3 text-xs font-semibold text-slate-600 ${
                         col.id === 'actions' ? 'text-right' : 'text-left'
                       }`}
                     >
@@ -2215,10 +2178,12 @@ export default function EmployeesPage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredEmployees.map((employee) => (
+                  filteredEmployees.map((employee, idx) => (
                   <tr 
                     key={employee.id || employee._id} 
-                    className="hover:bg-slate-50 transition-colors duration-200 cursor-pointer"
+                    className={`cursor-pointer transition-colors duration-200 hover:bg-slate-50 ${
+                      idx % 2 === 1 ? 'bg-slate-50/40' : 'bg-white'
+                    }`}
                   >
                     {visibleListColumns.map((col) => (
                       <td

@@ -105,8 +105,11 @@ export default function EmployeeRequestsPage() {
   const [teamRequests, setTeamRequests] = useState([]);
   const [loadingTeamRequests, setLoadingTeamRequests] = useState(false);
   const [decisionBusyId, setDecisionBusyId] = useState(null);
-  const requests = requestsData?.recentRequests || mockData.employeePortal.recentRequests;
-  const leaveBalances = requestsData?.leaveBalances || mockData.employeePortal.leaveBalances;
+  const requests = requestsData?.recentRequests || [];
+  const leaveBalances = requestsData?.leaveBalances || [];
+  const totalAvailableLeave = leaveBalances
+    .filter((b) => String(b?.type || '').toLowerCase() !== 'lop')
+    .reduce((sum, b) => sum + (Number.isFinite(Number(b?.balance)) ? Number(b.balance) : 0), 0);
 
   useEffect(() => {
     const fetchRequests = async () => {
@@ -114,10 +117,19 @@ export default function EmployeeRequestsPage() {
       try {
         setLoadingData(true);
         const token = localStorage.getItem('auth_token');
-        const res = await fetch(
-          `${API_BASE_URL}/employee-portal/requests?employeeId=${encodeURIComponent(user.employeeId || 'default')}`,
-          { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } }
-        );
+        const company =
+          (user?.company && String(user.company).trim()) ||
+          (typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null);
+
+        const params = new URLSearchParams();
+        params.append('employeeId', user.employeeId || 'default');
+        if (company) params.append('company', company);
+
+        const headers = { ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+        if (company) headers['x-company'] = company;
+
+        // Use Next.js proxy route (ensures correct backend path and company scoping)
+        const res = await fetch(`/api/portals/employee-portal/requests?${params.toString()}`, { headers });
         if (res.ok) {
           const json = await res.json();
           if (json?.success && json?.data) {
@@ -518,6 +530,13 @@ export default function EmployeeRequestsPage() {
 
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Leave balance</p>
+                  <div className="mt-2 flex items-end justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <div>
+                      <p className="text-xs font-semibold text-slate-600">Total available</p>
+                      <p className="mt-1 text-2xl font-semibold text-slate-900">{Number(totalAvailableLeave || 0)}</p>
+                    </div>
+                    <p className="text-xs font-semibold text-slate-500">days</p>
+                  </div>
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     {leaveBalances.map((balance) => {
                       const active = leaveType && String(leaveType) === String(balance.type);

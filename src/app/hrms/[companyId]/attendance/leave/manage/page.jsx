@@ -879,31 +879,35 @@ const AttendanceLeaveManagePage = () => {
   return (
     <div className="space-y-8">
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           {
-            title: 'Total On Leave',
+            title: 'Total on leave',
             value: leaveStats.totalOnLeave,
             icon: Users,
-            gradient: 'from-blue-600 via-indigo-600 to-blue-700',
+            iconBg: 'bg-slate-50',
+            iconColor: 'text-slate-700',
           },
           {
-            title: 'Leave For Approval',
+            title: 'Leave for approval',
             value: leaveStats.leaveForApproval,
             icon: AlertCircle,
-            gradient: 'from-orange-600 via-amber-600 to-orange-700',
+            iconBg: 'bg-amber-50',
+            iconColor: 'text-amber-700',
           },
           {
-            title: 'Approved This Month',
+            title: 'Approved this month',
             value: leaveStats.approvedThisMonth,
             icon: CheckCircle2,
-            gradient: 'from-green-600 via-emerald-600 to-green-700',
+            iconBg: 'bg-emerald-50',
+            iconColor: 'text-emerald-700',
           },
           {
-            title: 'Rejected This Month',
+            title: 'Rejected this month',
             value: leaveStats.rejectedThisMonth,
             icon: XCircle,
-            gradient: 'from-red-600 via-rose-600 to-red-700',
+            iconBg: 'bg-rose-50',
+            iconColor: 'text-rose-700',
           },
         ].map((kpi, index) => {
           const Icon = kpi.icon;
@@ -936,16 +940,19 @@ const AttendanceLeaveManagePage = () => {
                   }
                 }
               }}
-              className={`relative overflow-hidden rounded-xl bg-gradient-to-r ${kpi.gradient} shadow-lg ${filterType ? 'cursor-pointer hover:scale-105 transition-transform duration-200 active:scale-95' : ''}`}
+              className={`group bg-white rounded-2xl border border-slate-200/70 shadow-[0_4px_12px_rgba(0,0,0,0.03)] px-4 py-3 transition-all hover:-translate-y-0.5 hover:shadow-md ${
+                filterType ? 'cursor-pointer' : 'cursor-default'
+              }`}
             >
-              <div className="p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-                    <Icon className="w-6 h-6 text-white" />
-                  </div>
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 ${kpi.iconBg} rounded-xl border border-slate-200/60 flex items-center justify-center`}>
+                  <Icon className={`w-5 h-5 ${kpi.iconColor}`} />
                 </div>
-                <div className="text-3xl font-bold mb-1 text-white">{kpi.value}</div>
-                <div className="text-xs text-white/90 uppercase tracking-wide">{kpi.title}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] font-medium tracking-wide text-slate-500 uppercase truncate">{kpi.title}</div>
+                  <div className="text-xl font-semibold tracking-tight text-slate-900">{kpi.value}</div>
+                </div>
+                <div className="text-xs text-slate-500">Today</div>
               </div>
             </div>
           );
@@ -953,14 +960,14 @@ const AttendanceLeaveManagePage = () => {
       </div>
 
       {/* Tenure-based Leave Policy Section */}
-      <Card className="border-2 p-6">
+      <Card className="border border-slate-200/70 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.03)] p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-xl font-bold text-slate-900">Tenure-based Leave Policy</h2>
             <p className="text-sm text-slate-600 mt-1">Configure leave entitlements based on employee tenure</p>
           </div>
           <Button
-            className="bg-blue-600 text-white hover:bg-blue-700"
+            className="bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl"
             icon={<Settings className="w-4 h-4" />}
             onClick={() => setIsTenurePolicyDialogOpen(true)}
           >
@@ -1036,7 +1043,7 @@ const AttendanceLeaveManagePage = () => {
       </Card>
 
       {/* Employee Leave Requests Section */}
-      <Card className="border-2 p-6">
+      <Card className="border border-slate-200/70 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.03)] p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-xl font-bold text-slate-900">Employee Leave Requests</h2>
@@ -1047,8 +1054,8 @@ const AttendanceLeaveManagePage = () => {
               size="sm"
               className={
                 viewMode === 'balance'
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : 'bg-transparent border border-neutral-300 text-neutral-700 hover:bg-neutral-50'
+                  ? 'bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl'
+                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl'
               }
               icon={<UsersIcon className="w-4 h-4" />}
               onClick={() => setViewMode('balance')}
@@ -1059,8 +1066,8 @@ const AttendanceLeaveManagePage = () => {
               size="sm"
               className={
                 viewMode === 'requests'
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : 'bg-transparent border border-neutral-300 text-neutral-700 hover:bg-neutral-50'
+                  ? 'bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl'
+                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl'
               }
               icon={<FileText className="w-4 h-4" />}
               onClick={() => setViewMode('requests')}
@@ -1069,7 +1076,7 @@ const AttendanceLeaveManagePage = () => {
             </Button>
             <Button
               size="sm"
-              className="bg-blue-600 text-white hover:bg-blue-700"
+              className="bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl"
               icon={<Plus className="w-4 h-4" />}
               onClick={openAddDialog}
             >
@@ -1091,7 +1098,7 @@ const AttendanceLeaveManagePage = () => {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-4 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                className="h-10 px-3 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300 transition-all duration-200"
               >
                 <option value="all">All Status</option>
                 <option value="pending">Pending</option>
@@ -1101,7 +1108,7 @@ const AttendanceLeaveManagePage = () => {
               <select
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
-                className="px-4 py-2 border border-neutral-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                className="h-10 px-3 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300 transition-all duration-200"
               >
                 <option value="all">All Types</option>
                 <option value="casual leave">Casual Leave</option>
@@ -1117,7 +1124,7 @@ const AttendanceLeaveManagePage = () => {
                   placeholder="Search by name or code..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                  className="w-full h-10 pl-10 pr-4 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300 transition-all duration-200"
                 />
               </div>
             </div>

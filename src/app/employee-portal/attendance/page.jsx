@@ -196,6 +196,8 @@ export default function EmployeeAttendancePage() {
   const currentMonthDate = startOfMonth(new Date());
   const thisMonthKey = format(currentMonthDate, 'yyyy-MM');
   const previousMonthDate = useMemo(() => parseMonthValue(selectedMonth), [selectedMonth]);
+  const currentMonthLabel = useMemo(() => format(currentMonthDate, 'MMM yyyy'), [currentMonthDate]);
+  const selectedMonthLabel = useMemo(() => format(previousMonthDate, 'MMM yyyy'), [previousMonthDate]);
 
   // Get company from sessionStorage
   const [selectedCompany, setSelectedCompany] = useState(null);
@@ -213,7 +215,8 @@ export default function EmployeeAttendancePage() {
     details: ''
   });
   const [timeOffForm, setTimeOffForm] = useState({
-    dateRange: '',
+    from: '',
+    to: '',
     reason: '',
     leaveType: ''
   });
@@ -526,14 +529,15 @@ export default function EmployeeAttendancePage() {
           details: onDutyForm.details
         };
       } else if (type === 'time-off') {
-        if (!timeOffForm.dateRange || !timeOffForm.reason || !timeOffForm.leaveType) {
+        if (!timeOffForm.from || !timeOffForm.to || !timeOffForm.reason || !timeOffForm.leaveType) {
           setSubmitMessage({ type: 'error', text: 'Please fill in all required fields including leave type' });
           setSubmitting(false);
           return;
         }
+        const dateRange = `${timeOffForm.from} to ${timeOffForm.to}`;
         requestData = {
           ...requestData,
-          dateRange: timeOffForm.dateRange,
+          dateRange,
           reason: timeOffForm.reason,
           leaveType: timeOffForm.leaveType
         };
@@ -565,7 +569,7 @@ export default function EmployeeAttendancePage() {
         } else if (type === 'on-duty') {
           setOnDutyForm({ date: '', location: '', details: '' });
         } else if (type === 'time-off') {
-          setTimeOffForm({ dateRange: '', reason: '', leaveType: '' });
+          setTimeOffForm({ from: '', to: '', reason: '', leaveType: '' });
         }
 
         // Clear message after 3 seconds
@@ -898,15 +902,15 @@ export default function EmployeeAttendancePage() {
         />
         <StatCard
           icon={AlarmClock}
-          label="This Month Hours"
+          label="Current Month Hours"
           value={loadingData ? '—' : `${Number(totalHoursThisMonthAccurate || 0).toFixed(1)}h`}
-          sub="This month"
+          sub={currentMonthLabel}
         />
         <StatCard
           icon={Percent}
-          label="Previous Month Hours"
+          label={timeframe === 'prev' ? 'Selected Month Hours' : 'Previous Month Hours'}
           value={loadingData ? '—' : `${Number(totalHoursPreviousMonthAccurate || 0).toFixed(1)}h`}
-          sub="Previous month"
+          sub={timeframe === 'prev' ? selectedMonthLabel : 'Previous month'}
         />
         <StatCard icon={CalendarDays} label="Leave Balance" value={Number.isFinite(leaveBalance) ? `${leaveBalance} days` : '—'} sub="As available from backend" />
       </div>
@@ -1145,16 +1149,32 @@ export default function EmployeeAttendancePage() {
                     </label>
                   </div>
 
-                  <FloatingField id="range" label="Date range">
-                    <Input
-                      id="range"
-                      type="text"
-                      value={timeOffForm.dateRange}
-                      onChange={(e) => setTimeOffForm({ ...timeOffForm, dateRange: e.target.value })}
-                      className="h-12 rounded-2xl border-slate-300 bg-white pt-5 text-slate-900 placeholder:text-transparent focus-visible:ring-0"
-                      placeholder=" "
-                    />
-                  </FloatingField>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <FloatingField id="timeoff-from" label="From">
+                      <Input
+                        id="timeoff-from"
+                        type="date"
+                        value={timeOffForm.from}
+                        onChange={(e) => {
+                          const from = e.target.value;
+                          setTimeOffForm((p) => ({ ...p, from, to: p.to && p.to < from ? from : p.to }));
+                        }}
+                        className="h-12 rounded-2xl border-slate-300 bg-white pt-5 text-slate-900 placeholder:text-transparent focus-visible:ring-0"
+                        placeholder=" "
+                      />
+                    </FloatingField>
+                    <FloatingField id="timeoff-to" label="To">
+                      <Input
+                        id="timeoff-to"
+                        type="date"
+                        value={timeOffForm.to}
+                        min={timeOffForm.from || undefined}
+                        onChange={(e) => setTimeOffForm((p) => ({ ...p, to: e.target.value }))}
+                        className="h-12 rounded-2xl border-slate-300 bg-white pt-5 text-slate-900 placeholder:text-transparent focus-visible:ring-0"
+                        placeholder=" "
+                      />
+                    </FloatingField>
+                  </div>
                   <FloatingField id="reason" label="Reason">
                     <Textarea
                       id="reason"

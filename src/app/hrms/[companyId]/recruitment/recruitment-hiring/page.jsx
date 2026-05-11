@@ -107,28 +107,32 @@ export default function RecruitmentHiringPage() {
             if (data.kpis) {
               setKpiCards([
                 { 
-                  title: 'TOTAL CANDIDATES', 
+                  title: 'Total candidates', 
                   value: String(data.kpis.totalCandidates || 0), 
                   icon: Users, 
-                  gradient: 'from-purple-600 via-purple-500 to-purple-700'
+                  iconBg: 'bg-slate-50',
+                  iconColor: 'text-slate-700',
                 },
                 { 
-                  title: 'HIRED', 
+                  title: 'Hired', 
                   value: String(data.kpis.hired || 0), 
                   icon: CheckCircle2, 
-                  gradient: 'from-green-600 via-green-500 to-green-700'
+                  iconBg: 'bg-emerald-50',
+                  iconColor: 'text-emerald-700',
                 },
                 { 
-                  title: 'REJECTED', 
+                  title: 'Rejected', 
                   value: String(data.kpis.rejected || 0), 
                   icon: XCircle, 
-                  gradient: 'from-red-600 via-red-500 to-red-700'
+                  iconBg: 'bg-rose-50',
+                  iconColor: 'text-rose-700',
                 },
                 { 
-                  title: 'AWAITING', 
+                  title: 'Awaiting', 
                   value: String(data.kpis.awaiting || 0), 
                   icon: Clock, 
-                  gradient: 'from-orange-500 via-orange-400 to-orange-600'
+                  iconBg: 'bg-amber-50',
+                  iconColor: 'text-amber-700',
                 },
               ]);
             }
@@ -372,21 +376,28 @@ export default function RecruitmentHiringPage() {
 
       {/* KPI Cards */}
       {!loading && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {kpiCards.map((card, index) => {
           const Icon = card.icon;
           return (
             <div
               key={index}
-              className={`bg-gradient-to-br ${card.gradient} rounded-xl p-5 text-white shadow-lg`}
+              className="group bg-white rounded-2xl border border-slate-200/70 shadow-[0_4px_12px_rgba(0,0,0,0.03)] px-4 py-3 transition-all hover:-translate-y-0.5 hover:shadow-md"
             >
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                  <Icon className="w-5 h-5 text-white" />
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 ${card.iconBg} rounded-xl border border-slate-200/60 flex items-center justify-center`}>
+                  <Icon className={`w-5 h-5 ${card.iconColor}`} />
                 </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] font-medium tracking-wide text-slate-500 uppercase truncate">
+                    {card.title}
+                  </div>
+                  <div className="text-xl font-semibold tracking-tight text-slate-900">{card.value}</div>
+                </div>
+
+                <div className="text-xs text-slate-500">Today</div>
               </div>
-              <div className="text-3xl font-bold mb-1">{card.value}</div>
-              <div className="text-xs text-white/90 uppercase tracking-wide">{card.title}</div>
             </div>
           );
         })}
@@ -395,8 +406,8 @@ export default function RecruitmentHiringPage() {
 
       {/* Search and Filter Bar */}
       {!loading && (
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-        <div className="flex flex-col md:flex-row gap-4 items-center">
+      <div className="bg-white rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.03)] border border-slate-200/70 p-4">
+        <div className="flex flex-col lg:flex-row gap-3 lg:items-center">
           <div className="flex-1 w-full md:w-auto">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -405,15 +416,15 @@ export default function RecruitmentHiringPage() {
                 placeholder="Q Search by name, email, contact, or organisation..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full h-10 pl-10 pr-4 border border-slate-200 rounded-xl bg-white text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300"
               />
             </div>
           </div>
-          <div className="flex gap-3 flex-wrap">
+          <div className="flex gap-2 flex-wrap items-center">
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="h-10 px-3 border border-slate-200 rounded-xl text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300"
             >
               <option>All Status</option>
               <option>Finalized</option>
@@ -423,7 +434,7 @@ export default function RecruitmentHiringPage() {
             <select
               value={recruiterFilter}
               onChange={(e) => setRecruiterFilter(e.target.value)}
-              className="px-4 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="h-10 px-3 border border-slate-200 rounded-xl text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300"
             >
               {hrList.map((hr) => (
                 <option key={hr} value={hr}>{hr}</option>
@@ -436,25 +447,25 @@ export default function RecruitmentHiringPage() {
 
       {/* Candidate Table */}
       {!loading && (
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.03)] border border-slate-200/70 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider w-8"></th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Candidate Name</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Email</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Contact</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Current Organisation</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Assigned To</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Interview Status</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Hiring Status</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">Candidate</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">Email</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">Contact</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">Organisation</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">Assigned to</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">Interview</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">Hiring</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-slate-200">
               {candidates.map((candidate) => (
-                <tr key={candidate.id} className="hover:bg-slate-50">
+                <tr key={candidate.id} className="odd:bg-white even:bg-slate-50/40 hover:bg-slate-50 transition-colors">
                   <td className="px-4 py-4 whitespace-nowrap">
                     <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -521,7 +532,7 @@ export default function RecruitmentHiringPage() {
                       </div>
                       <button 
                         onClick={() => handleEditCandidate(candidate.id)}
-                        className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors"
+                        className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors"
                         title="Edit Candidate"
                       >
                         <Edit className="w-4 h-4" />
@@ -560,7 +571,7 @@ export default function RecruitmentHiringPage() {
       {/* Delete Confirmation Dialog */}
       {deletingCandidate && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setDeletingCandidate(null)}>
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 border border-slate-200/70 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-slate-900 mb-2">Delete Candidate</h3>
             <p className="text-sm text-slate-600 mb-4">
               Are you sure you want to delete <strong>{deletingCandidate.name}</strong>? This action cannot be undone.
@@ -568,13 +579,13 @@ export default function RecruitmentHiringPage() {
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setDeletingCandidate(null)}
-                className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50"
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteCandidate}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
+                className="px-4 py-2 text-sm font-medium text-white bg-rose-600 rounded-xl hover:bg-rose-700"
               >
                 Delete
               </button>

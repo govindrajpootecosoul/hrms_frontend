@@ -1,7 +1,6 @@
 'use client';
 
 import { useParams, usePathname, useRouter } from 'next/navigation';
-import { Users, Briefcase, Sparkles } from 'lucide-react';
 
 export default function RecruitmentLayout({ children }) {
   const params = useParams();
@@ -51,32 +50,21 @@ export default function RecruitmentLayout({ children }) {
         <>
           {/* Page Title */}
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Recruitment</h1>
+            <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight text-slate-900">Recruitment</h1>
             <p className="text-sm text-slate-600 mt-1">Manage hiring pipeline and candidate lifecycle</p>
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-2">
+          <div className="inline-flex items-center gap-1 rounded-2xl bg-slate-100 p-1 border border-slate-200/70">
             {tabs.map((tab) => {
-              let activeBgColor = '';
-              if (activeTab === tab.id) {
-                if (tab.id === 'sourcing-screening') {
-                  activeBgColor = 'bg-yellow-400 text-slate-900';
-                } else if (tab.id === 'recruitment-hiring') {
-                  activeBgColor = 'bg-blue-600 text-white';
-                } else if (tab.id === 'onboarding') {
-                  activeBgColor = 'bg-green-500 text-white';
-                }
-              }
-              
               return (
                 <button
                   key={tab.id}
                   onClick={() => handleTabChange(tab.id)}
-                  className={`px-4 py-2.5 text-sm font-medium transition-colors rounded-lg ${
+                  className={`px-4 py-2 text-sm font-medium transition-colors rounded-xl ${
                     activeTab === tab.id
-                      ? `${activeBgColor} shadow-sm`
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                      ? 'bg-white text-slate-900 shadow-sm border border-slate-200/70'
+                      : 'text-slate-700 hover:text-slate-900 hover:bg-white/60'
                   }`}
                 >
                   {tab.label}
@@ -88,7 +76,9 @@ export default function RecruitmentLayout({ children }) {
       )}
 
       {/* Content */}
-      {children}
+      <div className="rounded-2xl bg-slate-50 border border-slate-200/60 p-4 sm:p-5">
+        {children}
+      </div>
     </div>
   );
 }

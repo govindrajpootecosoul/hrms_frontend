@@ -31,8 +31,6 @@ export async function GET(request) {
     const endOfMonthLocal = (d) => new Date(d.getFullYear(), d.getMonth() + 1, 0);
 
     const buildAttendanceFromMachine = async () => {
-      if (!empCode) return null;
-
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
@@ -41,7 +39,11 @@ export async function GET(request) {
       last7Start.setDate(last7Start.getDate() - 6);
 
       const thisMonthStart = startOfMonthLocal(now);
-      const thisMonthEnd = endOfMonthLocal(now);
+      // Don't show future dates in "This month" view.
+      const thisMonthEnd = (() => {
+        const eom = endOfMonthLocal(now);
+        return eom > today ? today : eom;
+      })();
 
       let prevMonthStart;
       let prevMonthEnd;
@@ -57,7 +59,8 @@ export async function GET(request) {
 
       const fetchRange = async (startDate, endDate) => {
         const params = new URLSearchParams();
-        params.append('empCode', empCode);
+        params.append('employeeId', employeeId);
+        if (empCode) params.append('empCode', empCode);
         params.append('startDate', asYmd(startDate));
         params.append('endDate', asYmd(endDate));
         if (company) params.append('company', company);
@@ -82,19 +85,70 @@ export async function GET(request) {
         fetchRange(prevMonthStart, prevMonthEnd),
       ]);
 
+      // If machine endpoint returns no records at all, fall back to check-in history attendance.
+      // This avoids showing all-Absent when empCode mapping is missing/mismatched.
+      if ((!r7 || r7.length === 0) && (!rThis || rThis.length === 0) && (!rPrev || rPrev.length === 0)) {
+        return null;
+      }
+
+      const normalizeMachineStatus = (raw) => {
+        const s = String(raw || '').trim().toLowerCase();
+        if (!s) return '';
+        if (s === 'present') return 'Present';
+        if (s === 'absent') return 'Absent';
+        if (s === 'weekend') return 'Weekend';
+        if (s === 'wfh' || s === 'work from home') return 'WFH';
+        return String(raw).trim();
+      };
+
       const toDayName = (dateStr) => {
-        const dt = new Date(`${dateStr}T00:00:00.000Z`);
+        const dt = new Date(`${dateStr}T12:00:00`);
         const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        return Number.isNaN(dt.getTime()) ? '' : days[dt.getUTCDay()];
+        return Number.isNaN(dt.getTime()) ? '' : days[dt.getDay()];
+      };
+
+      const isWeekendYmd = (ymd) => {
+        const dt = new Date(`${ymd}T12:00:00`);
+        const day = dt.getDay();
+        return day === 0 || day === 6;
+      };
+
+      /** Align machine row to portal week strip using browser-local calendar day (fixes UTC vs local date skew). */
+      const ymdFromRecord = (r) => {
+        const iso = r?.dateIso;
+        if (iso) {
+          const d = new Date(iso);
+          if (!Number.isNaN(d.getTime())) {
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+          }
+        }
+        const y = r?.date;
+        if (y && /^\d{4}-\d{2}-\d{2}$/.test(String(y).trim())) {
+          const d = new Date(`${String(y).trim().slice(0, 10)}T12:00:00`);
+          if (!Number.isNaN(d.getTime())) {
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+          }
+        }
+        return '';
       };
 
       const buildSeries = (startDate, endDate, records) => {
         const byDate = new Map();
         for (const r of records) {
-          if (!r?.date) continue;
+          const dayKey = ymdFromRecord(r);
+          if (!dayKey) continue;
+          // Prefer explicit DB status if present; fallback to punch presence.
+          const status = normalizeMachineStatus(r.status);
           const hasIn = r.punchIn != null && String(r.punchIn).trim() !== '';
-          if (!hasIn) continue;
-          byDate.set(r.date, r);
+          const isPresentByStatus = status.toLowerCase() === 'present';
+          if (!hasIn && !isPresentByStatus) continue;
+          byDate.set(dayKey, r);
         }
 
         const out = [];
@@ -102,8 +156,10 @@ export async function GET(request) {
         while (cur <= endDate) {
           const ymd = asYmd(cur);
           const rec = byDate.get(ymd);
-          const present = Boolean(rec);
-          const status = present ? 'Present' : 'Absent';
+          const machineStatus = normalizeMachineStatus(rec?.status);
+          const weekend = isWeekendYmd(ymd);
+          const present = Boolean(rec) || machineStatus.toLowerCase() === 'present';
+          const status = machineStatus || (weekend ? 'Weekend' : present ? 'Present' : 'Absent');
           out.push({
             date: ymd,
             day: toDayName(ymd),
@@ -136,12 +192,10 @@ export async function GET(request) {
       };
     };
 
-    // Prefer machine attendance if empCode is available (Employee Portal requirement).
-    if (empCode) {
-      const machineData = await buildAttendanceFromMachine();
-      if (machineData) {
-        return NextResponse.json({ success: true, data: machineData });
-      }
+    // Prefer machine_attendance_reports via backend (resolves emp_code from logged-in employeeId).
+    const machineData = await buildAttendanceFromMachine();
+    if (machineData) {
+      return NextResponse.json({ success: true, data: machineData });
     }
 
     // Build query params for check-in history
@@ -377,7 +431,11 @@ export async function GET(request) {
     last7DaysStart.setDate(last7DaysStart.getDate() - 6); // Last 7 days including today
 
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const thisMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    // Don't show future dates in "This month" view.
+    const thisMonthEnd = (() => {
+      const eom = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      return eom > today ? today : eom;
+    })();
 
     let previousMonthStart, previousMonthEnd;
     if (month) {

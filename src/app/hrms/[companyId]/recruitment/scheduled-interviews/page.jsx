@@ -259,7 +259,7 @@ export default function ScheduledInterviewsPage() {
         </div>
         <Link
           href={`/hrms/${companyId}/recruitment`}
-          className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50"
+          className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50"
         >
           Back to Candidates
         </Link>
@@ -274,8 +274,8 @@ export default function ScheduledInterviewsPage() {
 
       {/* Search and Filter Bar */}
       {!loading && (
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
-          <div className="flex flex-col md:flex-row gap-4 items-center">
+        <div className="bg-white rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.03)] border border-slate-200/70 p-4">
+          <div className="flex flex-col lg:flex-row gap-3 lg:items-center">
             <div className="flex-1 w-full md:w-auto">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -284,15 +284,15 @@ export default function ScheduledInterviewsPage() {
                   placeholder="Search by candidate name, email, interviewer..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full h-10 pl-10 pr-4 border border-slate-200 rounded-xl bg-white text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300"
                 />
               </div>
             </div>
-            <div className="flex gap-3 flex-wrap">
+            <div className="flex gap-2 flex-wrap items-center">
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-4 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="h-10 px-3 border border-slate-200 rounded-xl text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300"
               >
                 <option>All Status</option>
                 <option>Scheduled</option>
@@ -302,7 +302,7 @@ export default function ScheduledInterviewsPage() {
               <select
                 value={interviewerFilter}
                 onChange={(e) => setInterviewerFilter(e.target.value)}
-                className="px-4 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="h-10 px-3 border border-slate-200 rounded-xl text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300"
               >
                 {interviewerList.map((interviewer) => (
                   <option key={interviewer} value={interviewer}>{interviewer}</option>
@@ -312,7 +312,7 @@ export default function ScheduledInterviewsPage() {
                 type="date"
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
-                className="px-4 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="h-10 px-3 border border-slate-200 rounded-xl text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-300"
                 placeholder="Filter by date"
               />
               {dateFilter && (
@@ -331,20 +331,20 @@ export default function ScheduledInterviewsPage() {
 
       {/* Interviews Table */}
       {!loading && (
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.03)] border border-slate-200/70 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Candidate</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Contact</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Position</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Interviewer</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Date & Time</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Meeting Link</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Interview Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Actions</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">Candidate</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">Contact</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">Position</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">Interviewer</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">Date & time</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">Meeting</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">Interview</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
@@ -358,7 +358,7 @@ export default function ScheduledInterviewsPage() {
                   interviews.map((interview) => (
                     <tr 
                       key={interview.id} 
-                      className={`hover:bg-slate-50 ${
+                      className={`odd:bg-white even:bg-slate-50/40 hover:bg-slate-50 transition-colors ${
                         isUpcoming(interview.scheduledAt) ? 'bg-yellow-50' : ''
                       } ${isPast(interview.scheduledAt) ? 'opacity-75' : ''}`}
                     >
@@ -424,7 +424,7 @@ export default function ScheduledInterviewsPage() {
                       <td className="px-4 py-4 whitespace-nowrap">
                         <button
                           onClick={() => handleEditInterview(interview)}
-                          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors"
                           title="Edit Interview"
                         >
                           <Edit className="w-4 h-4" />
@@ -443,36 +443,42 @@ export default function ScheduledInterviewsPage() {
       {/* Summary Stats */}
       {!loading && interviews.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="bg-white border border-slate-200/70 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.03)] p-4">
             <div className="flex items-center gap-3">
-              <Calendar className="w-8 h-8 text-blue-600" />
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-slate-200/60 flex items-center justify-center">
+                <Calendar className="w-5 h-5 text-indigo-700" />
+              </div>
               <div>
-                <div className="text-2xl font-bold text-blue-900">
+                <div className="text-2xl font-semibold text-slate-900">
                   {interviews.filter(i => i.interviewStatus === 'Scheduled').length}
                 </div>
-                <div className="text-sm text-blue-700">Scheduled</div>
+                <div className="text-sm text-slate-600">Scheduled</div>
               </div>
             </div>
           </div>
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="bg-white border border-slate-200/70 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.03)] p-4">
             <div className="flex items-center gap-3">
-              <AlertCircle className="w-8 h-8 text-yellow-600" />
+              <div className="w-10 h-10 rounded-xl bg-amber-50 border border-slate-200/60 flex items-center justify-center">
+                <AlertCircle className="w-5 h-5 text-amber-700" />
+              </div>
               <div>
-                <div className="text-2xl font-bold text-yellow-900">
+                <div className="text-2xl font-semibold text-slate-900">
                   {interviews.filter(i => i.interviewStatus === 'Upcoming').length}
                 </div>
-                <div className="text-sm text-yellow-700">Upcoming (Next 24h)</div>
+                <div className="text-sm text-slate-600">Upcoming (next 24h)</div>
               </div>
             </div>
           </div>
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="bg-white border border-slate-200/70 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.03)] p-4">
             <div className="flex items-center gap-3">
-              <CheckCircle2 className="w-8 h-8 text-green-600" />
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-slate-200/60 flex items-center justify-center">
+                <CheckCircle2 className="w-5 h-5 text-emerald-700" />
+              </div>
               <div>
-                <div className="text-2xl font-bold text-green-900">
+                <div className="text-2xl font-semibold text-slate-900">
                   {interviews.filter(i => i.interviewStatus === 'Completed').length}
                 </div>
-                <div className="text-sm text-green-700">Completed</div>
+                <div className="text-sm text-slate-600">Completed</div>
               </div>
             </div>
           </div>
