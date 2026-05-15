@@ -217,6 +217,8 @@ export default function UsersPage() {
   };
   const tableHeaders = ['Name', 'Email', 'Role', 'Active', ...portals.map(p => portalDisplayMap[p] || p.toUpperCase()), 'Actions'];
 
+  const normalizeDept = (value) => String(value || '').trim().toLowerCase();
+
   // Filter users based on search query
   const filteredUsers = useMemo(() => {
     // Ensure users is an array
@@ -369,9 +371,10 @@ export default function UsersPage() {
                       ? current.managerUserIds
                       : [];
 
+                  const deptKey = normalizeDept(dept);
                   const candidates = (Array.isArray(users) ? users : [])
-                    .filter((u) => (u?.active !== false))
-                    .filter((u) => String(u?.department || '').trim() === String(dept || '').trim())
+                    .filter((u) => u?.active !== false)
+                    .filter((u) => normalizeDept(u?.department) === deptKey)
                     .sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || '')));
 
                   const selectedUsers = candidates.filter((u) => draftValue.includes(String(u?.id || u?._id)));
@@ -433,7 +436,13 @@ export default function UsersPage() {
                             setDeptDraft((prev) => ({ ...prev, [dept]: selectedIds }));
                           }}
                           placeholder="Select managers..."
+                          emptyMessage="No employees in this department."
                         />
+                        {candidates.length === 0 && (
+                          <div className="mt-1 text-xs text-amber-700">
+                            No active employees with department &quot;{dept}&quot;. Update employee department in Project / Portal Access first.
+                          </div>
+                        )}
                         {selectedLabel && (
                           <div className="mt-1 text-xs text-gray-500 truncate">
                             Selected: {selectedLabel}

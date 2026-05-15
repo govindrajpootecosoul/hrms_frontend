@@ -108,14 +108,16 @@ function BentoCard({ className = '', children }) {
   );
 }
 
-function QuickAction({ icon: Icon, label, onClick }) {
+function QuickAction({ icon: Icon, label, onClick, disabled = false }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       className={[
-        'group flex flex-1 items-center gap-3 rounded-2xl border border-slate-200/70 bg-white/70 px-4 py-3 text-left backdrop-blur-md',
-        'transition hover:bg-slate-50',
+        'group relative z-10 flex flex-1 cursor-pointer items-center gap-3 rounded-2xl border border-slate-200/70 bg-white/70 px-4 py-3 text-left backdrop-blur-md',
+        'transition hover:bg-slate-50 hover:border-slate-300',
+        disabled ? 'pointer-events-none opacity-50' : '',
       ].join(' ')}
     >
       <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-900 text-white">
@@ -150,6 +152,8 @@ const EmployeePortalHome = () => {
   const [loadingData, setLoadingData] = useState(false);
   const [timeState, setTimeState] = useState(() => loadInitialState());
   const [checkInHistory, setCheckInHistory] = useState([]);
+  const [departmentTeam, setDepartmentTeam] = useState(null);
+  const [loadingDepartmentTeam, setLoadingDepartmentTeam] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [now, setNow] = useState(new Date());
   const [serverOffsetMs, setServerOffsetMs] = useState(0);
@@ -405,6 +409,42 @@ const EmployeePortalHome = () => {
     };
     fetchDashboard();
   }, [user, selectedCompany]);
+
+  // Same-department team list (P/A; managers also see check-in time)
+  useEffect(() => {
+    const fetchDepartmentTeam = async () => {
+      if (!user?.employeeId) return;
+      try {
+        setLoadingDepartmentTeam(true);
+        const token = localStorage.getItem('auth_token');
+        const company = selectedCompany || (typeof window !== 'undefined' ? sessionStorage.getItem('selectedCompany') : null);
+        const params = new URLSearchParams();
+        params.append('employeeId', user.employeeId);
+        if (user?.id) params.append('userId', user.id);
+        if (company) params.append('company', company);
+
+        const headers = { ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+        if (company) headers['x-company'] = company;
+
+        const res = await fetch(`/api/portals/employee-portal/department-team?${params.toString()}`, { headers });
+        const json = await res.json().catch(() => null);
+        if (res.ok && json?.success && json?.data) {
+          setDepartmentTeam(json.data);
+        } else {
+          setDepartmentTeam(null);
+        }
+      } catch (err) {
+        console.error('Department team fetch failed', err);
+        setDepartmentTeam(null);
+      } finally {
+        setLoadingDepartmentTeam(false);
+      }
+    };
+
+    fetchDepartmentTeam();
+    const interval = setInterval(fetchDepartmentTeam, 60000);
+    return () => clearInterval(interval);
+  }, [user?.employeeId, user?.id, selectedCompany]);
 
   // Fetch check-in history from backend
   useEffect(() => {
@@ -801,7 +841,10 @@ const EmployeePortalHome = () => {
   const timeLogPendingCount = Number(dashboardData?.timeLogPendingCount ?? dashboardData?.pendingTimeLogs ?? 0);
   const showTimeLogStrip = Number.isFinite(timeLogPendingCount) && timeLogPendingCount > 0;
 
-  const departmentMemberStatus = dashboardData?.departmentMembersStatus || null;
+  const departmentTeamMembers = Array.isArray(departmentTeam?.members) ? departmentTeam.members : [];
+  const isDeptManager = Boolean(departmentTeam?.isManager);
+  const deptPresentCount = departmentTeam?.presentCount ?? 0;
+  const deptAbsentCount = departmentTeam?.absentCount ?? 0;
 
   const submitLeaveRequest = async () => {
     if (!user?.employeeId) return;
@@ -900,7 +943,7 @@ const EmployeePortalHome = () => {
         <div className="relative mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <QuickAction icon={Plane} label="Apply Leave" onClick={() => setLeaveOpen(true)} />
           <QuickAction icon={Headset} label="Company policy" onClick={() => {}} />
-          <QuickAction icon={CreditCard} label="Payslip" onClick={() => router.push('/employee-portal/requests')} />
+          <QuickAction icon={CreditCard} label="Payslip" onClick={() => router.push('/employee-portal/payslip')} />
         </div>
       </div>
 
@@ -963,17 +1006,76 @@ const EmployeePortalHome = () => {
 
             <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
               <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-slate-500" />
-                  <p className="text-sm font-semibold text-slate-900">Department members</p>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 shrink-0 text-slate-500" />
+                    <p className="text-sm font-semibold text-slate-900">My team</p>
+                  </div>
+                  {departmentTeam?.department ? (
+                    <p className="mt-0.5 truncate text-xs text-slate-500">{departmentTeam.department}</p>
+                  ) : null}
                 </div>
-                <Badge className="bg-slate-50 text-slate-700">
-                  {departmentMemberStatus?.presentCount != null ? `${departmentMemberStatus.presentCount} Present` : 'Status'}
+                <Badge className="shrink-0 bg-slate-50 text-slate-700">
+                  {loadingDepartmentTeam
+                    ? 'Loading…'
+                    : departmentTeamMembers.length > 0
+                      ? `${deptPresentCount} P · ${deptAbsentCount} A`
+                      : '—'}
                 </Badge>
               </div>
-              <p className="mt-1 text-xs text-slate-500">
-                {departmentMemberStatus?.summary || 'Live status will appear here once enabled.'}
-              </p>
+
+              <div className="mt-3 max-h-52 space-y-1.5 overflow-y-auto">
+                {loadingDepartmentTeam ? (
+                  <p className="text-xs text-slate-500">Loading team…</p>
+                ) : departmentTeamMembers.length === 0 ? (
+                  <p className="text-xs text-slate-500">
+                    {departmentTeam?.summary || 'No colleagues in your department yet.'}
+                  </p>
+                ) : (
+                  departmentTeamMembers.map((member) => {
+                    const isPresent = member.attendanceStatus === 'present' || member.statusCode === 'P';
+                    const statusCode = member.statusCode || (isPresent ? 'P' : 'A');
+                    return (
+                      <div
+                        key={member.employeeId}
+                        className={[
+                          'flex items-center gap-2 rounded-xl border px-2.5 py-2',
+                          member.isSelf ? 'border-purple-200 bg-purple-50/40' : 'border-slate-100 bg-slate-50/50',
+                        ].join(' ')}
+                      >
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-700">
+                          {String(member.name || '?').charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-semibold text-slate-900">
+                            {member.name}
+                            {member.isSelf ? (
+                              <span className="ml-1 font-normal text-slate-500">(You)</span>
+                            ) : null}
+                          </p>
+                        </div>
+                        <span
+                          className={[
+                            'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold',
+                            isPresent
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'bg-rose-100 text-rose-800',
+                          ].join(' ')}
+                          title={isPresent ? 'Present' : 'Absent'}
+                        >
+                          {statusCode}
+                        </span>
+                        {isDeptManager ? (
+                          <span className="w-16 shrink-0 text-right text-[11px] font-medium text-slate-600">
+                            {member.checkInTime || '—'}
+                          </span>
+                        ) : null}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
             </div>
           </div>
         </BentoCard>

@@ -88,20 +88,20 @@ function GlassCard({ className = '', children, tone = 'light' }) {
   );
 }
 
-function StatCard({ icon: Icon, label, value, sub }) {
+function KpiStatCard({ icon: Icon, title, value, badge, iconBg = 'bg-slate-50', iconColor = 'text-slate-700' }) {
   return (
-    <GlassCard className="p-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-          <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">{value}</p>
-          {sub ? <p className="mt-1 text-xs text-slate-500">{sub}</p> : null}
+    <div className="group rounded-2xl border border-slate-200/70 bg-white px-4 py-3 shadow-[0_4px_12px_rgba(0,0,0,0.03)] transition-all hover:-translate-y-0.5 hover:shadow-md">
+      <div className="flex items-center gap-3">
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200/60 ${iconBg}`}>
+          <Icon className={`h-5 w-5 ${iconColor}`} />
         </div>
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-700">
-          <Icon className="h-5 w-5" />
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[11px] font-medium uppercase tracking-wide text-slate-500">{title}</div>
+          <div className="text-xl font-semibold tracking-tight text-slate-900">{value}</div>
         </div>
+        {badge ? <div className="shrink-0 text-xs text-slate-500">{badge}</div> : null}
       </div>
-    </GlassCard>
+    </div>
   );
 }
 
@@ -893,26 +893,39 @@ export default function EmployeeAttendancePage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
-        <StatCard
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiStatCard
           icon={Clock4}
-          label="Total Hours"
+          title="Total hours"
           value={loadingData ? '—' : `${Number(totalHoursPast7Days || 0).toFixed(1)}h`}
-          sub="Past 7 days"
+          badge="Past 7 days"
+          iconBg="bg-slate-50"
+          iconColor="text-slate-700"
         />
-        <StatCard
+        <KpiStatCard
           icon={AlarmClock}
-          label="Current Month Hours"
+          title="Current month hours"
           value={loadingData ? '—' : `${Number(totalHoursThisMonthAccurate || 0).toFixed(1)}h`}
-          sub={currentMonthLabel}
+          badge={currentMonthLabel}
+          iconBg="bg-emerald-50"
+          iconColor="text-emerald-700"
         />
-        <StatCard
+        <KpiStatCard
           icon={Percent}
-          label={timeframe === 'prev' ? 'Selected Month Hours' : 'Previous Month Hours'}
+          title={timeframe === 'prev' ? 'Selected month hours' : 'Previous month hours'}
           value={loadingData ? '—' : `${Number(totalHoursPreviousMonthAccurate || 0).toFixed(1)}h`}
-          sub={timeframe === 'prev' ? selectedMonthLabel : 'Previous month'}
+          badge={timeframe === 'prev' ? selectedMonthLabel : 'Previous month'}
+          iconBg="bg-amber-50"
+          iconColor="text-amber-700"
         />
-        <StatCard icon={CalendarDays} label="Leave Balance" value={Number.isFinite(leaveBalance) ? `${leaveBalance} days` : '—'} sub="As available from backend" />
+        <KpiStatCard
+          icon={CalendarDays}
+          title="Leave balance"
+          value={Number.isFinite(leaveBalance) ? `${leaveBalance} days` : '—'}
+          badge="Available"
+          iconBg="bg-indigo-50"
+          iconColor="text-indigo-700"
+        />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[7fr_3fr]">
