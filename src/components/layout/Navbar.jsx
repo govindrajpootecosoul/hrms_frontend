@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Menu, X, Bell, User, LogOut, Settings, Home, ChevronDown, ChevronUp } from 'lucide-react';
+import { Menu, X, Bell, User, LogOut, Settings, Home, ChevronDown, ChevronUp, Check } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useCompany } from '@/lib/context/CompanyContext';
 import Button from '@/components/common/Button';
@@ -24,8 +24,11 @@ const Navbar = ({ onMenuToggle, isMenuOpen, menuItems = [] }) => {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [profileMenuPosition, setProfileMenuPosition] = useState({ top: 0, left: 0 });
   const [payrollCompanyFilter, setPayrollCompanyFilter] = useState('all');
+  const [isPayrollCompanyMenuOpen, setIsPayrollCompanyMenuOpen] = useState(false);
+  const [payrollFilterMenuPosition, setPayrollFilterMenuPosition] = useState({ top: 0, left: 0 });
   const buttonRefs = useRef({});
   const profileButtonRef = useRef(null);
+  const payrollFilterButtonRef = useRef(null);
   const pathname = usePathname();
   const router = useRouter();
   const isActive = (path, exactMatchOnly = false) => {
@@ -116,7 +119,14 @@ const Navbar = ({ onMenuToggle, isMenuOpen, menuItems = [] }) => {
     const fromSession = sessionStorage.getItem(PAYROLL_COMPANY_FILTER_SESSION_KEY);
     const fromCookie = readCookie(PAYROLL_COMPANY_FILTER_COOKIE);
     const resolved = (fromSession || fromCookie || 'all').trim();
-    setPayrollCompanyFilter(PAYROLL_COMPANY_FILTER_OPTIONS.includes(resolved) ? resolved : 'all');
+    const safe = PAYROLL_COMPANY_FILTER_OPTIONS.includes(resolved) ? resolved : 'all';
+    setPayrollCompanyFilter(safe);
+    // Keep session aligned with cookie-backed value so dashboard fetches read the same filter on first paint.
+    try {
+      sessionStorage.setItem(PAYROLL_COMPANY_FILTER_SESSION_KEY, safe);
+    } catch {
+      // ignore
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
@@ -169,9 +179,35 @@ const Navbar = ({ onMenuToggle, isMenuOpen, menuItems = [] }) => {
     };
   }, [isProfileMenuOpen]);
 
+  // Payroll company filter menu position
+  useEffect(() => {
+    if (!isPayrollCompanyMenuOpen) return;
+
+    const updatePosition = () => {
+      if (payrollFilterButtonRef.current) {
+        const rect = payrollFilterButtonRef.current.getBoundingClientRect();
+        const menuWidth = 280;
+        const left = Math.min(rect.left, window.innerWidth - menuWidth - 12);
+        setPayrollFilterMenuPosition({
+          top: rect.bottom + 8,
+          left: Math.max(8, left),
+        });
+      }
+    };
+
+    updatePosition();
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', updatePosition);
+
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
+    };
+  }, [isPayrollCompanyMenuOpen]);
+
   // Close dropdown when clicking outside
   useEffect(() => {
-    if (!openDropdown && !isProfileMenuOpen) return;
+    if (!openDropdown && !isProfileMenuOpen && !isPayrollCompanyMenuOpen) return;
     
     const handleClickOutside = (event) => {
       const target = event.target;
@@ -195,6 +231,14 @@ const Navbar = ({ onMenuToggle, isMenuOpen, menuItems = [] }) => {
           setIsProfileMenuOpen(false);
         }
       }
+
+      if (isPayrollCompanyMenuOpen) {
+        const clickedPayrollMenu = target.closest('[data-payroll-company-menu]');
+        const clickedPayrollTrigger = target.closest('[data-payroll-company-trigger]');
+        if (!clickedPayrollMenu && !clickedPayrollTrigger) {
+          setIsPayrollCompanyMenuOpen(false);
+        }
+      }
     };
     
     // Use a small delay to ensure dropdown is rendered before attaching listener
@@ -206,7 +250,7 @@ const Navbar = ({ onMenuToggle, isMenuOpen, menuItems = [] }) => {
       clearTimeout(timeoutId);
       document.removeEventListener('mousedown', handleClickOutside, true);
     };
-  }, [openDropdown, isProfileMenuOpen, menuItems, pathname]);
+  }, [openDropdown, isProfileMenuOpen, isPayrollCompanyMenuOpen, menuItems, pathname]);
 
   // Get company name (only use state, don't read sessionStorage during render to avoid hydration mismatch)
   const getCompanyName = () => {
@@ -334,36 +378,109 @@ const Navbar = ({ onMenuToggle, isMenuOpen, menuItems = [] }) => {
           <div className="flex flex-wrap items-center gap-3">
             {/* Thrive-only: Payroll company filter */}
             {shouldShowPayrollCompanyFilter && (
-              <div className="flex items-center gap-2 rounded-full bg-white/10 border border-white/10 px-3 h-10 backdrop-blur-sm">
-                <span className="text-xs text-white/80 whitespace-nowrap">Payroll</span>
-                <select
-                  value={payrollCompanyFilter}
-                  onChange={(e) => {
-                    const next = e.target.value;
-                    setPayrollCompanyFilter(next);
-                    if (typeof window !== 'undefined') {
-                      sessionStorage.setItem(PAYROLL_COMPANY_FILTER_SESSION_KEY, next);
-                      writeCookie(PAYROLL_COMPANY_FILTER_COOKIE, next);
-                      window.dispatchEvent(
-                        new CustomEvent('hrms:payrollCompanyChange', { detail: { payrollCompany: next } })
-                      );
-                    }
-                    router.refresh?.();
-                  }}
-                  className="bg-transparent text-white text-sm font-medium outline-none border-none focus:ring-0 cursor-pointer"
-                  style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
-                  title="Filter by payroll company"
+              <div className="relative flex items-center">
+                <div
+                  data-payroll-company-trigger
+                  className="flex items-center gap-2 rounded-full bg-white/10 border border-white/10 pl-3 pr-1.5 h-10 backdrop-blur-sm"
                 >
-                  <option value="all" className="text-slate-900">
-                    All
-                  </option>
-                  <option value="Genova Enterprises LLP" className="text-slate-900">
-                    Genova Enterprises LLP
-                  </option>
-                  <option value="Beacon IQ" className="text-slate-900">
-                    Beacon IQ
-                  </option>
-                </select>
+                  <span className="text-xs text-white/80 whitespace-nowrap">Payroll</span>
+                  <button
+                    ref={payrollFilterButtonRef}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (payrollFilterButtonRef.current) {
+                        const rect = payrollFilterButtonRef.current.getBoundingClientRect();
+                        const menuWidth = 280;
+                        const left = Math.min(rect.left, window.innerWidth - menuWidth - 12);
+                        setPayrollFilterMenuPosition({
+                          top: rect.bottom + 8,
+                          left: Math.max(8, left),
+                        });
+                      }
+                      setIsPayrollCompanyMenuOpen((open) => !open);
+                    }}
+                    className="flex items-center gap-1.5 rounded-full bg-white/5 hover:bg-white/15 px-2.5 py-1.5 text-white text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60 transition-colors"
+                    title="Filter by payroll company"
+                    aria-expanded={isPayrollCompanyMenuOpen}
+                    aria-haspopup="listbox"
+                  >
+                    <span className="max-w-[200px] truncate">
+                      {payrollCompanyFilter === 'all' ? 'All' : payrollCompanyFilter}
+                    </span>
+                    <ChevronDown
+                      className={`h-4 w-4 shrink-0 opacity-90 transition-transform ${isPayrollCompanyMenuOpen ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+                </div>
+
+                {isPayrollCompanyMenuOpen &&
+                  typeof window !== 'undefined' &&
+                  createPortal(
+                    <div
+                      data-payroll-company-menu
+                      role="listbox"
+                      className="bg-white rounded-xl shadow-xl border border-indigo-200/70 p-2 min-w-[260px] max-w-[min(320px,calc(100vw-24px))]"
+                      style={{
+                        zIndex: 10000,
+                        position: 'fixed',
+                        top: `${payrollFilterMenuPosition.top}px`,
+                        left: `${payrollFilterMenuPosition.left}px`,
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      onMouseDown={(e) => e.stopPropagation()}
+                    >
+                      <p className="px-3 pt-1 pb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                        Payroll company
+                      </p>
+                      <ul className="flex flex-col gap-1">
+                        {PAYROLL_COMPANY_FILTER_OPTIONS.map((value) => {
+                          const label = value === 'all' ? 'All' : value;
+                          const selected = payrollCompanyFilter === value;
+                          return (
+                            <li key={value}>
+                              <button
+                                type="button"
+                                role="option"
+                                aria-selected={selected}
+                                onClick={() => {
+                                  setPayrollCompanyFilter(value);
+                                  setIsPayrollCompanyMenuOpen(false);
+                                  if (typeof window !== 'undefined') {
+                                    sessionStorage.setItem(PAYROLL_COMPANY_FILTER_SESSION_KEY, value);
+                                    writeCookie(PAYROLL_COMPANY_FILTER_COOKIE, value);
+                                    window.dispatchEvent(
+                                      new CustomEvent('hrms:payrollCompanyChange', {
+                                        detail: { payrollCompany: value },
+                                      })
+                                    );
+                                  }
+                                  router.refresh?.();
+                                }}
+                                className={`w-full text-left rounded-lg px-3 py-2.5 text-sm transition-colors flex items-center gap-3 ${
+                                  selected
+                                    ? 'bg-indigo-50 text-indigo-900 font-medium'
+                                    : 'text-slate-700 hover:bg-slate-50'
+                                }`}
+                              >
+                                <span
+                                  className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                                    selected
+                                      ? 'border-indigo-600 bg-indigo-600 text-white'
+                                      : 'border-slate-300 bg-white'
+                                  }`}
+                                >
+                                  {selected ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
+                                </span>
+                                <span className="min-w-0 flex-1 leading-snug">{label}</span>
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>,
+                    document.body
+                  )}
               </div>
             )}
 

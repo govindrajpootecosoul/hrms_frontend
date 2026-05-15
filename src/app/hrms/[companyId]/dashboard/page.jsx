@@ -202,6 +202,7 @@ const Dashboard = () => {
       } catch {
         // ignore
       }
+      calendarLastKeyRef.current = '';
       setPayrollFilterRefreshToken(Date.now());
     };
     window.addEventListener('hrms:payrollCompanyChange', handler);
@@ -258,14 +259,18 @@ const Dashboard = () => {
   const [employees, setEmployees] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const statsEtagRef = useRef('');
-  const dashboardLoadInFlightRef = useRef(false);
   const dashboardLastKeyRef = useRef('');
-  const calendarLoadInFlightRef = useRef(false);
+  const dashboardReqIdRef = useRef(0);
   const calendarLastKeyRef = useRef('');
+  const calendarReqIdRef = useRef(0);
   const calendarAutoRetryRef = useRef(false);
   const calendarCompanyRetryCountRef = useRef(0);
   const DASHBOARD_CACHE_KEY = 'hrms_dashboard_cache_v1';
   const CALENDAR_CACHE_KEY = 'hrms_dashboard_calendar_cache_v1';
+
+  useEffect(() => {
+    calendarLastKeyRef.current = '';
+  }, [companyId]);
 
   // When user returns to the tab/window, revalidate the calendar (birthdays/anniversaries)
   // so new employee updates show without a hard refresh.
@@ -387,11 +392,13 @@ const Dashboard = () => {
         // ignore
       }
     };
-  }, [companyId, currentCompany, selectedDepartment, selectedDate, getLocalDateYyyyMmDd]);
+  }, [companyId, currentCompany, selectedDepartment, selectedDate, getLocalDateYyyyMmDd, payrollFilterRefreshToken]);
 
   useEffect(() => {
     // Fetch live data from API
     const loadData = async () => {
+      let loadReqId = 0;
+      let startedNetworkFetch = false;
       try {
         // Resolve company consistently (prefer currentCompany, then sessionStorage fallbacks)
         let company = currentCompany?.name || null;
@@ -411,8 +418,10 @@ const Dashboard = () => {
           date: selectedDate || null,
           payrollCompany: payrollCompanyKey,
         });
-        if (dashboardLoadInFlightRef.current) return;
         if (dashboardLastKeyRef.current === dashKey) return;
+
+        dashboardReqIdRef.current += 1;
+        loadReqId = dashboardReqIdRef.current;
         dashboardLastKeyRef.current = dashKey;
 
         // Try to reuse cached data (helps when switching tabs away/back)
@@ -422,6 +431,7 @@ const Dashboard = () => {
             const cached = raw ? JSON.parse(raw) : null;
             const fresh = cached && cached.key === dashKey && Date.now() - (cached.ts || 0) < 5 * 60 * 1000;
             if (fresh && cached.data) {
+              if (loadReqId !== dashboardReqIdRef.current) return;
               if (cached.data.dashboardData) {
                 let dash = cached.data.dashboardData;
 
@@ -452,7 +462,7 @@ const Dashboard = () => {
           }
         }
 
-        dashboardLoadInFlightRef.current = true;
+        startedNetworkFetch = true;
         setLoading(true);
         setError(null);
 
@@ -497,7 +507,9 @@ const Dashboard = () => {
 
         // Process stats immediately to show dashboard faster (skip if unchanged)
         const statsData = statsRes.status === 304 ? null : (statsRes.ok ? await statsRes.json() : null);
-        
+
+        if (loadReqId !== dashboardReqIdRef.current) return;
+
         // Set initial stats from attendance stats endpoint
         if (statsData && statsData.success && statsData.data) {
           console.log('[Dashboard] Attendance stats response:', statsData.data);
@@ -548,6 +560,8 @@ const Dashboard = () => {
           fetch(`/api/hrms/dashboard/upcoming-leaves-festivals${queryString ? `?${queryString}` : ''}`),
           fetch(`/api/hrms/dashboard/compliance-reminders${queryString ? `?${queryString}` : ''}`),
         ]);
+
+        if (loadReqId !== dashboardReqIdRef.current) return;
         
         // Load check-ins separately after main data loads (non-blocking)
         const checkInsPromise = fetch(`/api/hrms/dashboard/checkins${queryString ? `?${queryString}` : ''}`)
@@ -563,6 +577,8 @@ const Dashboard = () => {
         
         // Process check-ins separately (non-blocking)
         const checkInsData = await checkInsPromise;
+
+        if (loadReqId !== dashboardReqIdRef.current) return;
         
         // Update stats with check-ins count if available
         // Only update if the value actually changed to prevent unnecessary re-renders
@@ -606,14 +622,36 @@ const Dashboard = () => {
           upcomingLeavesAndFestivals: upcomingLeavesFestivalsData?.success && upcomingLeavesFestivalsData?.data 
             ? upcomingLeavesFestivalsData.data 
             : [],
-          // birthdayCalendar + workAnniversaryCalendar are loaded in a separate effect
+          // birthdayCalendar + workAnniversaryCalendar are filled by loadCalendar; keep [] here only as placeholders
           birthdayCalendar: [],
           workAnniversaryCalendar: [],
           complianceReminders: complianceRemindersData?.success && complianceRemindersData?.data 
             ? complianceRemindersData.data 
             : [],
         };
-        setDashboardData(dashboardDataSnapshot);
+        if (loadReqId !== dashboardReqIdRef.current) return;
+        // Do not wipe calendar slices if loadCalendar already populated them (effects run in parallel).
+        setDashboardData((prev) => {
+          const b = dashboardDataSnapshot.birthdayCalendar;
+          const w = dashboardDataSnapshot.workAnniversaryCalendar;
+          const bNext =
+            Array.isArray(b) && b.length > 0
+              ? b
+              : Array.isArray(prev?.birthdayCalendar) && prev.birthdayCalendar.length > 0
+                ? prev.birthdayCalendar
+                : [];
+          const wNext =
+            Array.isArray(w) && w.length > 0
+              ? w
+              : Array.isArray(prev?.workAnniversaryCalendar) && prev.workAnniversaryCalendar.length > 0
+                ? prev.workAnniversaryCalendar
+                : [];
+          return {
+            ...dashboardDataSnapshot,
+            birthdayCalendar: bNext,
+            workAnniversaryCalendar: wNext,
+          };
+        });
 
         // Fetch command center aggregates (department distribution, trends, ratios)
         try {
@@ -628,6 +666,7 @@ const Dashboard = () => {
             cache: 'no-store',
           });
           const ccJson = ccRes.ok ? await ccRes.json() : null;
+          if (loadReqId !== dashboardReqIdRef.current) return;
           if (ccJson?.success) {
             commandCenterSnapshot = ccJson.data;
             setCommandCenter(ccJson.data);
@@ -639,6 +678,7 @@ const Dashboard = () => {
 
         // Save cache (for tab switching/back navigation)
         if (typeof window !== 'undefined') {
+          if (loadReqId !== dashboardReqIdRef.current) return;
           try {
             sessionStorage.setItem(
               DASHBOARD_CACHE_KEY,
@@ -657,23 +697,26 @@ const Dashboard = () => {
           }
         }
       } catch (err) {
-        console.error('Error loading dashboard data:', err);
-        setError(err.message);
-        // Fallback to minimal data
-        setDashboardData({
-          stats: { totalEmployees: 0, activeEmployees: 0, presentToday: 0, absentToday: 0, onLeaveToday: 0, wfhToday: 0, lateCheckIns: 0, leaveApprovals: 0, todayAttendance: 0, pendingLeaves: 0, upcomingBirthdays: 0 },
-          monthlyHeadcounts: [],
-          recentActivities: [],
-          upcomingEvents: [],
-          upcomingLeavesAndFestivals: [],
-          birthdayCalendar: [],
-          workAnniversaryCalendar: [],
-          complianceReminders: [],
-        });
-        setStats({ totalEmployees: 0, activeEmployees: 0, presentToday: 0, absentToday: 0, onLeaveToday: 0, wfhToday: 0, lateCheckIns: 0, leaveApprovals: 0, todayAttendance: 0, pendingLeaves: 0, upcomingBirthdays: 0 });
+        if (startedNetworkFetch && loadReqId === dashboardReqIdRef.current) {
+          console.error('Error loading dashboard data:', err);
+          setError(err.message);
+          // Fallback to minimal data; keep calendar if it was already loaded
+          setDashboardData((prev) => ({
+            stats: { totalEmployees: 0, activeEmployees: 0, presentToday: 0, absentToday: 0, onLeaveToday: 0, wfhToday: 0, lateCheckIns: 0, leaveApprovals: 0, todayAttendance: 0, pendingLeaves: 0, upcomingBirthdays: 0 },
+            monthlyHeadcounts: [],
+            recentActivities: [],
+            upcomingEvents: [],
+            upcomingLeavesAndFestivals: [],
+            birthdayCalendar: Array.isArray(prev?.birthdayCalendar) ? prev.birthdayCalendar : [],
+            workAnniversaryCalendar: Array.isArray(prev?.workAnniversaryCalendar) ? prev.workAnniversaryCalendar : [],
+            complianceReminders: [],
+          }));
+          setStats({ totalEmployees: 0, activeEmployees: 0, presentToday: 0, absentToday: 0, onLeaveToday: 0, wfhToday: 0, lateCheckIns: 0, leaveApprovals: 0, todayAttendance: 0, pendingLeaves: 0, upcomingBirthdays: 0 });
+        }
       } finally {
-        dashboardLoadInFlightRef.current = false;
-        setLoading(false);
+        if (startedNetworkFetch && loadReqId === dashboardReqIdRef.current) {
+          setLoading(false);
+        }
       }
     };
     
@@ -684,6 +727,7 @@ const Dashboard = () => {
   // Calendar data (birthdays + work anniversaries): fetch only when calendar month or filters change.
   useEffect(() => {
     const loadCalendar = async () => {
+      let calLoadReqId = 0;
       try {
         // Resolve company consistently (prefer currentCompany, then sessionStorage fallbacks)
         let company = currentCompany?.name || null;
@@ -716,8 +760,10 @@ const Dashboard = () => {
           refresh: calendarRefreshToken || 0,
           payrollCompany: payrollCompanyKey,
         });
-        if (calendarLoadInFlightRef.current) return;
         if (calendarLastKeyRef.current === calKey) return;
+
+        calendarReqIdRef.current += 1;
+        calLoadReqId = calendarReqIdRef.current;
         calendarLastKeyRef.current = calKey;
 
         // Try cache for calendar (tab switch/back)
@@ -727,6 +773,7 @@ const Dashboard = () => {
             const cached = raw ? JSON.parse(raw) : null;
             const fresh = cached && cached.key === calKey && Date.now() - (cached.ts || 0) < 30 * 60 * 1000;
             if (fresh && cached.data) {
+              if (calLoadReqId !== calendarReqIdRef.current) return;
               setDashboardData((prev) => ({
                 ...(prev || {}),
                 birthdayCalendar: cached.data.birthdayCalendar || [],
@@ -738,8 +785,6 @@ const Dashboard = () => {
             // ignore
           }
         }
-
-        calendarLoadInFlightRef.current = true;
 
         const cal = selectedCalendarMonth || new Date();
         const calAnchor = `${cal.getFullYear()}-${String(cal.getMonth() + 1).padStart(2, '0')}-01`;
@@ -771,12 +816,16 @@ const Dashboard = () => {
           }),
         ]);
 
+        if (calLoadReqId !== calendarReqIdRef.current) return;
+
         const birthdaysData = birthdaysRes.ok ? await birthdaysRes.json() : null;
         const workAnniversariesData = anniversariesRes.ok ? await anniversariesRes.json() : null;
 
         const birthdayCalendar = birthdaysData?.success && birthdaysData?.data ? birthdaysData.data : [];
         const workAnniversaryCalendar =
           workAnniversariesData?.success && workAnniversariesData?.data ? workAnniversariesData.data : [];
+
+        if (calLoadReqId !== calendarReqIdRef.current) return;
 
         setDashboardData((prev) => ({
           ...(prev || {}),
@@ -798,6 +847,7 @@ const Dashboard = () => {
         }
 
         if (typeof window !== 'undefined') {
+          if (calLoadReqId !== calendarReqIdRef.current) return;
           try {
             sessionStorage.setItem(
               CALENDAR_CACHE_KEY,
@@ -813,8 +863,7 @@ const Dashboard = () => {
         }
       } catch (e) {
         console.warn('[Dashboard] calendar fetch failed:', e?.message || e);
-      } finally {
-        calendarLoadInFlightRef.current = false;
+        calendarLastKeyRef.current = '';
       }
     };
 
@@ -826,7 +875,14 @@ const Dashboard = () => {
     const fetchEmployees = async () => {
       try {
         const token = localStorage.getItem('auth_token');
-        const company = currentCompany?.name || companyId;
+        let company = currentCompany?.name || null;
+        if (!company && typeof window !== 'undefined') {
+          company =
+            sessionStorage.getItem('selectedCompany') ||
+            sessionStorage.getItem('adminSelectedCompany') ||
+            (companyId ? sessionStorage.getItem(`company_${companyId}`) : null);
+        }
+        if (!company) company = companyId;
         
         const params = new URLSearchParams();
         if (company) {
@@ -861,7 +917,7 @@ const Dashboard = () => {
     };
 
     fetchEmployees();
-  }, [companyId, currentCompany, selectedDepartment]);
+  }, [companyId, currentCompany, selectedDepartment, payrollFilterRefreshToken]);
 
   // Fetch attendance data for employee modal
   useEffect(() => {
@@ -923,7 +979,7 @@ const Dashboard = () => {
     };
 
     fetchAttendance();
-  }, [companyId, currentCompany, selectedDate, selectedDepartment]);
+  }, [companyId, currentCompany, selectedDate, selectedDepartment, payrollFilterRefreshToken]);
 
   // Filter employees by status
   const getFilteredEmployees = (filterType) => {

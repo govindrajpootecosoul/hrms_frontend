@@ -74,9 +74,12 @@ export const AdminPortalProvider = ({ children }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCompany]);
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (opts = {}) => {
+    const { silent = false } = opts;
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
       setError(null);
       
       // Build API URL with company filter if available
@@ -120,7 +123,9 @@ export const AdminPortalProvider = ({ children }) => {
       // Set empty array on error to prevent showing stale data
       setUsers([]);
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
@@ -207,8 +212,11 @@ export const AdminPortalProvider = ({ children }) => {
       const data = await response.json();
       
       if (data.success) {
-        // Refresh users list
-        await fetchUsers();
+        if (data.user) {
+          setUsers((prev) => [...prev, data.user]);
+        } else {
+          await fetchUsers({ silent: true });
+        }
         return data.user;
       } else {
         throw new Error(data.error || 'Failed to create user');
@@ -238,8 +246,14 @@ export const AdminPortalProvider = ({ children }) => {
       const data = await response.json();
       
       if (data.success) {
-        // Refresh users list
-        await fetchUsers();
+        if (data.user) {
+          const uid = String(data.user.id || data.user._id || '');
+          setUsers((prev) =>
+            prev.map((u) => (String(u.id || u._id) === uid ? { ...u, ...data.user } : u))
+          );
+        } else {
+          await fetchUsers({ silent: true });
+        }
         return data.user;
       } else {
         throw new Error(data.error || 'Failed to update user');
@@ -265,8 +279,8 @@ export const AdminPortalProvider = ({ children }) => {
       const data = await response.json();
       
       if (data.success) {
-        // Refresh users list
-        await fetchUsers();
+        const sid = String(id);
+        setUsers((prev) => prev.filter((u) => String(u.id || u._id) !== sid));
       } else {
         throw new Error(data.error || 'Failed to delete user');
       }
@@ -291,8 +305,12 @@ export const AdminPortalProvider = ({ children }) => {
       const data = await response.json();
       
       if (data.success) {
-        // Refresh users list
-        await fetchUsers();
+        const sid = String(id);
+        setUsers((prev) =>
+          prev.map((u) =>
+            String(u.id || u._id) === sid ? { ...u, active: data.active !== false } : u
+          )
+        );
       } else {
         throw new Error(data.error || 'Failed to toggle user status');
       }
