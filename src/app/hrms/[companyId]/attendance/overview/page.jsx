@@ -32,6 +32,7 @@ const AttendanceOverviewPage = () => {
   const [employees, setEmployees] = useState([]);
   const [stats, setStats] = useState({
     totalEmployees: 0,
+    activeEmployees: 0,
     presentToday: 0,
     absentToday: 0,
     onLeaveToday: 0,
@@ -211,6 +212,8 @@ const AttendanceOverviewPage = () => {
             console.log('[Attendance Overview] Setting stats:', statsJson.data);
             setStats({
               totalEmployees: statsJson.data.totalEmployees || 0,
+              activeEmployees:
+                statsJson.data.activeEmployees ?? statsJson.data.totalEmployees ?? 0,
               presentToday: statsJson.data.presentToday || 0,
               absentToday: statsJson.data.absentToday || 0,
               onLeaveToday: statsJson.data.onLeaveToday || 0,
@@ -376,16 +379,16 @@ const AttendanceOverviewPage = () => {
 
   // Calculate attendance distribution for chart
   const attendanceDistribution = useMemo(() => {
-    const totalEmployees = stats.totalEmployees || 1;
+    const headcount = (stats.activeEmployees ?? stats.totalEmployees) || 1;
     const presentCount = stats.presentToday;
     const absentCount = stats.absentToday;
     const onLeaveCount = stats.onLeaveToday;
     const wfhCount = stats.onWFHToday;
     
-    const presentPercent = Math.round((presentCount / totalEmployees) * 100);
-    const absentPercent = Math.round((absentCount / totalEmployees) * 100);
-    const onLeavePercent = Math.round((onLeaveCount / totalEmployees) * 100);
-    const wfhPercent = Math.round((wfhCount / totalEmployees) * 100);
+    const presentPercent = Math.round((presentCount / headcount) * 100);
+    const absentPercent = Math.round((absentCount / headcount) * 100);
+    const onLeavePercent = Math.round((onLeaveCount / headcount) * 100);
+    const wfhPercent = Math.round((wfhCount / headcount) * 100);
     
     return {
       data: [presentPercent, absentPercent, onLeavePercent, wfhPercent],
@@ -630,7 +633,9 @@ const AttendanceOverviewPage = () => {
     
     switch (filterType) {
       case 'total':
-        return employees.map(emp => {
+        return employees
+          .filter((emp) => emp.active !== false)
+          .map((emp) => {
           const attendanceRecord = attendance.find(a => 
             a.biometricId === emp.biometricId || 
             a.employeeName === emp.name
@@ -920,7 +925,7 @@ const AttendanceOverviewPage = () => {
         {/* First row - 4 cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            { title: 'Total employees', value: stats.totalEmployees, icon: Users, iconBg: 'bg-slate-50', iconColor: 'text-slate-700', filterType: 'total' },
+            { title: 'Total active employees', value: stats.activeEmployees ?? stats.totalEmployees ?? 0, icon: Users, iconBg: 'bg-slate-50', iconColor: 'text-slate-700', filterType: 'total' },
             { title: 'Present', value: stats.presentToday, icon: UserCheck, iconBg: 'bg-emerald-50', iconColor: 'text-emerald-700', filterType: 'present' },
             { title: 'Absent', value: stats.absentToday, icon: UserX, iconBg: 'bg-rose-50', iconColor: 'text-rose-700', filterType: 'absent' },
             { title: 'On leave', value: stats.onLeaveToday, icon: CalendarDays, iconBg: 'bg-amber-50', iconColor: 'text-amber-700', filterType: 'on-leave' },
