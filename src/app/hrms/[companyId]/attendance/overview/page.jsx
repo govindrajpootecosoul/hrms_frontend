@@ -69,6 +69,7 @@ const AttendanceOverviewPage = () => {
         if (company) {
           params.append('company', company);
         }
+        params.append('status', 'active');
 
         const headers = {
           ...(token ? { Authorization: `Bearer ${token}` } : {})
@@ -466,22 +467,6 @@ const AttendanceOverviewPage = () => {
     };
   }, [attendance]);
 
-  // Sales Person Attendance data
-  const salesPersonAttendance = useMemo(() => {
-    const salesTeam = attendance.filter(record => 
-      record.department === 'Sales' &&
-      record.status === 'present'
-    );
-    
-    return salesTeam.map(record => ({
-      id: record.id,
-      employeeName: record.employeeName,
-      checkIn: record.timeIn || '-',
-      checkOut: record.timeOut || '-',
-      status: record.isLate ? 'Late' : 'Present'
-    }));
-  }, [attendance]);
-
   // Filtered attendance for main table
   const filteredAttendance = useMemo(() => {
     let filtered = [...attendance];
@@ -605,6 +590,14 @@ const AttendanceOverviewPage = () => {
   const getFilteredEmployees = (filterType) => {
     const today = getLocalDateYyyyMmDd();
 
+    const isActiveEmployee = (emp) => {
+      if (!emp) return false;
+      if (emp.active === false) return false;
+      const st = String(emp.status || '').trim().toLowerCase();
+      if (['inactive', 'terminated', 'resigned'].includes(st)) return false;
+      return true;
+    };
+
     const normalizeId = (v) => {
       if (v == null) return null;
       const s = String(v).trim();
@@ -634,7 +627,7 @@ const AttendanceOverviewPage = () => {
     switch (filterType) {
       case 'total':
         return employees
-          .filter((emp) => emp.active !== false)
+          .filter((emp) => isActiveEmployee(emp))
           .map((emp) => {
           const attendanceRecord = attendance.find(a => 
             a.biometricId === emp.biometricId || 
@@ -693,6 +686,7 @@ const AttendanceOverviewPage = () => {
         );
         
         return employees
+          .filter((emp) => isActiveEmployee(emp))
           .filter(emp => {
             const candidates = getEmployeeIdCandidates(emp);
             // If any identifier matches a "present/leave/wfh" identifier, exclude from absent list.
@@ -755,6 +749,11 @@ const AttendanceOverviewPage = () => {
         return [];
     }
   };
+
+  const modalEmployeeRows = useMemo(() => {
+    if (!showEmployeeModal || !modalFilterType) return [];
+    return getFilteredEmployees(modalFilterType);
+  }, [showEmployeeModal, modalFilterType, employees, attendance]);
 
   // Handle card click
   const handleCardClick = (filterType, title) => {
@@ -1056,50 +1055,6 @@ const AttendanceOverviewPage = () => {
         </Card>
       </div>
 
-      {/* Sales Person Attendance Table */}
-      <Card
-        title="Sales Person Attendance"
-        subtitle="Today's attendance for Sales team"
-        className="border border-slate-200/70 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.03)]"
-      >
-        <Table
-          columns={[
-            {
-              key: 'employeeName',
-              title: 'Employee Name',
-              render: (value) => <div className="font-medium text-slate-900">{value}</div>
-            },
-            {
-              key: 'checkIn',
-              title: 'Check-in',
-              render: (value) => <span className="text-slate-700">{value}</span>
-            },
-            {
-              key: 'checkOut',
-              title: 'Check-out',
-              render: (value) => <span className="text-slate-700">{value}</span>
-            },
-            {
-              key: 'status',
-              title: 'Status',
-              render: (value) => {
-                const colorMap = {
-                  'Present': 'bg-green-100 text-green-800 border-green-200',
-                  'Late': 'bg-yellow-100 text-yellow-800 border-yellow-200'
-                };
-                return (
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium border ${colorMap[value] || 'bg-gray-100 text-gray-800 border-gray-200'}`}>
-                    {value}
-                  </span>
-                );
-              }
-            }
-          ]}
-          data={salesPersonAttendance}
-          emptyMessage="No sales person attendance data for today"
-        />
-      </Card>
-
       {/* Attendance Log - Daily Basis */}
       <Card
         title="Attendance Log - Daily Basis"
@@ -1354,7 +1309,9 @@ const AttendanceOverviewPage = () => {
         <div className="space-y-4">
           <div className="flex items-center justify-between mb-4">
             <div className="text-sm text-slate-600">
-              Showing {getFilteredEmployees(modalFilterType).length} employee(s)
+              {modalFilterType === 'total'
+                ? `Showing ${modalEmployeeRows.length} active employee(s)`
+                : `Showing ${modalEmployeeRows.length} employee(s)`}
             </div>
             <Button
               onClick={handleExportToExcel}
@@ -1429,7 +1386,7 @@ const AttendanceOverviewPage = () => {
                   }
                 }
               ]}
-              data={getFilteredEmployees(modalFilterType)}
+              data={modalEmployeeRows}
               emptyMessage="No employees found"
             />
           </div>
